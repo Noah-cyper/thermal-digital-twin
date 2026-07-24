@@ -35,10 +35,10 @@
 | `05-10-asset-model.md` | Asset Model | L1 | ✔ | **Xong** |
 | `05-11-data-contract-persistence.md` | Data Contract + Persistence | L1 | ✔ | **Xong** |
 | `05-12-event-bus.md` | Event Bus | L1 | ✔ | **Xong** |
-| `05-13-config-store.md` | Config Store | L1 | ✔ | chờ |
-| `05-14-time-service.md` | Time Service | L1 | ✔ | chờ |
-| `05-15-faceplate.md` | Faceplate | L2 | ✔ (cơ bản) | chờ |
-| `05-16-navigation.md` | Navigation | L2 | ✔ | chờ |
+| `05-13-config-store.md` | Config Store | L1 | ✔ | **Xong** |
+| `05-14-time-service.md` | Time Service | L1 | ✔ | **Xong** |
+| `05-15-faceplate.md` | Faceplate | L2 | ✔ (cơ bản) | **Xong** |
+| `05-16-navigation.md` | Navigation | L2 | ✔ | **Xong** |
 | `05-17-report-kpi.md` | Report/KPI | L2 | v1 (template) | chờ |
 | `05-18-maintenance.md` | Maintenance | L2 | v1‑complete | chờ |
 | `05-19-ai-advisor.md` | AI Advisor | L2 | **v2** | chờ |
