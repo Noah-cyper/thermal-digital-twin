@@ -39,9 +39,9 @@
 | `05-14-time-service.md` | Time Service | L1 | ✔ | **Xong** |
 | `05-15-faceplate.md` | Faceplate | L2 | ✔ (cơ bản) | **Xong** |
 | `05-16-navigation.md` | Navigation | L2 | ✔ | **Xong** |
-| `05-17-report-kpi.md` | Report/KPI | L2 | v1 (template) | chờ |
-| `05-18-maintenance.md` | Maintenance | L2 | v1‑complete | chờ |
-| `05-19-ai-advisor.md` | AI Advisor | L2 | **v2** | chờ |
+| `05-17-report-kpi.md` | Report/KPI | L2 | v1 (template) | **Xong** |
+| `05-18-maintenance.md` | Maintenance | L2 | v1‑complete | **Xong** |
+| `05-19-ai-advisor.md` | AI Advisor | L2 | **v2** | **Xong** |
 
 > Audit gộp trong `05-07` (Security/RBAC + Audit theo §4). Digital Twin Engine **không** có spec
 > (đã xoá, doc 02 §4).
