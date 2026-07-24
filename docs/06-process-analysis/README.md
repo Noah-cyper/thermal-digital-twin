@@ -18,9 +18,9 @@ Faceplate · Tag · Animation · Sequence · SOP.
 | `06-04-fans-fd-id-pa.md` | FD / ID / PA Fans | Boiler Island | **Xong** |
 | `06-05-air-heater.md` | Air Heater | Boiler Island | **Xong** |
 | `06-06-economizer.md` | Economizer | Boiler Island | **Xong** |
-| `06-07-main-steam.md` | Main Steam (SH) | Boiler Island | chờ |
-| `06-08-steam-temp-control.md` | SH/RH Temp Control | Boiler Island | chờ |
-| `06-09-boiler-protection.md` | Boiler Protection (MFT) | Boiler Island | chờ |
+| `06-07-main-steam.md` | Main Steam (SH) | Boiler Island | **Xong** |
+| `06-08-steam-temp-control.md` | SH/RH Temp Control | Boiler Island | **Xong** |
+| `06-09-boiler-protection.md` | Boiler Protection (MFT) | Boiler Island | **Xong** |
 | `06-20…59` | Turbine · Generator · Electrical · BoP | v1‑complete | chờ |
 
 > Tiêu chí nghiệm thu (§10): ≥ 40 hệ · ≥ 3.000 tag · ≥ 600 alarm · ≥ 25 loop · ≥ 8 sequence.
