@@ -1,0 +1,381 @@
+<title>IDTP — Design Status Board</title>
+<style>
+  :root{
+    --bg:#EDF0F3; --panel:#FFFFFF; --panel2:#F4F6F8; --border:#D3DAE1;
+    --line:#6B7580; --text:#161B21; --dim:#566270; --faint:#8A94A0;
+    --accent:#2563C9; --accent-dim:rgba(37,99,201,.10);
+    --ok:#1E8F44; --p1:#CE3438; --p2:#B4720F; --p3:#8A7400; --pending:#9AA3AD; --bad:#8E3FCF;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono","Cascadia Code",Consolas,monospace;
+    --sans:ui-sans-serif,-apple-system,"Segoe UI",Roboto,system-ui,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#12161B; --panel:#1E242B; --panel2:#181D23; --border:#2E3742;
+      --line:#8A939C; --text:#E6EAEE; --dim:#9AA5B1; --faint:#6B7580;
+      --accent:#4C9AFF; --accent-dim:rgba(76,154,255,.14);
+      --ok:#2FA84F; --p1:#E5484D; --p2:#F5A524; --p3:#F5D90A; --pending:#6B7280; --bad:#B14CFF;
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#EDF0F3; --panel:#FFFFFF; --panel2:#F4F6F8; --border:#D3DAE1;
+    --line:#6B7580; --text:#161B21; --dim:#566270; --faint:#8A94A0;
+    --accent:#2563C9; --accent-dim:rgba(37,99,201,.10);
+    --ok:#1E8F44; --p1:#CE3438; --p2:#B4720F; --p3:#8A7400; --pending:#9AA3AD; --bad:#8E3FCF;
+  }
+  :root[data-theme="dark"]{
+    --bg:#12161B; --panel:#1E242B; --panel2:#181D23; --border:#2E3742;
+    --line:#8A939C; --text:#E6EAEE; --dim:#9AA5B1; --faint:#6B7580;
+    --accent:#4C9AFF; --accent-dim:rgba(76,154,255,.14);
+    --ok:#2FA84F; --p1:#E5484D; --p2:#F5A524; --p3:#F5D90A; --pending:#6B7280; --bad:#B14CFF;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);
+    font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1200px;margin:0 auto;padding:16px}
+  .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+
+  /* Banner */
+  .banner{border:1px solid var(--border);background:var(--panel);padding:14px 16px;
+    display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between}
+  .banner .id h1{margin:0;font-size:17px;letter-spacing:.02em;font-weight:650}
+  .banner .id .sub{font-family:var(--mono);font-size:11.5px;color:var(--accent);margin-top:3px}
+  .db{display:flex;flex-wrap:wrap;gap:0;border:1px solid var(--border)}
+  .db .cell{padding:6px 12px;border-right:1px solid var(--border);min-width:78px}
+  .db .cell:last-child{border-right:0}
+  .db .k{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint)}
+  .db .v{font-family:var(--mono);font-size:14px;font-weight:600;margin-top:2px}
+
+  /* Board grid — hairline tiled panels */
+  .board{display:grid;grid-template-columns:repeat(12,1fr);gap:1px;background:var(--border);
+    border:1px solid var(--border);margin-top:1px}
+  .panel{background:var(--panel);padding:14px 15px;min-width:0}
+  .panel > h2{margin:0 0 12px;font-family:var(--mono);font-size:11.5px;letter-spacing:.11em;
+    text-transform:uppercase;color:var(--dim);display:flex;align-items:center;gap:8px}
+  .panel > h2::before{content:"";width:3px;height:12px;background:var(--accent);flex:none}
+  .s3{grid-column:span 3}.s5{grid-column:span 5}.s6{grid-column:span 6}
+  .s7{grid-column:span 7}.s12{grid-column:span 12}
+
+  /* KPI tiles */
+  .kpi .big{font-family:var(--mono);font-size:30px;font-weight:650;letter-spacing:-.01em;line-height:1.05}
+  .kpi .unit{font-size:14px;color:var(--dim);font-weight:500}
+  .kpi .cap{font-size:12px;color:var(--dim);margin-top:6px}
+  .kpi .note{font-size:11px;color:var(--faint);margin-top:4px}
+
+  /* chips / status */
+  .chip{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:10px;
+    letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border:1px solid var(--border);
+    border-radius:2px;color:var(--dim);white-space:nowrap}
+  .chip.b{border-color:var(--accent);color:var(--accent)}
+  .dot{width:7px;height:7px;flex:none;border-radius:1px;display:inline-block}
+  .dot.ok{background:var(--ok)}.dot.p1{background:var(--p1)}.dot.p2{background:var(--p2)}
+  .dot.pend{background:var(--pending)}.dot.bad{background:var(--bad)}.dot.acc{background:var(--accent)}
+
+  /* doc tracker */
+  .docs{display:grid;grid-template-columns:repeat(9,1fr);gap:4px}
+  .doc{position:relative;border:1px solid var(--border);background:var(--panel2);
+    padding:7px 4px 6px;text-align:center;text-decoration:none;color:var(--text);border-radius:2px;
+    display:flex;flex-direction:column;gap:2px;min-height:44px;justify-content:center}
+  .doc::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:var(--pending)}
+  .doc.done::before{background:var(--ok)} .doc.wip::before{background:var(--p2)}
+  .doc .no{font-family:var(--mono);font-size:13px;font-weight:650}
+  .doc .nm{font-family:var(--mono);font-size:8px;color:var(--dim);line-height:1.1;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .doc.pending .no{color:var(--faint)}
+  .legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:11px;font-size:11px;color:var(--dim)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+
+  /* DT ladder */
+  .ladder{display:flex;flex-direction:column;gap:5px}
+  .rung{display:flex;align-items:center;gap:10px;border:1px solid var(--border);padding:8px 10px;
+    border-radius:2px;background:var(--panel2)}
+  .rung.on{border-color:var(--ok);background:var(--accent-dim)}
+  .rung .lv{font-family:var(--mono);font-weight:650;font-size:13px;width:26px;flex:none}
+  .rung.on .lv{color:var(--ok)}
+  .rung .t{font-size:13px}.rung .t b{font-weight:600}
+  .rung .q{font-size:11px;color:var(--dim)}
+  .rung .tag{margin-left:auto}
+
+  /* layer stack */
+  .stack{display:flex;flex-direction:column;gap:3px}
+  .layer{display:flex;align-items:center;gap:11px;border:1px solid var(--border);
+    border-left:3px solid var(--accent);padding:8px 11px;background:var(--panel2);border-radius:2px}
+  .layer .lx{font-family:var(--mono);font-weight:650;font-size:12px;width:24px;flex:none}
+  .layer .nm{font-size:12.5px;font-weight:600;width:132px;flex:none}
+  .layer .co{font-family:var(--mono);font-size:10.5px;color:var(--dim);line-height:1.35;min-width:0}
+  .layer .vr{margin-left:auto;flex:none}
+
+  /* roadmap */
+  .road{display:flex;flex-direction:column;gap:10px}
+  .phbar{display:grid;grid-template-columns:4fr 3fr 3fr 2fr;gap:2px}
+  .ph{border:1px solid var(--border);border-top:2px solid var(--accent);padding:7px 8px;
+    background:var(--panel2);border-radius:2px}
+  .ph .p{font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--accent);text-transform:uppercase}
+  .ph .w{font-family:var(--mono);font-size:11px;font-weight:600;margin-top:2px}
+  .ph .d{font-size:10.5px;color:var(--dim);margin-top:3px;line-height:1.3}
+  .vers{display:flex;flex-direction:column;gap:3px}
+  .ver{display:flex;gap:9px;align-items:baseline;border:1px solid var(--border);padding:6px 9px;border-radius:2px}
+  .ver .vn{font-family:var(--mono);font-weight:650;font-size:11px;width:22px;flex:none;color:var(--accent)}
+  .ver .vt{font-size:11.5px;color:var(--dim)}.ver .vt b{color:var(--text);font-weight:600}
+
+  /* engine list */
+  .eng{display:grid;grid-template-columns:1fr 1fr;gap:3px 10px}
+  .er{display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px}
+  .er .st{width:8px;height:8px;flex:none;border-radius:1px}
+  .er .en{font-family:var(--mono);font-size:11px}
+  .er .ly{margin-left:auto;font-family:var(--mono);font-size:9.5px;color:var(--faint)}
+
+  /* decisions */
+  .dec{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+  .dec li{display:grid;grid-template-columns:20px 1fr auto;gap:9px;align-items:baseline;
+    border-bottom:1px solid var(--border);padding-bottom:6px}
+  .dec .n{font-family:var(--mono);color:var(--faint);font-size:11px}
+  .dec .q{font-size:12.5px}
+  .dec .a{font-family:var(--mono);font-size:11px;color:var(--accent);text-align:right}
+
+  /* two-col compare */
+  .cmp{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .cmp h3{margin:0 0 8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);font-family:var(--mono)}
+  .cmp ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px}
+  .cmp li{display:flex;gap:8px;font-size:12px;align-items:flex-start;line-height:1.35}
+  .cmp li .dot{margin-top:5px}
+
+  /* slice tag card */
+  .tagcard{border:1px solid var(--border);border-radius:2px;overflow:hidden}
+  .tagcard .row{display:flex;justify-content:space-between;gap:10px;padding:6px 10px;
+    border-bottom:1px solid var(--border);font-family:var(--mono);font-size:11px}
+  .tagcard .row:last-child{border-bottom:0}
+  .tagcard .row .k{color:var(--faint);text-transform:uppercase;letter-spacing:.06em;font-size:9.5px;padding-top:2px}
+  .tagcard .row .val{text-align:right;color:var(--text)}
+  .tagcard .row .val.alarm{color:var(--p1)}
+  .gadef{font-size:10px;color:var(--faint);margin-top:7px;font-family:var(--mono)}
+
+  footer{border:1px solid var(--border);border-top:0;background:var(--panel2);padding:12px 16px;
+    display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;justify-content:space-between;
+    font-family:var(--mono);font-size:11px;color:var(--dim)}
+  footer .sync{display:inline-flex;align-items:center;gap:7px}
+  footer .live{width:8px;height:8px;border-radius:50%;background:var(--ok);flex:none}
+  a.doc:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  @media (max-width:1000px){
+    .s3{grid-column:span 6}.s5,.s6,.s7{grid-column:span 12}
+    .docs{grid-template-columns:repeat(6,1fr)}
+  }
+  @media (max-width:560px){
+    .s3{grid-column:span 12}.docs{grid-template-columns:repeat(4,1fr)}
+    .eng,.cmp,.phbar{grid-template-columns:1fr}
+    .banner{flex-direction:column;align-items:flex-start}
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="banner">
+    <div class="id">
+      <div class="eyebrow">Industrial Digital Twin Platform · Design Status Board</div>
+      <h1>IDTP — kernel + plugin</h1>
+      <div class="sub mono">plugin&nbsp;#1&nbsp;· thermal-power-600 · 600&nbsp;MW subcritical drum reheat</div>
+    </div>
+    <div class="db" aria-label="Design basis">
+      <div class="cell"><div class="k">Đơn vị</div><div class="v">1×600 MW</div></div>
+      <div class="cell"><div class="k">Net</div><div class="v">~558 MW</div></div>
+      <div class="cell"><div class="k">Lưới</div><div class="v">500kV·50Hz</div></div>
+      <div class="cell"><div class="k">BMCR</div><div class="v">2 008 t/h</div></div>
+      <div class="cell"><div class="k">SH out</div><div class="v">17,5MPa·541°</div></div>
+    </div>
+  </header>
+
+  <div class="board">
+
+    <!-- KPI row -->
+    <section class="panel kpi s3">
+      <div class="eyebrow">Công sức · full stack</div>
+      <div class="big">~82<span class="unit"> PM</span></div>
+      <div class="cap">v1+v2+v3, đúng độ sâu 26 tài liệu</div>
+      <div class="note mono">[GIẢ ĐỊNH] bottom-up theo tầng</div>
+    </section>
+    <section class="panel kpi s3">
+      <div class="eyebrow">Công sức · riêng v1</div>
+      <div class="big">~63<span class="unit"> PM</span></div>
+      <div class="cap">Core + thermal đủ §10 + plugin #2</div>
+      <div class="note mono">dải 60–70 PM</div>
+    </section>
+    <section class="panel kpi s3">
+      <div class="eyebrow">1 người + AI · v1</div>
+      <div class="big">2,5–3<span class="unit"> năm</span></div>
+      <div class="cap">§10 acceptance đầy đủ, solo</div>
+      <div class="note mono">hệ số AI 1,8–2,5×</div>
+    </section>
+    <section class="panel kpi s3">
+      <div class="eyebrow">Lát cắt MVP</div>
+      <div class="big">12<span class="unit"> tuần</span></div>
+      <div class="cap">Chứng minh kiến trúc, không phải §10</div>
+      <div class="note mono">~6 PM hiệu dụng</div>
+    </section>
+
+    <!-- Doc tracker -->
+    <section class="panel s7">
+      <h2>Tiến độ tài liệu 00–25</h2>
+      <div class="docs">
+        <a class="doc done"><span class="no">00</span><span class="nm">vision-scope</span></a>
+        <a class="doc done"><span class="no">01</span><span class="nm">glossary-std</span></a>
+        <a class="doc done"><span class="no">02</span><span class="nm">architecture</span></a>
+        <a class="doc done"><span class="no">03</span><span class="nm">plugin-sdk</span></a>
+        <a class="doc done"><span class="no">04</span><span class="nm">asset-uns</span></a>
+        <a class="doc wip"><span class="no">05</span><span class="nm">engine-specs</span></a>
+        <a class="doc pending"><span class="no">06</span><span class="nm">process</span></a>
+        <a class="doc pending"><span class="no">07</span><span class="nm">tag-reg</span></a>
+        <a class="doc pending"><span class="no">08</span><span class="nm">alarm</span></a>
+        <a class="doc pending"><span class="no">09</span><span class="nm">control-c&e</span></a>
+        <a class="doc pending"><span class="no">10</span><span class="nm">sim-model</span></a>
+        <a class="doc pending"><span class="no">11</span><span class="nm">hmi-style</span></a>
+        <a class="doc pending"><span class="no">12</span><span class="nm">screens</span></a>
+        <a class="doc pending"><span class="no">13</span><span class="nm">navigation</span></a>
+        <a class="doc pending"><span class="no">14</span><span class="nm">components</span></a>
+        <a class="doc pending"><span class="no">15</span><span class="nm">database</span></a>
+        <a class="doc pending"><span class="no">16</span><span class="nm">uns-mqtt</span></a>
+        <a class="doc pending"><span class="no">17</span><span class="nm">api-spec</span></a>
+        <a class="doc pending"><span class="no">18</span><span class="nm">security</span></a>
+        <a class="doc pending"><span class="no">19</span><span class="nm">historian</span></a>
+        <a class="doc pending"><span class="no">20</span><span class="nm">ai-advisor</span></a>
+        <a class="doc pending"><span class="no">21</span><span class="nm">report-kpi</span></a>
+        <a class="doc pending"><span class="no">22</span><span class="nm">test-plan</span></a>
+        <a class="doc pending"><span class="no">23</span><span class="nm">repo-dev</span></a>
+        <a class="doc pending"><span class="no">24</span><span class="nm">roadmap</span></a>
+        <a class="doc pending"><span class="no">25</span><span class="nm">assumptions</span></a>
+      </div>
+      <div class="legend">
+        <span><i class="dot ok"></i>Xong (5)</span>
+        <span><i class="dot p2"></i>Đang làm (1)</span>
+        <span><i class="dot pend"></i>Chờ (20)</span>
+        <span class="mono">+ briefing scope-reality-and-phase0</span>
+      </div>
+    </section>
+
+    <!-- DT maturity -->
+    <section class="panel s5">
+      <h2>Digital Twin · v1 = L1 + L2</h2>
+      <div class="ladder">
+        <div class="rung on"><span class="lv">L1</span><span class="t"><b>Mô tả</b> — mirror trạng thái</span><span class="q tag"></span><span class="chip b">v1</span></div>
+        <div class="rung on"><span class="lv">L2</span><span class="t"><b>Chẩn đoán</b> — rule-based</span><span class="chip b">v1</span></div>
+        <div class="rung"><span class="lv">L3</span><span class="t"><b>Dự báo</b> — cần ≥6 tháng data</span><span class="chip">v2/v3</span></div>
+        <div class="rung"><span class="lv">L4</span><span class="t"><b>Kê đơn</b> — tối ưu định lượng</span><span class="chip">v3</span></div>
+      </div>
+      <p class="note mono" style="color:var(--faint);margin:11px 0 0">virtual twin → OTS + Virtual Commissioning</p>
+    </section>
+
+    <!-- Layer stack -->
+    <section class="panel s7">
+      <h2>Kiến trúc phân tầng · L0–L5</h2>
+      <div class="stack">
+        <div class="layer"><span class="lx">L5</span><span class="nm">Engineering</span><span class="co">Screen/Tag Builder · Alarm Rationalizer · Plugin SDK/CLI</span><span class="chip vr">v2</span></div>
+        <div class="layer"><span class="lx">L4</span><span class="nm">Presentation</span><span class="co">Operator · Video Wall · Mobile · Report Viewer</span><span class="chip vr b">v1</span></div>
+        <div class="layer"><span class="lx">L3</span><span class="nm">Domain Plugins</span><span class="co">thermal-power-600 · water-treatment-demo (chỉ dữ liệu)</span><span class="chip vr b">v1</span></div>
+        <div class="layer"><span class="lx">L2</span><span class="nm">Runtime Engines</span><span class="co">Tag · Alarm · Historian · Graphics · Sim · Control · RBAC · Report · Maint · AI</span><span class="chip vr b">v1</span></div>
+        <div class="layer"><span class="lx">L1</span><span class="nm">Platform Kernel</span><span class="co">UNS · Asset · Data Contract · Event Bus · Plugin Loader · Config · Audit · Time</span><span class="chip vr b">v1</span></div>
+        <div class="layer"><span class="lx">L0</span><span class="nm">Integration</span><span class="co">MQTT Sparkplug B (v1) · OPC UA · Modbus · IEC 61850 (v3)</span><span class="chip vr">v1/v3</span></div>
+      </div>
+    </section>
+
+    <!-- Roadmap -->
+    <section class="panel s5">
+      <h2>Roadmap · lát cắt 12 tuần</h2>
+      <div class="road">
+        <div class="phbar">
+          <div class="ph"><div class="p">Pha A</div><div class="w">W1–4</div><div class="d">Nền + kernel + walking skeleton</div></div>
+          <div class="ph"><div class="p">Pha B</div><div class="w">W5–7</div><div class="d">Sim + PID + Graphics</div></div>
+          <div class="ph"><div class="p">Pha C</div><div class="w">W8–10</div><div class="d">Alarm + Historian + RBAC</div></div>
+          <div class="ph"><div class="p">Pha D</div><div class="w">W11–12</div><div class="d">Plugin #2 + OTS</div></div>
+        </div>
+        <div class="vers">
+          <div class="ver"><span class="vn">v1</span><span class="vt"><b>Core + 2 plugin</b> — thêm plugin không sửa 1 dòng kernel</span></div>
+          <div class="ver"><span class="vn">v2</span><span class="vt"><b>Engineering + AI</b> — visual builder, RAG, re-sim what-if</span></div>
+          <div class="ver"><span class="vn">v3</span><span class="vt"><b>Scale + Field</b> — driver thật, redundancy, ML</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Engine specs -->
+    <section class="panel s6">
+      <h2>Engine specs · doc 05 (19 engine)</h2>
+      <div class="eng">
+        <div class="er"><i class="st" style="background:var(--ok)"></i><span class="en">Tag/Realtime</span><span class="ly">L2 · xong</span></div>
+        <div class="er"><i class="st" style="background:var(--ok)"></i><span class="en">Graphics Runtime</span><span class="ly">L2 · xong</span></div>
+        <div class="er"><i class="st" style="background:var(--ok)"></i><span class="en">Alarm</span><span class="ly">L2 · xong</span></div>
+        <div class="er"><i class="st" style="background:var(--ok)"></i><span class="en">Historian+Replay</span><span class="ly">L2 · xong</span></div>
+        <div class="er"><i class="st" style="background:var(--ok)"></i><span class="en">Simulation</span><span class="ly">L2 · xong</span></div>
+        <div class="er"><i class="st" style="background:var(--pending)"></i><span class="en">Control PID/SFC</span><span class="ly">L2</span></div>
+        <div class="er"><i class="st" style="background:var(--pending)"></i><span class="en">Security/RBAC</span><span class="ly">L1/2</span></div>
+        <div class="er"><i class="st" style="background:var(--pending)"></i><span class="en">Plugin Loader</span><span class="ly">L1</span></div>
+        <div class="er"><i class="st" style="background:var(--pending)"></i><span class="en">Namespace/UNS</span><span class="ly">L1</span></div>
+        <div class="er"><i class="st" style="background:var(--pending)"></i><span class="en">Asset Model</span><span class="ly">L1</span></div>
+        <div class="er"><i class="st" style="background:var(--pending)"></i><span class="en">Data/Persistence</span><span class="ly">L1</span></div>
+        <div class="er"><i class="st" style="background:var(--pending)"></i><span class="en">Event Bus</span><span class="ly">L1</span></div>
+      </div>
+      <div class="legend"><span class="mono" style="color:var(--faint)">+ Config, Time, Faceplate, Navigation, Report/KPI, Maintenance, AI Advisor (v2)</span></div>
+    </section>
+
+    <!-- Phase 0 decisions -->
+    <section class="panel s6">
+      <h2>GIAI ĐOẠN 0 · 8 quyết định đã chốt</h2>
+      <ol class="dec">
+        <li><span class="n">1</span><span class="q">Cấu hình tổ máy</span><span class="a">1×600 MW</span></li>
+        <li><span class="n">2</span><span class="q">Plugin thứ hai (test generic)</span><span class="a">water-treatment-demo</span></li>
+        <li><span class="n">3</span><span class="q">Ngôn ngữ HMI</span><span class="a">song ngữ VI/EN</span></li>
+        <li><span class="n">4</span><span class="q">Triển khai</span><span class="a">Docker Compose on-prem</span></li>
+        <li><span class="n">5</span><span class="q">Độ phân giải</span><span class="a">2×4K + 1080p</span></li>
+        <li><span class="n">6</span><span class="q">OTS/AI trong lát cắt</span><span class="a">OTS cơ bản · AI rule-based</span></li>
+        <li><span class="n">7</span><span class="q">SSO & client</span><span class="a">RBAC 6 vai · 20 client</span></li>
+        <li><span class="n">8</span><span class="q">Ưu tiên</span><span class="a">kiến trúc-trước (skeleton)</span></li>
+      </ol>
+    </section>
+
+    <!-- Compare vs PCS7 -->
+    <section class="panel s7">
+      <h2>Định vị vs PCS7 · 800xA</h2>
+      <div class="cmp">
+        <div>
+          <h3>Không đạt trong v1</h3>
+          <ul>
+            <li><i class="dot p1"></i>Chứng nhận SIL 2/3 (không phải hệ an toàn)</li>
+            <li><i class="dot p1"></i>Redundancy hot-standby cấp controller</li>
+            <li><i class="dot p2"></i>Real-time cứng ≤10 ms tại I/O</li>
+            <li><i class="dot p2"></i>Driver phần cứng (OPC UA/Modbus thật → v3)</li>
+            <li><i class="dot p2"></i>Kiểm định FAT/SAT & installed base</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Đạt hoặc vượt</h3>
+          <ul>
+            <li><i class="dot ok"></i>Web thin-client zero-install · 4K wall</li>
+            <li><i class="dot ok"></i>UNS + Sparkplug B first-class</li>
+            <li><i class="dot ok"></i>Replay + Re-simulation what-if</li>
+            <li><i class="dot ok"></i>AI advisor read-only có nguồn trích dẫn</li>
+            <li><i class="dot ok"></i>Tốc độ engineering · chi phí · air-gap</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Slice tag card -->
+    <section class="panel s5">
+      <h2>Vertical slice · Boiler Island</h2>
+      <div class="tagcard">
+        <div class="row"><span class="k">Tag</span><span class="val">BLR_DRUM_LEVEL_01</span></div>
+        <div class="row"><span class="k">KKS</span><span class="val">10HAD10CL001 <span style="color:var(--faint)">[GĐ]</span></span></div>
+        <div class="row"><span class="k">UNS</span><span class="val">…/boiler/steam-drum/lt-001/pv</span></div>
+        <div class="row"><span class="k">EU · dải</span><span class="val">mm · −400…+400</span></div>
+        <div class="row"><span class="k">Alarm HH/LL</span><span class="val alarm">±250 mm (trip)</span></div>
+        <div class="row"><span class="k">Scan · deadband</span><span class="val">process 500ms · 5mm</span></div>
+      </div>
+      <div class="gadef">neo Design Basis §3.2 · sim_model_ref = thermal-boiler-island</div>
+    </section>
+
+  </div>
+
+  <footer>
+    <span class="sync"><i class="live"></i>Đồng bộ với repo — cập nhật cùng URL mỗi lần sửa</span>
+    <span>branch <b style="color:var(--text)">claude/idtp-scope-phase-0-y2fxa7</b> · 5/26 tài liệu xong · doc 05: 5/19 engine</span>
+  </footer>
+
+</div>
