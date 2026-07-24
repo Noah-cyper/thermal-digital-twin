@@ -21,6 +21,9 @@ Faceplate · Tag · Animation · Sequence · SOP.
 | `06-07-main-steam.md` | Main Steam (SH) | Boiler Island | **Xong** |
 | `06-08-steam-temp-control.md` | SH/RH Temp Control | Boiler Island | **Xong** |
 | `06-09-boiler-protection.md` | Boiler Protection (MFT) | Boiler Island | **Xong** |
-| `06-20…59` | Turbine · Generator · Electrical · BoP | v1‑complete | chờ |
+| `06-20-turbine.md` | Turbine HP/IP/LP | Turbine Island | **Xong** |
+| `06-21-generator.md` | Generator + Excitation | Generator | **Xong** |
+| `06-22-electrical-single-line.md` | Electrical Single Line | Electrical | **Xong** |
+| `06-23…59` | Condenser · Feedwater · CW · Switchyard · BoP… | v1‑complete | chờ |
 
 > Tiêu chí nghiệm thu (§10): ≥ 40 hệ · ≥ 3.000 tag · ≥ 600 alarm · ≥ 25 loop · ≥ 8 sequence.
