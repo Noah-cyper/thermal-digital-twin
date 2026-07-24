@@ -28,9 +28,9 @@
 | `05-03-alarm.md` | Alarm (ISA‑18.2) | L2 | ✔ | **Xong** |
 | `05-04-historian-replay.md` | Historian + Replay | L2 | ✔ | **Xong** |
 | `05-05-simulation.md` | Simulation host | L2 | ✔ | **Xong** |
-| `05-06-control.md` | Control (PID/SFC) | L2 | ✔ | chờ |
-| `05-07-security-rbac-audit.md` | Security/RBAC + Audit | L1/L2 | ✔ | chờ |
-| `05-08-plugin-loader.md` | Plugin Loader/Factory | L1 | ✔ | chờ |
+| `05-06-control.md` | Control (PID/SFC) | L2 | ✔ | **Xong** |
+| `05-07-security-rbac-audit.md` | Security/RBAC + Audit | L1/L2 | ✔ | **Xong** |
+| `05-08-plugin-loader.md` | Plugin Loader/Factory | L1 | ✔ | **Xong** |
 | `05-09-namespace-uns.md` | Namespace/UNS | L1 | ✔ | chờ |
 | `05-10-asset-model.md` | Asset Model | L1 | ✔ | chờ |
 | `05-11-data-contract-persistence.md` | Data Contract + Persistence | L1 | ✔ | chờ |
