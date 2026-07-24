@@ -15,9 +15,9 @@ Faceplate · Tag · Animation · Sequence · SOP.
 | `06-01-steam-drum.md` | Steam Drum | Boiler Island | **Xong** |
 | `06-02-combustion-furnace.md` | Combustion / Furnace | Boiler Island | **Xong** |
 | `06-03-pulverizer.md` | Pulverizer (Mill A–F) | Boiler Island | **Xong** |
-| `06-04-fans-fd-id-pa.md` | FD / ID / PA Fans | Boiler Island | chờ |
-| `06-05-air-heater.md` | Air Heater | Boiler Island | chờ |
-| `06-06-economizer.md` | Economizer | Boiler Island | chờ |
+| `06-04-fans-fd-id-pa.md` | FD / ID / PA Fans | Boiler Island | **Xong** |
+| `06-05-air-heater.md` | Air Heater | Boiler Island | **Xong** |
+| `06-06-economizer.md` | Economizer | Boiler Island | **Xong** |
 | `06-07-main-steam.md` | Main Steam (SH) | Boiler Island | chờ |
 | `06-08-steam-temp-control.md` | SH/RH Temp Control | Boiler Island | chờ |
 | `06-09-boiler-protection.md` | Boiler Protection (MFT) | Boiler Island | chờ |
