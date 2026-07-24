@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IDTP — Product Vision</title>
+<style>
+  :root{
+    --bg:#EDF0F3; --panel:#FFFFFF; --panel2:#F4F6F8; --border:#D3DAE1;
+    --text:#161B21; --dim:#566270; --faint:#8A94A0; --accent:#2563C9;
+    --ok:#1E8F44; --p1:#CE3438; --p2:#B4720F;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono","Cascadia Code",Consolas,monospace;
+    --sans:ui-sans-serif,-apple-system,"Segoe UI",Roboto,system-ui,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{ --bg:#12161B; --panel:#1E242B; --panel2:#181D23; --border:#2E3742;
+      --text:#E6EAEE; --dim:#9AA5B1; --faint:#6B7580; --accent:#4C9AFF;
+      --ok:#2FA84F; --p1:#E5484D; --p2:#F5A524; }
+  }
+  :root[data-theme="light"]{ --bg:#EDF0F3; --panel:#FFFFFF; --panel2:#F4F6F8; --border:#D3DAE1;
+    --text:#161B21; --dim:#566270; --faint:#8A94A0; --accent:#2563C9; --ok:#1E8F44; --p1:#CE3438; --p2:#B4720F; }
+  :root[data-theme="dark"]{ --bg:#12161B; --panel:#1E242B; --panel2:#181D23; --border:#2E3742;
+    --text:#E6EAEE; --dim:#9AA5B1; --faint:#6B7580; --accent:#4C9AFF; --ok:#2FA84F; --p1:#E5484D; --p2:#F5A524; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.55}
+  .wrap{max-width:1120px;margin:0 auto;padding:18px}
+  .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+  header.top{border:1px solid var(--border);background:var(--panel);padding:16px 18px;margin-bottom:1px}
+  header.top h1{margin:.15em 0 .1em;font-size:20px;letter-spacing:.01em}
+  header.top .lead{color:var(--dim);max-width:70ch}
+  header.top .lead b{color:var(--text);font-weight:650}
+  section.block{border:1px solid var(--border);border-top:0;background:var(--panel);padding:16px 18px}
+  h2.sec{margin:0 0 12px;font-family:var(--mono);font-size:11.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--dim);display:flex;align-items:center;gap:8px}
+  h2.sec::before{content:"";width:3px;height:13px;background:var(--accent);flex:none}
+  .mock-note{font-family:var(--mono);font-size:10px;color:var(--faint);margin-top:9px}
+
+  /* ---- HMI monitor: LUÔN nền tối (ảnh của sản phẩm) ---- */
+  .monitor{background:#12161B;border:1px solid #2E3742;border-radius:2px;overflow:hidden;color:#E6EAEE;font-family:var(--mono)}
+  .m-banner{display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;
+    padding:8px 12px;border-bottom:1px solid #2E3742;background:#161C22;font-size:12px}
+  .m-banner .unit{font-weight:650;letter-spacing:.03em}
+  .m-banner .val{color:#FFFFFF}
+  .m-banner .a1{color:#E5484D}.m-banner .a2{color:#F5A524}.m-banner .a3{color:#F5D90A}
+  .m-body{display:flex;min-height:0}
+  .m-nav{width:52px;flex:none;border-right:1px solid #2E3742;background:#161C22;
+    display:flex;flex-direction:column;gap:2px;padding:8px 6px;font-size:10px;color:#9AA5B1}
+  .m-nav b{color:#4C9AFF}
+  .m-nav div{padding:5px 0;text-align:center;border:1px solid #2E3742;border-radius:2px}
+  .m-nav div.on{background:#12305a;color:#E6EAEE;border-color:#4C9AFF}
+  .m-canvas{flex:1;min-width:0}
+  .m-canvas svg{display:block;width:100%;height:auto}
+  .m-ribbon{border-top:1px solid #2E3742;background:#1a1216;padding:7px 12px;font-size:11.5px;display:flex;gap:10px;align-items:center}
+  .m-ribbon .tagp1{color:#E5484D;font-weight:650}
+  .blink{animation:bk 1s steps(1) infinite}
+  @keyframes bk{50%{opacity:.28}}
+  @media (prefers-reduced-motion:reduce){.blink{animation:none}}
+  .legend-pipes{display:flex;flex-wrap:wrap;gap:5px 14px;margin-top:10px;font-family:var(--mono);font-size:10.5px;color:var(--dim)}
+  .legend-pipes span{display:inline-flex;align-items:center;gap:6px}
+  .legend-pipes i{width:16px;height:3px;display:inline-block}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);border-top:0}
+  .grid2 .block{border:0}
+  ul.tight{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:7px}
+  ul.tight li{display:flex;gap:9px;align-items:flex-start}
+  ul.tight li::before{content:"";width:7px;height:7px;flex:none;margin-top:6px;border-radius:1px;background:var(--accent)}
+  ul.no li::before{background:var(--p1)}
+
+  /* scenario timeline */
+  .scn svg{width:100%;height:auto;display:block}
+  .phases{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-top:8px}
+  .ph{border:1px solid var(--border);border-top:2px solid var(--accent);border-radius:2px;padding:6px 7px;background:var(--panel2)}
+  .ph .n{font-family:var(--mono);font-size:9.5px;color:var(--accent);text-transform:uppercase;letter-spacing:.05em}
+  .ph .t{font-size:11px;margin-top:2px;line-height:1.25}
+
+  table.val{width:100%;border-collapse:collapse;font-size:13px}
+  table.val th,table.val td{border:1px solid var(--border);padding:8px 10px;text-align:left;vertical-align:top}
+  table.val th{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);background:var(--panel2);font-weight:600}
+  table.val td:first-child{color:var(--text)}
+  .wrapx{overflow-x:auto}
+
+  .roles{display:flex;flex-wrap:wrap;gap:8px}
+  .role{border:1px solid var(--border);border-radius:2px;padding:6px 10px;font-size:12px;background:var(--panel2)}
+  .role b{font-family:var(--mono);font-size:11px;color:var(--accent)}
+
+  footer{border:1px solid var(--border);border-top:0;background:var(--panel2);padding:12px 18px;
+    font-family:var(--mono);font-size:11px;color:var(--dim);display:flex;flex-wrap:wrap;gap:8px 16px;justify-content:space-between}
+  a{color:var(--accent)}
+  @media (max-width:720px){ .grid2{grid-template-columns:1fr} .phases{grid-template-columns:repeat(2,1fr)} .m-nav{display:none} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="eyebrow">IDTP · Product Vision · sản phẩm là gì</div>
+    <h1>Phòng điều khiển ảo cho nhà máy nhiệt điện 600 MW</h1>
+    <p class="lead">Một <b>phần mềm web</b> dựng lại nhà máy: màn hình điều khiển kiểu CCR (SCADA/HMI)
+    + buồng lái mô phỏng để <b>đào tạo vận hành (OTS)</b>. Dữ liệu chạy từ <b>mô hình vật lý</b>, không
+    phải số ngẫu nhiên. Lõi generic — <b>mỗi nhà máy chỉ là một plugin</b>.</p>
+  </header>
+
+  <!-- ===== HMI MOCK ===== -->
+  <section class="block">
+    <h2 class="sec">Khi xong · màn hình vận hành nhìn như thế này</h2>
+    <div class="monitor">
+      <div class="m-banner">
+        <span><span class="unit">UNIT1</span> &nbsp; <span class="val">598 MW</span> &nbsp; <span class="val">50,0 Hz</span> &nbsp; Load <span class="val">99,7%</span></span>
+        <span>Alarm &nbsp;<span class="a1">P1:1</span> &nbsp;<span class="a2">P2:2</span> &nbsp;<span class="a3">P3:7</span></span>
+        <span>Operator · nguyen.a &nbsp; 10:24:31 &nbsp; <span style="color:#2FA84F">●</span> LINK</span>
+      </div>
+      <div class="m-body">
+        <div class="m-nav">
+          <div class="on">D1</div><div>D2</div><div>D3</div><div>D4</div><div>ALM</div><div>TRD</div>
+        </div>
+        <div class="m-canvas">
+          <svg viewBox="0 0 920 360" role="img" aria-label="Mock P&ID nhà máy nhiệt điện">
+            <rect x="0" y="0" width="920" height="360" fill="#0F1419"/>
+            <!-- COAL + MILLS -->
+            <line x1="8" y1="205" x2="52" y2="205" stroke="#4A4A4A" stroke-width="6"/>
+            <polygon points="52,200 62,205 52,210" fill="#4A4A4A"/>
+            <text x="8" y="197" fill="#9AA5B1" font-size="9" font-family="monospace">THAN</text>
+            <g font-family="monospace" font-size="8" fill="#9AA5B1">
+              <text x="8" y="250">MILL A–F</text>
+              <circle cx="14" cy="262" r="5" fill="#12305a" stroke="#2FA84F"/>
+              <circle cx="28" cy="262" r="5" fill="#12305a" stroke="#2FA84F"/>
+              <circle cx="42" cy="262" r="5" fill="#3a1416" stroke="#E5484D" class="blink"/>
+              <circle cx="14" cy="276" r="5" fill="#12305a" stroke="#2FA84F"/>
+              <circle cx="28" cy="276" r="5" fill="#12305a" stroke="#2FA84F"/>
+              <circle cx="42" cy="276" r="5" fill="#12305a" stroke="#6B7280"/>
+              <text x="8" y="298" fill="#E5484D">C: TRIP</text>
+            </g>
+            <!-- FURNACE -->
+            <rect x="70" y="150" width="86" height="150" fill="#1E242B" stroke="#8A939C"/>
+            <path d="M100 262 l8 -22 l8 22 z M113 262 l7 -18 l7 18 z" fill="#F5A524" opacity="0.9"/>
+            <text x="113" y="144" fill="#9AA5B1" font-size="9" font-family="monospace" text-anchor="middle">FURNACE</text>
+            <text x="113" y="292" fill="#FFFFFF" font-size="9" font-family="monospace" text-anchor="middle">−50 Pa</text>
+            <!-- risers/downcomers -->
+            <line x1="100" y1="150" x2="185" y2="112" stroke="#D93A3A" stroke-width="3"/>
+            <line x1="150" y1="150" x2="205" y2="118" stroke="#2E6FD9" stroke-width="2.5"/>
+            <!-- STEAM DRUM -->
+            <rect x="185" y="72" width="150" height="40" fill="#1E242B" stroke="#8A939C"/>
+            <ellipse cx="185" cy="92" rx="9" ry="20" fill="#1E242B" stroke="#8A939C"/>
+            <ellipse cx="335" cy="92" rx="9" ry="20" fill="#1E242B" stroke="#8A939C"/>
+            <rect x="187" y="93" width="146" height="17" fill="#2E6FD9" opacity="0.55"/>
+            <text x="260" y="64" fill="#9AA5B1" font-size="9" font-family="monospace" text-anchor="middle">STEAM DRUM</text>
+            <text x="260" y="105" fill="#FFFFFF" font-size="10" font-family="monospace" text-anchor="middle">0 mm</text>
+            <!-- SUPERHEATER coil + MAIN STEAM -->
+            <path d="M335 90 l16 0 l0 -12 l16 0 l0 12 l16 0 l0 -12 l16 0 l0 12 l16 0" fill="none" stroke="#D93A3A" stroke-width="3"/>
+            <line x1="431" y1="90" x2="560" y2="90" stroke="#D93A3A" stroke-width="4"/>
+            <text x="470" y="80" fill="#D93A3A" font-size="9" font-family="monospace">MAIN STEAM 17,5 MPa · 541°C</text>
+            <!-- TURBINE -->
+            <line x1="560" y1="110" x2="806" y2="110" stroke="#8A939C" stroke-width="3"/>
+            <polygon points="560,96 606,90 606,130 560,124" fill="#1E242B" stroke="#8A939C"/>
+            <polygon points="612,90 672,84 672,136 612,130" fill="#1E242B" stroke="#8A939C"/>
+            <polygon points="678,84 762,76 762,144 678,136" fill="#1E242B" stroke="#8A939C"/>
+            <g font-family="monospace" font-size="9" fill="#9AA5B1" text-anchor="middle">
+              <text x="583" y="114">HP</text><text x="642" y="114">IP</text><text x="720" y="114">LP</text>
+            </g>
+            <!-- reheat hint -->
+            <path d="M606 130 q-30 34 -120 0" fill="none" stroke="#E8791E" stroke-width="2.5" stroke-dasharray="4 3"/>
+            <text x="470" y="150" fill="#E8791E" font-size="8" font-family="monospace">REHEAT</text>
+            <!-- GENERATOR -->
+            <circle cx="835" cy="110" r="27" fill="#12305a" stroke="#2FA84F" stroke-width="2"/>
+            <text x="835" y="116" fill="#FFFFFF" font-size="17" font-family="monospace" text-anchor="middle">G</text>
+            <text x="835" y="152" fill="#FFFFFF" font-size="10" font-family="monospace" text-anchor="middle">598 MW</text>
+            <line x1="862" y1="110" x2="908" y2="110" stroke="#8A939C" stroke-width="2"/>
+            <polygon points="908,106 916,110 908,114" fill="#8A939C"/>
+            <text x="884" y="102" fill="#9AA5B1" font-size="8" font-family="monospace" text-anchor="middle">500 kV</text>
+            <!-- CONDENSER -->
+            <line x1="720" y1="144" x2="720" y2="188" stroke="#C084FC" stroke-width="2.5"/>
+            <rect x="675" y="188" width="92" height="40" fill="#1E242B" stroke="#8A939C"/>
+            <text x="721" y="212" fill="#FFFFFF" font-size="9" font-family="monospace" text-anchor="middle">COND 5,4 kPa</text>
+            <!-- condensate (green) -->
+            <path d="M675 214 L648 214 L648 300 L470 300" fill="none" stroke="#29A38A" stroke-width="3"/>
+            <circle cx="648" cy="300" r="12" fill="#12305a" stroke="#29A38A"/>
+            <text x="648" y="326" fill="#9AA5B1" font-size="8" font-family="monospace" text-anchor="middle">CEP</text>
+            <!-- DEAERATOR -->
+            <rect x="380" y="286" width="90" height="26" fill="#1E242B" stroke="#8A939C"/>
+            <ellipse cx="380" cy="299" rx="7" ry="13" fill="#1E242B" stroke="#8A939C"/>
+            <ellipse cx="470" cy="299" rx="7" ry="13" fill="#1E242B" stroke="#8A939C"/>
+            <text x="425" y="303" fill="#FFFFFF" font-size="8" font-family="monospace" text-anchor="middle">DEAERATOR</text>
+            <!-- feedwater (blue) BFP -> economizer/drum -->
+            <path d="M380 300 L352 300" fill="none" stroke="#2E6FD9" stroke-width="3"/>
+            <circle cx="340" cy="300" r="12" fill="#12305a" stroke="#2E6FD9"/>
+            <text x="340" y="326" fill="#9AA5B1" font-size="8" font-family="monospace" text-anchor="middle">BFP</text>
+            <path d="M328 300 L150 300 L150 130" fill="none" stroke="#2E6FD9" stroke-width="3"/>
+            <text x="158" y="220" fill="#2E6FD9" font-size="8" font-family="monospace">FEEDWATER</text>
+            <!-- FLUE + STACK -->
+            <path d="M113 150 L113 116 L470 116" fill="none" stroke="#8B7355" stroke-width="2.5" opacity="0.8"/>
+            <rect x="470" y="40" width="12" height="78" fill="#1E242B" stroke="#8A939C"/>
+            <text x="476" y="34" fill="#9AA5B1" font-size="8" font-family="monospace" text-anchor="middle">STACK</text>
+            <!-- mock tag -->
+            <text x="912" y="352" fill="#3d4650" font-size="8" font-family="monospace" text-anchor="end">MOCK — số minh hoạ</text>
+          </svg>
+        </div>
+      </div>
+      <div class="m-ribbon">
+        <span class="tagp1 blink">● P1</span>
+        <span class="mono">10:24:07 &nbsp; MILL C TRIP &nbsp; → runback đang chạy &nbsp; [ACK]</span>
+      </div>
+    </div>
+    <div class="legend-pipes" aria-label="Màu môi chất">
+      <span><i style="background:#D93A3A"></i>Hơi chính</span>
+      <span><i style="background:#E8791E"></i>Tái nhiệt</span>
+      <span><i style="background:#2E6FD9"></i>Nước cấp</span>
+      <span><i style="background:#29A38A"></i>Nước ngưng</span>
+      <span><i style="background:#C084FC"></i>Hơi thoát</span>
+      <span><i style="background:#8B7355"></i>Khói</span>
+      <span><i style="background:#4A4A4A"></i>Than</span>
+    </div>
+    <p class="mock-note">Đây là mock minh hoạ phong cách High Performance HMI (ISA‑101). Sản phẩm thật:
+    bơm/quạt quay, đường ống chảy theo lưu lượng, số đo cập nhật realtime; click thiết bị → faceplate.</p>
+  </section>
+
+  <!-- ===== ĐANG LÀM GÌ / KHÔNG PHẢI ===== -->
+  <div class="grid2">
+    <section class="block">
+      <h2 class="sec">Đang xây cái gì</h2>
+      <ul class="tight">
+        <li><b>Kernel + plugin:</b> lõi không biết nhiệt điện; nhà máy 600 MW = 1 plugin dữ liệu khai báo.</li>
+        <li><b>Mô phỏng vật lý:</b> cân bằng khối lượng/năng lượng, PID thật, drum swell/shrink — hành xử như nhà máy thật.</li>
+        <li><b>HMI phòng CCR:</b> P&ID sống, alarm ISA‑18.2, trend, historian + replay, faceplate, RBAC.</li>
+        <li><b>Chạy web, Docker on‑prem,</b> hỗ trợ air‑gap; thay mô phỏng bằng OPC UA/Modbus thật không sửa frontend.</li>
+      </ul>
+    </section>
+    <section class="block">
+      <h2 class="sec">KHÔNG phải cái gì (ranh giới thật)</h2>
+      <ul class="tight no">
+        <li>Không phải bộ điều khiển thật có chứng nhận an toàn <b>SIL</b>.</li>
+        <li>Không thay controller DCS đang cầm dây thiết bị.</li>
+        <li>Không sinh số liệu process bịa — dữ liệu từ mô phỏng/historian.</li>
+        <li>AI chỉ <b>read‑only</b>: không ghi tag, không đổi setpoint, không ACK alarm.</li>
+      </ul>
+    </section>
+  </div>
+
+  <!-- ===== KỊCH BẢN DEMO ===== -->
+  <section class="block scn">
+    <h2 class="sec">Kịch bản chạy được — chứng minh "không phải hoạt hình"</h2>
+    <svg viewBox="0 0 920 150" role="img" aria-label="Đường tải theo kịch bản vận hành">
+      <line x1="40" y1="20" x2="40" y2="120" stroke="var(--border)" stroke-width="1"/>
+      <line x1="40" y1="120" x2="900" y2="120" stroke="var(--border)" stroke-width="1"/>
+      <text x="34" y="26" fill="var(--faint)" font-size="9" font-family="monospace" text-anchor="end">600</text>
+      <text x="34" y="123" fill="var(--faint)" font-size="9" font-family="monospace" text-anchor="end">0</text>
+      <text x="8" y="76" fill="var(--dim)" font-size="9" font-family="monospace" transform="rotate(-90 8 76)" text-anchor="middle">MW</text>
+      <!-- load curve: cold(0) purge(0) lightoff(0) sync(30) ramp(600) milltrip/runback(dip) MFT->0 coast(0) -->
+      <polyline points="40,120 175,120 300,116 420,104 560,26 640,26 690,52 700,52 760,120 900,120"
+        fill="none" stroke="var(--accent)" stroke-width="2.5"/>
+      <!-- alarm markers -->
+      <circle cx="690" cy="52" r="5" fill="#F5A524"/><text x="690" y="46" fill="#F5A524" font-size="8" font-family="monospace" text-anchor="middle">mill trip</text>
+      <circle cx="760" cy="120" r="5" fill="#E5484D"/><text x="762" y="112" fill="#E5484D" font-size="8" font-family="monospace">MFT</text>
+    </svg>
+    <div class="phases">
+      <div class="ph"><div class="n">1 · Cold start</div><div class="t">Khởi động nguội</div></div>
+      <div class="ph"><div class="n">2 · Purge</div><div class="t">Thổi lò theo NFPA 85</div></div>
+      <div class="ph"><div class="n">3 · Light‑off</div><div class="t">Mồi lửa, mill vào</div></div>
+      <div class="ph"><div class="n">4 · Sync</div><div class="t">Hoà lưới 500 kV</div></div>
+      <div class="ph"><div class="n">5 · Ramp</div><div class="t">Tăng tải 0→600 MW</div></div>
+      <div class="ph"><div class="n">6 · Mill trip</div><div class="t">Runback giữ tải</div></div>
+      <div class="ph"><div class="n">7 · MFT</div><div class="t">Cắt nhiên liệu → coast down</div></div>
+    </div>
+    <p class="mock-note">Trong lúc chạy: mức bao hơi swell/shrink khi đổi tải, alarm nổ đúng lúc, historian ghi lại → <b>replay</b> xem lại sự cố sau đó.</p>
+  </section>
+
+  <!-- ===== GIẢI QUYẾT VẤN ĐỀ GÌ ===== -->
+  <section class="block">
+    <h2 class="sec">Giải quyết vấn đề gì</h2>
+    <div class="wrapx">
+    <table class="val">
+      <thead><tr><th>Vấn đề thực tế</th><th>IDTP giải quyết</th><th>Ai hưởng lợi</th></tr></thead>
+      <tbody>
+        <tr><td>Đào tạo xử lý sự cố mà không dám thử trên nhà máy thật</td><td>OTS: cold‑start, trip, MFT, mất chân không… tập không rủi ro</td><td>Operator · trung tâm đào tạo</td></tr>
+        <tr><td>Muốn thử logic điều khiển / màn hình trước khi có DCS thật</td><td>Virtual commissioning: chạy mô phỏng + HMI trước</td><td>Kỹ sư I&amp;C · chủ đầu tư</td></tr>
+        <tr><td>DCS/SCADA thương mại đắt, license theo tag, khóa nhà cung cấp</td><td>Web, stack open‑source, air‑gap, không license theo tag</td><td>Chủ nhà máy</td></tr>
+        <tr><td>Mỗi nhà máy phải làm lại HMI từ đầu</td><td>"Mọi nhà máy = plugin" → engineering tính bằng ngày</td><td>Nhà tích hợp</td></tr>
+        <tr><td>DCS cũ không có replay what‑if, AI giải thích alarm</td><td>Replay + re‑simulation + AI advisor read‑only có trích nguồn</td><td>Kỹ sư vận hành</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <!-- ===== AI DÙNG ===== -->
+  <section class="block">
+    <h2 class="sec">Ai dùng (RBAC 6 vai)</h2>
+    <div class="roles">
+      <div class="role"><b>Viewer</b> · xem</div>
+      <div class="role"><b>Operator</b> · vận hành, ACK, setpoint</div>
+      <div class="role"><b>Shift Supervisor</b> · override interlock</div>
+      <div class="role"><b>Engineer</b> · dựng màn hình/plugin</div>
+      <div class="role"><b>Maintenance</b> · work order, giờ chạy</div>
+      <div class="role"><b>Admin</b> · user/role</div>
+    </div>
+  </section>
+
+  <footer>
+    <span>IDTP · Product Vision — trong repo: <b style="color:var(--text)">docs/overview/product-vision.html</b></span>
+    <span>Trạng thái thiết kế: xem <a href="index.html">overview/index.html</a> · nhánh claude/idtp-scope-phase-0-y2fxa7</span>
+  </footer>
+
+</div>
+</body>
+</html>
