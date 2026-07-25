@@ -18,6 +18,44 @@ importers:
         specifier: ^2.0.5
         version: 2.1.9(@types/node@22.20.1)
 
+  apps/walking-skeleton:
+    dependencies:
+      '@idtp/engines':
+        specifier: workspace:*
+        version: link:../../packages/engines
+      '@idtp/plugin-thermal-power-600':
+        specifier: workspace:*
+        version: link:../../plugins/thermal-power-600
+      '@idtp/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
+    devDependencies:
+      '@types/node':
+        specifier: ^22.5.0
+        version: 22.20.1
+      typescript:
+        specifier: ^5.5.4
+        version: 5.9.3
+      vitest:
+        specifier: ^2.0.5
+        version: 2.1.9(@types/node@22.20.1)
+
+  packages/engines:
+    dependencies:
+      '@idtp/sdk':
+        specifier: workspace:*
+        version: link:../sdk
+    devDependencies:
+      '@types/node':
+        specifier: ^22.5.0
+        version: 22.20.1
+      typescript:
+        specifier: ^5.5.4
+        version: 5.9.3
+      vitest:
+        specifier: ^2.0.5
+        version: 2.1.9(@types/node@22.20.1)
+
   packages/kernel:
     dependencies:
       '@idtp/sdk':
@@ -49,6 +87,22 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
+      typescript:
+        specifier: ^5.5.4
+        version: 5.9.3
+      vitest:
+        specifier: ^2.0.5
+        version: 2.1.9(@types/node@22.20.1)
+
+  plugins/thermal-power-600:
+    dependencies:
+      '@idtp/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
+    devDependencies:
+      '@types/node':
+        specifier: ^22.5.0
+        version: 22.20.1
       typescript:
         specifier: ^5.5.4
         version: 5.9.3
