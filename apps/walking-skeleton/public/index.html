@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IDTP — Walking Skeleton · Steam Drum</title>
+<style>
+  :root{
+    --bg-canvas:#12161B; --bg-panel:#1E242B; --border:#2E3742; --equip-line:#8A939C;
+    --text:#E6EAEE; --text-dim:#9AA5B1; --pv:#FFFFFF; --feedwater:#2E6FD9; --steam:#D93A3A;
+    --alarm-1:#E5484D; --alarm-2:#F5A524; --bad-quality:#B14CFF; --run:#2FA84F;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg-canvas);color:var(--text);
+    font-family:ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;font-size:14px}
+  .banner{display:flex;gap:18px;align-items:center;justify-content:space-between;
+    padding:10px 16px;border-bottom:1px solid var(--border);background:#161C22;font-family:var(--mono);font-size:13px}
+  .banner b{color:var(--pv)}
+  .link{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--run);display:inline-block}
+  .dot.off{background:var(--alarm-1)}
+  main{display:grid;grid-template-columns:1fr 300px;gap:1px;background:var(--border)}
+  .process,.side{background:var(--bg-canvas);padding:14px 16px}
+  .side{background:var(--bg-panel)}
+  h2{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);margin:0 0 12px}
+  svg{display:block;width:100%;height:auto}
+  .readout{display:flex;flex-direction:column;gap:10px;font-family:var(--mono)}
+  .ro{display:flex;justify-content:space-between;border-bottom:1px solid var(--border);padding-bottom:7px}
+  .ro .k{color:var(--text-dim);font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+  .ro .v{color:var(--pv);font-variant-numeric:tabular-nums;font-size:15px}
+  .ro .v.alarm{color:var(--alarm-1)}
+  .controls{margin-top:18px;display:flex;flex-direction:column;gap:8px}
+  button{font-family:var(--mono);font-size:12px;background:var(--bg-canvas);color:var(--text);
+    border:1px solid var(--border);border-radius:2px;padding:8px 10px;cursor:pointer;text-align:left}
+  button:hover{border-color:var(--equip-line)}
+  button.warn{border-color:var(--alarm-2);color:var(--alarm-2)}
+  .note{font-family:var(--mono);font-size:10px;color:#6B7580;margin-top:14px;line-height:1.5}
+</style>
+</head>
+<body>
+  <div class="banner">
+    <span><b>UNIT1</b> · Steam Drum (D3) · walking skeleton</span>
+    <span id="drumLevelBanner">DRUM 0 mm</span>
+    <span class="link"><i class="dot" id="linkDot"></i><span id="linkTxt">connecting…</span></span>
+  </div>
+  <main>
+    <section class="process">
+      <h2>Bao hơi · mức 3-element (SP 0 mm · trip ±250)</h2>
+      <svg viewBox="0 0 640 320" role="img" aria-label="Steam drum">
+        <!-- drum shell -->
+        <rect x="200" y="90" width="240" height="120" rx="60" fill="#0F1419" stroke="var(--equip-line)" stroke-width="2"/>
+        <!-- water fill (height bound to level) -->
+        <clipPath id="drumClip"><rect x="200" y="90" width="240" height="120" rx="60"/></clipPath>
+        <g clip-path="url(#drumClip)">
+          <rect id="water" x="200" y="150" width="240" height="60" fill="var(--feedwater)" opacity="0.55"/>
+        </g>
+        <!-- setpoint line (mức 0) -->
+        <line x1="196" y1="150" x2="444" y2="150" stroke="var(--equip-line)" stroke-dasharray="4 3" stroke-width="1"/>
+        <text x="450" y="154" fill="var(--text-dim)" font-size="10" font-family="monospace">0 mm</text>
+        <!-- level numeric -->
+        <text id="levelText" x="320" y="156" fill="var(--pv)" font-size="26" font-family="monospace" text-anchor="middle">0</text>
+        <!-- main steam out (đỏ) -->
+        <line x1="440" y1="110" x2="560" y2="110" stroke="var(--steam)" stroke-width="4"/>
+        <text x="500" y="102" fill="var(--steam)" font-size="10" font-family="monospace" text-anchor="middle">MAIN STEAM</text>
+        <!-- feedwater in (xanh) qua FCV -->
+        <line x1="80" y1="190" x2="200" y2="190" stroke="var(--feedwater)" stroke-width="4"/>
+        <text x="120" y="182" fill="var(--feedwater)" font-size="10" font-family="monospace">FEEDWATER</text>
+        <text x="316" y="86" fill="var(--text-dim)" font-size="11" font-family="monospace" text-anchor="middle">STEAM DRUM · LT-001</text>
+      </svg>
+    </section>
+    <aside class="side">
+      <h2>Realtime</h2>
+      <div class="readout">
+        <div class="ro"><span class="k">Drum level</span><span class="v" id="roLevel">— mm</span></div>
+        <div class="ro"><span class="k">Steam flow</span><span class="v" id="roSteam">— t/h</span></div>
+        <div class="ro"><span class="k">Feedwater</span><span class="v" id="roFw">— t/h</span></div>
+        <div class="ro"><span class="k">FCV output</span><span class="v" id="roCv">— %</span></div>
+      </div>
+      <div class="controls">
+        <button data-steam="1200">Giảm tải → 1200 t/h</button>
+        <button data-steam="1500">Tải cơ sở → 1500 t/h</button>
+        <button data-steam="1800">Tăng tải → 1800 t/h (xem swell)</button>
+        <button class="warn" data-leak="120">Inject tube leak (120 t/h)</button>
+        <button data-leak="0">Clear leak</button>
+      </div>
+      <div class="note">Màn hình là JSON khai báo (/screen.json); dữ liệu từ mô hình vật lý qua WS.
+      Mức đổi màu đỏ khi |level| > 250 mm (trip).</div>
+    </aside>
+  </main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const RANGE = 400; // ± mm map
+  let screen = null;
+
+  // mini binding evaluator (mirror @idtp/engines/graphics)
+  function evalCondition(read, c){
+    if (c.when === 'bad') return read.quality === 'Bad' || read.quality === 'Uncertain';
+    if (typeof read.value !== 'number' || c.value === undefined) return false;
+    if (c.when === 'gt') return read.value > c.value;
+    if (c.when === 'lt') return read.value < c.value;
+    return read.value === c.value;
+  }
+  function applyDrum(level){
+    const props = {};
+    const read = { value: level, quality: 'Good' };
+    if (screen) {
+      const el = screen.elements.find(e => e.id === 'drum-level');
+      if (el) for (const b of el.bindings){
+        if (b.transform) props[b.property] = String(level);
+        else if (b.condition && evalCondition(read, b.condition)) Object.assign(props, b.condition.then);
+      }
+    }
+    return props;
+  }
+
+  function render(v){
+    const level = v.BLR_DRUM_LEVEL_01 ?? 0;
+    const props = applyDrum(level);
+    const fill = props.fill || 'var(--feedwater)';
+    // water height: level 0 → mid (y=150,h=60). clamp ±RANGE.
+    const clamped = Math.max(-RANGE, Math.min(RANGE, level));
+    const h = 60 - (clamped / RANGE) * 55;   // level cao → nước dâng (h nhỏ hơn, y cao hơn)
+    const y = 150 - (clamped / RANGE) * 55;
+    const water = $('water');
+    water.setAttribute('y', String(Math.min(y, 205)));
+    water.setAttribute('height', String(Math.max(6, 210 - Math.min(y, 205))));
+    water.setAttribute('fill', fill);
+    $('levelText').setAttribute('fill', (level > 250 || level < -250) ? 'var(--alarm-1)' : 'var(--pv)');
+    $('levelText').textContent = level.toFixed(0);
+    $('drumLevelBanner').textContent = 'DRUM ' + level.toFixed(0) + ' mm';
+    const roLevel = $('roLevel');
+    roLevel.textContent = level.toFixed(1) + ' mm';
+    roLevel.className = 'v' + ((level > 250 || level < -250) ? ' alarm' : '');
+    $('roSteam').textContent = (v.BLR_STEAM_FLOW_01 ?? 0).toFixed(0) + ' t/h';
+    $('roFw').textContent = (v.BLR_FW_FLOW_01 ?? 0).toFixed(0) + ' t/h';
+    $('roCv').textContent = (v.BLR_FW_CV_01 ?? 0).toFixed(1) + ' %';
+  }
+
+  let ws;
+  function connect(){
+    ws = new WebSocket('ws://' + location.host);
+    ws.onopen = () => { $('linkDot').className = 'dot'; $('linkTxt').textContent = 'LINK'; };
+    ws.onclose = () => { $('linkDot').className = 'dot off'; $('linkTxt').textContent = 'reconnecting…'; setTimeout(connect, 1000); };
+    ws.onmessage = (e) => { try { render(JSON.parse(e.data)); } catch {} };
+  }
+  document.querySelectorAll('button[data-steam]').forEach(b =>
+    b.onclick = () => ws && ws.readyState === 1 && ws.send(JSON.stringify({ cmd: 'steam', value: Number(b.dataset.steam) })));
+  document.querySelectorAll('button[data-leak]').forEach(b =>
+    b.onclick = () => ws && ws.readyState === 1 && ws.send(JSON.stringify({ cmd: 'leak', value: Number(b.dataset.leak) })));
+
+  fetch('/screen.json').then(r => r.json()).then(s => { screen = s; }).catch(() => {});
+  connect();
+</script>
+</body>
+</html>

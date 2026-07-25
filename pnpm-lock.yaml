@@ -29,10 +29,16 @@ importers:
       '@idtp/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
+      ws:
+        specifier: ^8.18.0
+        version: 8.21.1
     devDependencies:
       '@types/node':
         specifier: ^22.5.0
         version: 22.20.1
+      '@types/ws':
+        specifier: ^8.5.12
+        version: 8.18.1
       typescript:
         specifier: ^5.5.4
         version: 5.9.3
@@ -417,6 +423,9 @@ packages:
   '@types/semver@7.7.1':
     resolution: {integrity: sha512-FmgJfu+MOcQ370SD0ev7EI8TlCAfKYU+B4m5T3yXc1CiRN94g/SZPtsCkk506aUDtlMnFZvasDwHHUcZUEaYuA==}
 
+  '@types/ws@8.18.1':
+    resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
+
   '@vitest/expect@2.1.9':
     resolution: {integrity: sha512-UJCIkTBenHeKT1TTlKMJWy1laZewsRIzYighyYiJKZreqtdxSos/S1t+ktRMQWu2CKqaarrkeszJx1cgC5tGZw==}
 
@@ -642,6 +651,18 @@ packages:
     engines: {node: '>=8'}
     hasBin: true
 
+  ws@8.21.1:
+    resolution: {integrity: sha512-+0NTnW77fFN/DjQi6k/Sq/Yvk4Sgajw7urW8V+asjXnRgDs9gyGkdb7EzgfhA4goXsRIZKE28fzIXBHEzhuiWw==}
+    engines: {node: '>=10.0.0'}
+    peerDependencies:
+      bufferutil: ^4.0.1
+      utf-8-validate: '>=5.0.2'
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      utf-8-validate:
+        optional: true
+
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
@@ -818,6 +839,10 @@ snapshots:
       undici-types: 6.21.0
 
   '@types/semver@7.7.1': {}
+
+  '@types/ws@8.18.1':
+    dependencies:
+      '@types/node': 22.20.1
 
   '@vitest/expect@2.1.9':
     dependencies:
@@ -1068,5 +1093,7 @@ snapshots:
     dependencies:
       siginfo: 2.0.0
       stackback: 0.0.2
+
+  ws@8.21.1: {}
 
   zod@3.25.76: {}

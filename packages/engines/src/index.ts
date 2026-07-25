@@ -2,3 +2,4 @@
 export * from './tag-realtime';
 export * from './control';
 export * from './simulation-host';
+export * from './graphics';
