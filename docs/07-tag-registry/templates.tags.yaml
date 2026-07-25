@@ -1,0 +1,84 @@
+# Tag templates theo loại thiết bị (doc 07 §3).
+# Seed: {fallback = AREA_SYS_EQUIP_<suffix>_NN}, uns theo asset (doc 04), alarm_ids theo doc 08.
+# datatype: float|bool|int|string ; scan: fast(250ms)|process(500ms)|slow(1s)|diag(5s)
+
+templates:
+
+  motor_pump:               # bơm/quạt truyền động motor
+    count: 10
+    tags:
+      - { suffix: RUN,          datatype: bool,  eu: "",     scan: process, alarm: false, writable: false }
+      - { suffix: MODE,         datatype: int,   eu: "",     scan: process, alarm: false, writable: true  }
+      - { suffix: CURRENT,      datatype: float, eu: A,      scan: process, alarm: true,  writable: false }
+      - { suffix: FLOW,         datatype: float, eu: "m3/h", scan: process, alarm: false, writable: false }
+      - { suffix: DISCH_PRESS,  datatype: float, eu: MPa,    scan: process, alarm: true,  writable: false }
+      - { suffix: BRG_VIB,      datatype: float, eu: "mm/s", scan: fast,    alarm: true,  writable: false }
+      - { suffix: BRG_TEMP_DE,  datatype: float, eu: "degC", scan: slow,    alarm: true,  writable: false }
+      - { suffix: BRG_TEMP_NDE, datatype: float, eu: "degC", scan: slow,    alarm: true,  writable: false }
+      - { suffix: WIND_TEMP,    datatype: float, eu: "degC", scan: slow,    alarm: true,  writable: false }
+      - { suffix: TRIP,         datatype: bool,  eu: "",     scan: fast,    alarm: true,  writable: false }
+
+  fan: { ref: motor_pump, count: 10 }
+
+  mill:                     # + đặc thù pulverizer
+    count: 12
+    tags:
+      - { suffix: RUN,         datatype: bool,  scan: process, alarm: false }
+      - { suffix: MODE,        datatype: int,   scan: process, writable: true }
+      - { suffix: OUTLET_TEMP, datatype: float, eu: "degC", scan: process, alarm: true }
+      - { suffix: PA_FLOW,     datatype: float, eu: "t/h",  scan: process, alarm: true }
+      - { suffix: FEEDER_SPD,  datatype: float, eu: "%",    scan: process, writable: true }
+      - { suffix: CURRENT,     datatype: float, eu: A,      scan: process, alarm: true }
+      - { suffix: DP,          datatype: float, eu: kPa,    scan: process, alarm: true }
+      - { suffix: SEAL_AIR,    datatype: float, eu: kPa,    scan: process, alarm: true }
+      - { suffix: BRG_TEMP,    datatype: float, eu: "degC", scan: slow,    alarm: true }
+      - { suffix: OUTLET_O2,   datatype: float, eu: "%",    scan: diag }
+      - { suffix: FEEDER_TRIP, datatype: bool,  scan: fast,    alarm: true }
+      - { suffix: TRIP,        datatype: bool,  scan: fast,    alarm: true }
+
+  control_loop:             # loop PID / van điều khiển
+    count: 8
+    tags:
+      - { suffix: PV,     datatype: float, scan: process, alarm: true }
+      - { suffix: SP,     datatype: float, scan: process, writable: true }
+      - { suffix: OP,     datatype: float, eu: "%", scan: process, writable: true }
+      - { suffix: MODE,   datatype: int,   scan: process, writable: true }   # MAN/AUTO/CASCADE
+      - { suffix: POS_FB, datatype: float, eu: "%", scan: process }
+      - { suffix: OPEN,   datatype: bool,  scan: process }
+      - { suffix: CLOSE,  datatype: bool,  scan: process }
+      - { suffix: FAULT,  datatype: bool,  scan: fast, alarm: true }
+
+  transmitter:              # PT/TT/FT/LT analog
+    count: 3
+    tags:
+      - { suffix: PV,      datatype: float, scan: process, alarm: true }
+      - { suffix: QUALITY, datatype: int,   scan: diag }
+      - { suffix: ALM,     datatype: bool,  scan: process, alarm: true }
+
+  analyzer:                 # O2 / CEMS
+    count: 5
+    tags:
+      - { suffix: VALUE,      datatype: float, scan: diag, alarm: true }
+      - { suffix: QUALITY,    datatype: int,   scan: diag }
+      - { suffix: CAL_STATUS, datatype: int,   scan: diag }
+      - { suffix: RANGE,      datatype: float, scan: diag }
+      - { suffix: FAULT,      datatype: bool,  scan: diag, alarm: true }
+
+  breaker:                  # đóng cắt điện
+    count: 5
+    tags:
+      - { suffix: STATUS,  datatype: int,   scan: process, alarm: false }
+      - { suffix: CURRENT, datatype: float, eu: A,  scan: process, alarm: true }
+      - { suffix: VOLTAGE, datatype: float, eu: kV, scan: process, alarm: true }
+      - { suffix: PROT,    datatype: bool,  scan: fast, alarm: true }
+      - { suffix: TRIP,    datatype: bool,  scan: fast, alarm: true }
+
+  heater_vessel:            # heater / bình / bể
+    count: 6
+    tags:
+      - { suffix: LEVEL,    datatype: float, eu: mm,   scan: process, alarm: true }
+      - { suffix: DRAIN,    datatype: float, eu: "%",  scan: process, writable: true }
+      - { suffix: IN_TEMP,  datatype: float, eu: "degC", scan: slow }
+      - { suffix: OUT_TEMP, datatype: float, eu: "degC", scan: slow, alarm: true }
+      - { suffix: BYPASS,   datatype: bool,  scan: process }
+      - { suffix: ALM,      datatype: bool,  scan: process, alarm: true }
