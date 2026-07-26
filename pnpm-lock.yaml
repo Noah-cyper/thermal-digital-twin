@@ -23,6 +23,9 @@ importers:
       '@idtp/engines':
         specifier: workspace:*
         version: link:../../packages/engines
+      '@idtp/kernel':
+        specifier: workspace:*
+        version: link:../../packages/kernel
       '@idtp/plugin-thermal-power-600':
         specifier: workspace:*
         version: link:../../plugins/thermal-power-600

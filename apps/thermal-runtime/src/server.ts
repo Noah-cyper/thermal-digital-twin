@@ -24,6 +24,7 @@ interface Sub {
 interface Command {
   cmd?: string;
   screenId?: string;
+  alarmId?: string;
   value?: number;
 }
 
@@ -84,8 +85,11 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
     }
   };
 
+  const alarmsMsg = (): string => JSON.stringify({ type: 'alarms', active: rt.activeAlarms(), kpi: rt.alarmKpi() });
+
   const wss = new WebSocketServer({ server });
   wss.on('connection', (ws) => {
+    ws.send(alarmsMsg()); // snapshot alarm khi kết nối
     ws.on('message', (data) => {
       let m: Command;
       try {
@@ -103,14 +107,30 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
         rt.setLoadDemand(m.value);
       } else if (m.cmd === 'mill-trip') {
         rt.injectMalfunction({ id: 'mill-trip' });
+      } else if (m.cmd === 'leak') {
+        if (typeof m.value === 'number' && m.value > 0) rt.injectMalfunction({ id: 'tube-leak', params: { rate: m.value } });
+        else rt.clearMalfunction('tube-leak');
+      } else if (m.cmd === 'ack' && m.alarmId !== undefined) {
+        rt.ackAlarm(m.alarmId, 'operator'); // RBAC vai + xác nhận 2 bước: Pha C-4
       }
     });
     ws.on('close', () => subs.delete(ws));
   });
 
+  // Broadcast alarm khi tập alarm hoạt động đổi (report-by-exception).
+  let lastAlarmSig = '';
+  const broadcastAlarms = (): void => {
+    const sig = rt.activeAlarms().map((a) => `${a.alarmId}:${a.state}`).join('|');
+    if (sig === lastAlarmSig) return;
+    lastAlarmSig = sig;
+    const msg = alarmsMsg();
+    for (const ws of wss.clients) if (ws.readyState === WebSocket.OPEN) ws.send(msg);
+  };
+
   const timer = setInterval(() => {
     rt.step();
     for (const ws of wss.clients) if (ws.readyState === WebSocket.OPEN) sendScreen(ws, false);
+    broadcastAlarms();
   }, stepMs);
 
   const ready = new Promise<number>((resolve) => {

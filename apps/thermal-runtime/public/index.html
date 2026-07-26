@@ -44,6 +44,21 @@
   .controls button:hover{border-color:var(--equip-line)}
   .controls button.warn{border-color:var(--alarm-2);color:var(--alarm-2)}
   .note{font-family:var(--mono);font-size:10px;color:#6B7580;margin-top:14px;line-height:1.5;max-width:720px}
+  .ribbon{display:flex;align-items:center;gap:14px;height:64px;padding:0 16px;border-top:1px solid var(--border);
+    background:#161C22;font-family:var(--mono);font-size:12px}
+  .acount{display:flex;gap:10px}
+  .acount span{display:inline-flex;align-items:center;gap:5px;color:var(--text-dim)}
+  .acount b{font-variant-numeric:tabular-nums;color:var(--pv);min-width:18px;text-align:right}
+  .pip{width:9px;height:9px;border-radius:2px;display:inline-block}
+  .alist{flex:1;display:flex;flex-direction:column;gap:2px;overflow:hidden}
+  .arow{display:flex;align-items:center;gap:10px;white-space:nowrap}
+  .arow .id{color:var(--pv)} .arow .cs{color:var(--text-dim)} .arow .st{color:var(--text-dim);font-size:11px}
+  .arow.unack .id{animation:blink 1s steps(2,start) infinite}
+  @keyframes blink{50%{opacity:.35}}
+  .ackbtn{font-family:var(--mono);font-size:11px;background:var(--bg-canvas);color:var(--text);
+    border:1px solid var(--border);border-radius:2px;padding:6px 12px;cursor:pointer}
+  .ackbtn:hover{border-color:var(--equip-line)}
+  .ackbtn[disabled]{opacity:.35;cursor:default}
 </style>
 </head>
 <body>
@@ -65,12 +80,24 @@
         <button data-load="448">Tải cơ sở → 448 MW</button>
         <button data-load="560">Tăng tải → 560 MW</button>
         <button class="warn" data-cmd="mill-trip">Mill trip</button>
+        <button class="warn" data-leak="800">Tube leak (800 t/h)</button>
+        <button data-leak="0">Clear leak</button>
       </div>
       <div class="note">Màn hình là JSON khai báo của plugin (/screen/&lt;id&gt;); client render generic
       theo symbol + áp binding {property,tag,transform,condition}. Dữ liệu từ mô hình vật lý qua vòng
       CCS khép kín (không Math.random). Giá trị trung tính, chỉ đổi màu khi bất thường (ISA-101).</div>
     </section>
   </main>
+  <div class="ribbon">
+    <div class="acount">
+      <span><i class="pip" style="background:var(--alarm-1)"></i>P1 <b id="cP1">0</b></span>
+      <span><i class="pip" style="background:var(--alarm-2)"></i>P2 <b id="cP2">0</b></span>
+      <span><i class="pip" style="background:var(--alarm-3)"></i>P3 <b id="cP3">0</b></span>
+      <span><i class="pip" style="background:var(--alarm-4)"></i>P4 <b id="cP4">0</b></span>
+    </div>
+    <div class="alist" id="alist"><div class="arow"><span class="cs">Không có alarm đang hoạt động</span></div></div>
+    <button class="ackbtn" id="ackBtn" disabled>ACK alarm mới nhất</button>
+  </div>
 
 <script>
   const $ = (id) => document.getElementById(id);
@@ -163,13 +190,40 @@
     ws = new WebSocket('ws://' + location.host);
     ws.onopen = () => { $('linkDot').className = 'dot'; $('linkTxt').textContent = 'LINK'; if (current) subscribe(current); };
     ws.onclose = () => { $('linkDot').className = 'dot off'; $('linkTxt').textContent = 'reconnecting…'; setTimeout(connect, 1000); };
-    ws.onmessage = (e) => { try { const m = JSON.parse(e.data); if (m.type === 'delta'){ Object.assign(state, m.values); refresh(); } } catch {} };
+    ws.onmessage = (e) => { try { const m = JSON.parse(e.data);
+      if (m.type === 'delta'){ Object.assign(state, m.values); refresh(); }
+      else if (m.type === 'alarms'){ renderAlarms(m.active || []); }
+    } catch {} };
   }
+
+  const PRIO = { P1:'alarm-1', P2:'alarm-2', P3:'alarm-3', P4:'alarm-4' };
+  const isUnack = (s) => s === 'UnackAlarm' || s === 'RtnUnack';
+  function renderAlarms(active){
+    const c = { P1:0, P2:0, P3:0, P4:0 };
+    for (const a of active) c[a.priority] = (c[a.priority] || 0) + 1;
+    $('cP1').textContent = c.P1; $('cP2').textContent = c.P2; $('cP3').textContent = c.P3; $('cP4').textContent = c.P4;
+    const unacked = active.filter(a => isUnack(a.state));
+    const show = (unacked.length ? unacked : active).slice(0, 3);
+    const list = $('alist');
+    if (!show.length) list.innerHTML = '<div class="arow"><span class="cs">Không có alarm đang hoạt động</span></div>';
+    else list.innerHTML = show.map(a =>
+      '<div class="arow ' + (isUnack(a.state) ? 'unack' : '') + '">'
+      + '<i class="pip" style="background:var(--' + PRIO[a.priority] + ')"></i>'
+      + '<span class="id">' + a.alarmId + '</span><span class="cs">' + a.priority + '</span>'
+      + '<span class="st">' + a.state + (typeof a.value === 'number' ? ' · ' + a.value.toFixed(1) : '') + '</span></div>').join('');
+    const latest = unacked[unacked.length - 1];
+    const btn = $('ackBtn');
+    btn.disabled = !latest;
+    btn.dataset.id = latest ? latest.alarmId : '';
+  }
+  $('ackBtn').onclick = () => { const id = $('ackBtn').dataset.id; if (id && ws && ws.readyState === 1) ws.send(JSON.stringify({ cmd: 'ack', alarmId: id })); };
 
   document.querySelectorAll('.controls button[data-load]').forEach(b =>
     b.onclick = () => ws && ws.readyState === 1 && ws.send(JSON.stringify({ cmd: 'load', value: Number(b.dataset.load) })));
   document.querySelectorAll('.controls button[data-cmd]').forEach(b =>
     b.onclick = () => ws && ws.readyState === 1 && ws.send(JSON.stringify({ cmd: b.dataset.cmd })));
+  document.querySelectorAll('.controls button[data-leak]').forEach(b =>
+    b.onclick = () => ws && ws.readyState === 1 && ws.send(JSON.stringify({ cmd: 'leak', value: Number(b.dataset.leak) })));
 
   fetch('/screens').then(r => r.json()).then(list => {
     const nav = $('navList');

@@ -1,21 +1,26 @@
-// apps/thermal-runtime — composition root Pha B: đóng 7 control loop (khai báo trong plugin) quanh
-// BoilerIslandModel thành CCS coordinated control khép kín. App tổ hợp được phép import engines +
-// plugin; plugin runtime vẫn chỉ import @idtp/sdk. Sim→control→tag không dùng Math.random.
-import { SimulationHost, TagRealtimeEngine, ControlLoopEngine } from '@idtp/engines';
+// apps/thermal-runtime — composition root: BoilerIslandModel + 7-loop CCS + Alarm Engine ISA-18.2,
+// khép kín với ĐỒNG HỒ SIM tiến theo dt (Time Service, không Date.now trong vòng process).
+// Sim→control→alarm→tag không dùng Math.random. App tổ hợp import engines/kernel/plugin; plugin
+// runtime vẫn chỉ import @idtp/sdk.
+import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine } from '@idtp/engines';
+import type { AlarmKpi } from '@idtp/engines';
+import { TimeService } from '@idtp/kernel';
 import {
   BoilerIslandModel,
   boilerControlLoops,
   boilerLoopSeeds,
+  boilerAlarms,
 } from '@idtp/plugin-thermal-power-600';
-import type { IMalfunction, LoopMode, Quality } from '@idtp/sdk';
+import type { IMalfunction, LoopMode, Quality, AlarmEvent } from '@idtp/sdk';
 
-const TS = '2026-07-24T10:00:00+07:00';
 const GOOD: Quality = 'Good';
 const DEFAULT_MW = 448; // ~1500 t/h hơi
+const DT_MS = 100;
+const START_EPOCH_MS = Date.parse('2026-07-24T03:00:00.000Z'); // = 10:00:00 +07:00
 
 export interface ThermalRuntimeOptions {
   loadMw?: number;
-  warmupSteps?: number; // số bước MAN giữ OP tại seed để sim về điểm vận hành trước khi AUTO
+  warmupSteps?: number;
 }
 
 export interface ThermalRuntime {
@@ -24,23 +29,32 @@ export interface ThermalRuntime {
   injectMalfunction(m: IMalfunction): void;
   clearMalfunction(id: string): void;
   setLoopMode(loopId: string, mode: LoopMode): void;
+  ackAlarm(alarmId: string, user: string): AlarmEvent;
+  activeAlarms(): ReadonlyArray<AlarmEvent>;
+  alarmKpi(): AlarmKpi;
   value(tagId: string): number;
+  nowIso(): string;
   tag: TagRealtimeEngine;
+  alarms: AlarmEngine;
 }
 
 export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalRuntime {
   const loadMw = opts.loadMw ?? DEFAULT_MW;
   const warmupSteps = opts.warmupSteps ?? 2000;
 
+  const time = new TimeService({ offset: '+07:00' });
+  let stepCount = 0;
+  const nowMs = (): number => START_EPOCH_MS + stepCount * DT_MS;
+  const nowIso = (): string => time.formatEpoch(nowMs());
+
   const tag = new TagRealtimeEngine();
   const num = (id: string, def = 0): number => {
     const v = tag.getCurrent(id);
     return typeof v?.value === 'number' ? v.value : def;
   };
-  const put = (id: string, value: number): void =>
-    tag.ingest([{ tagId: id, value, quality: GOOD, ts: TS }]);
+  const put = (id: string, value: number): void => tag.ingest([{ tagId: id, value, quality: GOOD, ts: nowIso() }]);
 
-  // Lệnh tải + seed OP tại điểm vận hành (sim khởi động gần cân bằng).
+  // Lệnh tải + seed OP điểm vận hành.
   put('BLR_MW_DEMAND', loadMw);
   put('BLR_TURBINE_DEMAND_01', boilerLoopSeeds.governor ?? 1500);
   put('BLR_FIRING_DEMAND', boilerLoopSeeds['boiler-master-pressure'] ?? 0);
@@ -50,46 +64,69 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   put('BLR_SH_SPRAY_CV_01', boilerLoopSeeds['sh-temp'] ?? 0);
   put('BLR_FW_CV_01', boilerLoopSeeds['drum-level'] ?? 0);
 
-  const host = new SimulationHost(100, {
-    now: () => TS,
+  const host = new SimulationHost(DT_MS, {
+    now: () => nowIso(),
     getTag: (id) => num(id),
     onOutputs: (outs) =>
-      tag.ingest(outs.map((o) => ({ tagId: o.tagId, value: o.value, quality: o.quality, ts: TS }))),
+      tag.ingest(outs.map((o) => ({ tagId: o.tagId, value: o.value, quality: o.quality, ts: nowIso() }))),
   });
   const model = new BoilerIslandModel();
-  // Warm-start tại điểm vận hành ~448 MW (steam ~1500 t/h) để bỏ transient khởi động nguội.
   host.register(model, { warmStart: { coalFlow: 211, steamGen: 1500, pressure: 17.5, o2: 3.2, shTemp: 541 } });
 
   const loops = new ControlLoopEngine(boilerControlLoops);
   const ingestOut = (): void => {
-    const outs = loops.step({ getTag: (id) => num(id) }, 0.1);
-    tag.ingest(outs.map((o) => ({ tagId: o.outTag, value: o.value, quality: GOOD, ts: TS })));
+    const outs = loops.step({ getTag: (id) => num(id) }, DT_MS / 1000);
+    tag.ingest(outs.map((o) => ({ tagId: o.outTag, value: o.value, quality: GOOD, ts: nowIso() })));
   };
 
-  // Warmup: giữ loop ở MAN (OP = seed) cho sim về điểm vận hành; step() vẫn ghi lastFf cho bumpless.
+  // Alarm Engine ISA-18.2 nạp alarm khai báo của plugin. Suppression theo trạng thái tổ máy.
+  const unitState: Record<string, string> = { unit_state: 'RUNNING' };
+  const alarms = new AlarmEngine(boilerAlarms, { formatTs: (ms) => time.formatEpoch(ms) });
+  alarms.setSuppressionEvaluator((expr) => {
+    const parts = expr.split('==').map((s) => s.trim());
+    const k = parts[0];
+    const v = parts[1];
+    return k !== undefined && v !== undefined && unitState[k] === v;
+  });
+  const alarmTags = [...new Set(boilerAlarms.map((a) => a.tagId))];
+  const evalAlarms = (): void => {
+    for (const t of alarmTags) {
+      const cur = tag.getCurrent(t);
+      if (cur && typeof cur.value === 'number') alarms.evaluate(t, cur.value, cur.quality, nowMs());
+    }
+  };
+
+  const advance = (): void => {
+    stepCount += 1;
+    host.step(); // sim đọc OP → ghi PV
+    ingestOut(); // loop đọc PV → ghi OP
+  };
+
+  // Warmup: giữ loop ở MAN (OP = seed) cho sim về điểm vận hành.
   for (const [loopId, seed] of Object.entries(boilerLoopSeeds)) {
     loops.setMode(loopId, 'MAN');
     loops.setManualOutput(loopId, seed);
   }
-  for (let i = 0; i < warmupSteps; i++) {
-    host.step();
-    ingestOut();
-  }
-  // Chuyển AUTO bumpless (integral = OP − FF gần nhất) → CCS coordinated điều tiết.
+  for (let i = 0; i < warmupSteps; i++) advance();
   for (const loopId of Object.keys(boilerLoopSeeds)) loops.setMode(loopId, 'AUTO');
 
   const step = (): void => {
-    host.step(); // sim đọc OP → ghi PV
-    ingestOut(); // loop đọc PV → ghi OP
+    advance();
+    evalAlarms();
   };
 
   return {
     step,
     tag,
+    alarms,
     setLoadDemand: (mw) => put('BLR_MW_DEMAND', mw),
     injectMalfunction: (m) => host.inject(model.id, m),
     clearMalfunction: (id) => host.clear(model.id, id),
     setLoopMode: (loopId, mode) => loops.setMode(loopId, mode),
+    ackAlarm: (alarmId, user) => alarms.ack(alarmId, user, nowMs()),
+    activeAlarms: () => alarms.getActive(),
+    alarmKpi: () => alarms.kpi(nowMs()),
     value: (id) => num(id),
+    nowIso,
   };
 }

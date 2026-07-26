@@ -56,4 +56,28 @@ describe('thermal-runtime server', () => {
     ws.close();
     await app.close();
   });
+
+  it('gửi snapshot alarm khi kết nối; lệnh ack/leak không gây lỗi', async () => {
+    const app = startServer(0, { stepMs: 15 });
+    const port = await app.ready;
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`);
+    const alarmMsgs: { active: unknown[] }[] = [];
+    ws.on('message', (d) => {
+      const m = JSON.parse(d.toString()) as { type?: string; active?: unknown[] };
+      if (m.type === 'alarms' && m.active) alarmMsgs.push({ active: m.active });
+    });
+    await new Promise<void>((r) => ws.on('open', () => r()));
+
+    const t0 = Date.now();
+    while (alarmMsgs.length === 0 && Date.now() - t0 < 2000) await sleep(20);
+    expect(alarmMsgs.length).toBeGreaterThan(0);
+    expect(Array.isArray(alarmMsgs[0]?.active)).toBe(true);
+
+    ws.send(JSON.stringify({ cmd: 'ack', alarmId: 'BLR-DRUM-LVL-HH' }));
+    ws.send(JSON.stringify({ cmd: 'leak', value: 0 }));
+    await sleep(100);
+
+    ws.close();
+    await app.close();
+  });
 });

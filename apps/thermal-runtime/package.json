@@ -20,6 +20,7 @@
   "dependencies": {
     "@idtp/sdk": "workspace:*",
     "@idtp/engines": "workspace:*",
+    "@idtp/kernel": "workspace:*",
     "@idtp/plugin-thermal-power-600": "workspace:*",
     "ws": "^8.18.0"
   },
