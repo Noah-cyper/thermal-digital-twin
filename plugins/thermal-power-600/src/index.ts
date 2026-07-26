@@ -3,3 +3,4 @@
 // dùng cho walking-skeleton Pha A (giữ lại làm tham chiếu).
 export { BoilerIslandModel } from './sim/boiler-island';
 export { DrumModel } from './sim/drum';
+export { boilerControlLoops, boilerLoopSeeds } from './control/loops';

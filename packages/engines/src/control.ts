@@ -21,6 +21,7 @@ export class PidController {
   private manOut = 0;
   private mode: LoopMode = 'MAN';
   private started = false;
+  private lastFf = 0;
 
   constructor(private readonly cfg: PidConfig) {}
 
@@ -36,8 +37,9 @@ export class PidController {
   setMode(mode: LoopMode): void {
     if (mode === this.mode) return;
     if (mode !== 'MAN') {
-      // vào AUTO/CASCADE: integral = output hiện tại (trừ phần P/D tức thời ≈ 0 tại thời điểm chuyển)
-      this.integral = this.out;
+      // vào AUTO/CASCADE bumpless: integral = output − feedforward gần nhất (để out giữ nguyên khi
+      // err≈0; nếu bỏ FF sẽ cộng đôi FF + integral).
+      this.integral = this.out - this.lastFf;
     } else {
       this.manOut = this.out;
     }
@@ -55,6 +57,7 @@ export class PidController {
       this.prevPv = pv;
       this.started = true;
     }
+    this.lastFf = ff; // lưu để bumpless transfer trừ đúng phần FF
     if (this.mode === 'MAN') {
       this.out = clamp(this.manOut, this.cfg.outLo, this.cfg.outHi);
       this.prevPv = pv;

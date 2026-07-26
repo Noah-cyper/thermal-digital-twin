@@ -16,6 +16,16 @@ import type {
   TagId,
 } from '@idtp/sdk';
 
+/** Điểm vận hành khởi tạo (warm-start) — tránh transient khởi động nguội. init(config) nhận qua
+ *  { warmStart: {...} }; thiếu trường nào → mặc định nguội. */
+interface WarmStart {
+  coalFlow: number;
+  steamGen: number;
+  pressure: number;
+  o2: number;
+  shTemp: number;
+}
+
 /* ── Design Basis (Phụ lục A §3) — KHÔNG phải giả định ─────────────────── */
 const LHV_KJ_PER_KG = 21_500; // than bituminous
 const BMCR_STEAM_TPH = 2008; // lưu lượng hơi BMCR
@@ -70,6 +80,15 @@ const SIM_SEED = 0x9e3779b1; // seed cố định (golden ratio) → replay/re-s
 
 function clamp(x: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, x));
+}
+
+function readWarmStart(config: unknown): WarmStart {
+  const def: WarmStart = { coalFlow: 0, steamGen: 0, pressure: P_MSTM_NOM_MPA, o2: O2_NOM_PCT, shTemp: T_FIRE_BASE };
+  if (config !== null && typeof config === 'object' && 'warmStart' in config) {
+    const w = (config as { warmStart?: Partial<WarmStart> }).warmStart;
+    if (w) return { ...def, ...w };
+  }
+  return def;
 }
 
 /** LCG 32-bit tất định (thay cho Math.random). Trạng thái serialize vào snapshot. */
@@ -162,15 +181,16 @@ export class BoilerIslandModel implements ISimModel {
   private readonly furnace = new Foptd(TAU_FURN, TH_FURN, 0.1);
   private rng = new Lcg(SIM_SEED);
 
-  init(): void {
+  init(_ctx?: ISimModelContext, config?: unknown): void {
+    const ws = readWarmStart(config);
     this.massLevel = 0;
-    this.pressure = P_MSTM_NOM_MPA; // khởi tại điểm vận hành (loop áp giữ quanh đây ở Pha B)
-    this.coalFlow = 0;
+    this.pressure = ws.pressure;
+    this.coalFlow = ws.coalFlow;
     this.millsAvailable = MILLS_RUNNING;
     this.leak = 0;
-    this.steam.reset(0);
-    this.o2.reset(O2_NOM_PCT);
-    this.shTemp.reset(T_FIRE_BASE);
+    this.steam.reset(ws.steamGen);
+    this.o2.reset(ws.o2);
+    this.shTemp.reset(ws.shTemp);
     this.furnace.reset(DRAFT_NOM_PA);
     this.rng = new Lcg(SIM_SEED);
   }
