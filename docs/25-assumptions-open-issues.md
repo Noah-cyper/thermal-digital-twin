@@ -37,6 +37,8 @@
 | GĐ‑29 | Danh mục KPI mở rộng | doc 21 |
 | GĐ‑30 | Ngưỡng coverage 70% | doc 22 |
 | GĐ‑31 | Turborepo vs Nx | doc 23 |
+| GĐ‑32 | Hằng số hiệu chỉnh sim Boiler Island (Pha B): DH_EVAP=2758 kJ/kg (coal ~280→steam BMCR 2008), ETA_COMB_MAX=0,94, K_O2_PENALTY=0,01, AF_STOICH=10 kg/kg, AIR_MAX=4000 t/h, K_PRESS=2e‑5, K_SWELL_P=8000, TAU_COAL_ACT=8 s, đường cong SH temp (505+80·tải−95·spray), K_DRAFT=5 Pa/%, MW_PER_TPH=600/2008 (turbine đơn giản hoá) | doc 10 |
+| GĐ‑33 | Biên nhiễu đo seeded (LCG, không Math.random): level 0,4 mm · press 0,02 MPa · temp 0,5 °C · O₂ 0,03% · flow 2 t/h · coal 1 t/h · furnace 3 Pa · MW 0,5 | doc 10 §8 |
 
 ## 2. Vấn đề mở
 | # | Vấn đề | Cần |

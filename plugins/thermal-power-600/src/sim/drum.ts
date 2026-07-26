@@ -18,8 +18,9 @@ function clamp(x: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, x));
 }
 
+// Pha A walking-skeleton dùng model này (drum tối giản). Pha B trở đi dùng BoilerIslandModel.
 export class DrumModel implements ISimModel {
-  readonly id = 'thermal-boiler-island';
+  readonly id = 'thermal-drum-skeleton';
   readonly tagsProvided: ReadonlyArray<TagId> = ['BLR_DRUM_LEVEL_01', 'BLR_STEAM_FLOW_01', 'BLR_FW_FLOW_01'];
 
   private massLevel = 0; // mm — thành phần khối lượng nước
