@@ -1,44 +1,9 @@
 // L2 — Graphics Runtime binding evaluator (doc 05-02). Thuần, kiểm thử được; áp binding khai báo
 // {property, tag, transform, condition} lên giá trị tag → props phần tử. Cấm hardcode màn hình.
-import type { Quality } from '@idtp/sdk';
+// Kiểu màn hình khai báo nằm ở @idtp/sdk (plugin cung cấp screen dạng data); re-export để tương thích.
+import type { Quality, TransformSpec, ConditionSpec, ScreenElement, ScreenDef } from '@idtp/sdk';
 
-export type ScreenLevel = 'D1' | 'D2' | 'D3' | 'D4' | 'S';
-
-export interface TransformSpec {
-  kind: 'linear' | 'map';
-  scale?: number;
-  offset?: number;
-  map?: Record<string, string>;
-}
-
-export interface ConditionSpec {
-  when: 'gt' | 'lt' | 'eq' | 'bad';
-  value?: number;
-  then: Record<string, string>;
-}
-
-export interface Binding {
-  property: string;
-  tag: string;
-  transform?: TransformSpec;
-  condition?: ConditionSpec;
-}
-
-export interface ScreenElement {
-  id: string;
-  symbol: string;
-  x: number;
-  y: number;
-  w?: number;
-  h?: number;
-  bindings: Binding[];
-}
-
-export interface ScreenDef {
-  screenId: string;
-  level: ScreenLevel;
-  elements: ScreenElement[];
-}
+export type { ScreenLevel, TransformSpec, ConditionSpec, Binding, ScreenElement, ScreenDef } from '@idtp/sdk';
 
 export interface TagRead {
   value: number | boolean | string;

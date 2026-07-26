@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IDTP — Thermal 600 MW · CCS Runtime</title>
+<style>
+  :root{
+    --bg-canvas:#12161B; --bg-panel:#1E242B; --border:#2E3742; --equip-line:#8A939C;
+    --text:#E6EAEE; --text-dim:#9AA5B1; --pv:#FFFFFF;
+    --alarm-1:#E5484D; --alarm-2:#F5A524; --alarm-3:#F5D90A; --bad-quality:#B14CFF; --run:#2FA84F;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg-canvas);color:var(--text);
+    font-family:ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;font-size:14px}
+  .banner{display:flex;gap:20px;align-items:center;justify-content:space-between;
+    padding:9px 16px;border-bottom:1px solid var(--border);background:#161C22;font-family:var(--mono);font-size:13px}
+  .banner b{color:var(--pv)}
+  .kpi{color:var(--text-dim)} .kpi b{color:var(--pv);font-variant-numeric:tabular-nums}
+  .link{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--run);display:inline-block}
+  .dot.off{background:var(--alarm-1)}
+  main{display:flex;min-height:calc(100vh - 42px)}
+  nav{width:200px;border-right:1px solid var(--border);background:var(--bg-panel);padding:10px}
+  nav h2{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);margin:6px 4px 10px}
+  nav button{display:block;width:100%;text-align:left;font-family:var(--mono);font-size:12px;
+    background:transparent;color:var(--text);border:1px solid transparent;border-radius:2px;padding:8px 9px;cursor:pointer;margin-bottom:3px}
+  nav button:hover{background:var(--bg-canvas)}
+  nav button.active{border-color:var(--equip-line);background:var(--bg-canvas)}
+  nav .lvl{color:var(--text-dim);font-size:10px;margin-right:6px}
+  .process{position:relative;flex:1;padding:12px 14px;overflow:auto}
+  .process h1{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);margin:2px 0 8px}
+  .canvas{position:relative;width:720px;height:280px}
+  .tile{position:absolute;background:var(--bg-panel);border:1px solid var(--border);border-radius:2px;padding:8px 10px;display:flex;flex-direction:column;justify-content:space-between}
+  .tile .lab{font-family:var(--mono);font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--text-dim)}
+  .tile .val{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:26px;color:var(--pv);line-height:1}
+  .tile .val .u{font-size:12px;color:var(--text-dim);margin-left:5px}
+  .bar{height:10px;background:var(--bg-canvas);border:1px solid var(--border);border-radius:2px;overflow:hidden;margin-top:4px}
+  .bar > i{display:block;height:100%;background:var(--equip-line)}
+  .controls{margin-top:16px;display:flex;gap:8px;flex-wrap:wrap}
+  .controls button{font-family:var(--mono);font-size:12px;background:var(--bg-canvas);color:var(--text);
+    border:1px solid var(--border);border-radius:2px;padding:8px 10px;cursor:pointer}
+  .controls button:hover{border-color:var(--equip-line)}
+  .controls button.warn{border-color:var(--alarm-2);color:var(--alarm-2)}
+  .note{font-family:var(--mono);font-size:10px;color:#6B7580;margin-top:14px;line-height:1.5;max-width:720px}
+</style>
+</head>
+<body>
+  <div class="banner">
+    <span><b>UNIT1</b> · Nhiệt điện than 600 MW · CCS runtime</span>
+    <span class="kpi">MW <b id="kMw">—</b> · Hơi <b id="kSteam">—</b> t/h · Áp <b id="kPress">—</b> MPa · O₂ <b id="kO2">—</b>%</span>
+    <span class="link"><i class="dot" id="linkDot"></i><span id="linkTxt">connecting…</span></span>
+  </div>
+  <main>
+    <nav>
+      <h2>Điều hướng (ISA-101)</h2>
+      <div id="navList"></div>
+    </nav>
+    <section class="process">
+      <h1 id="scrTitle">—</h1>
+      <div class="canvas" id="canvas"></div>
+      <div class="controls">
+        <button data-load="400">Giảm tải → 400 MW</button>
+        <button data-load="448">Tải cơ sở → 448 MW</button>
+        <button data-load="560">Tăng tải → 560 MW</button>
+        <button class="warn" data-cmd="mill-trip">Mill trip</button>
+      </div>
+      <div class="note">Màn hình là JSON khai báo của plugin (/screen/&lt;id&gt;); client render generic
+      theo symbol + áp binding {property,tag,transform,condition}. Dữ liệu từ mô hình vật lý qua vòng
+      CCS khép kín (không Math.random). Giá trị trung tính, chỉ đổi màu khi bất thường (ISA-101).</div>
+    </section>
+  </main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const state = {};        // tagId → value
+  let screen = null;       // ScreenDef hiện tại
+  const nodes = new Map(); // elementId → { root, valEl, barEl, el }
+
+  function evalCondition(read, c){
+    if (c.when === 'bad') return read.quality === 'Bad' || read.quality === 'Uncertain';
+    if (typeof read.value !== 'number' || c.value === undefined) return false;
+    if (c.when === 'gt') return read.value > c.value;
+    if (c.when === 'lt') return read.value < c.value;
+    return read.value === c.value;
+  }
+  function primaryTag(el){
+    const b = el.bindings.find(x => x.property === 'text' || x.property === 'value');
+    return b ? b.tag : (el.bindings[0] && el.bindings[0].tag);
+  }
+  function fillFor(el){
+    for (const b of el.bindings){
+      if (b.property === 'fill' && b.condition){
+        const read = { value: state[b.tag], quality: 'Good' };
+        if (evalCondition(read, b.condition)) return b.condition.then.fill;
+      }
+    }
+    return null;
+  }
+
+  function buildScreen(def){
+    screen = def; nodes.clear();
+    $('scrTitle').textContent = (def.title ? def.title.vi + '  ·  ' : '') + def.screenId;
+    const canvas = $('canvas'); canvas.innerHTML = '';
+    for (const el of def.elements){
+      const root = document.createElement('div');
+      root.className = 'tile';
+      root.style.left = el.x + 'px'; root.style.top = el.y + 'px';
+      root.style.width = (el.w || 150) + 'px'; root.style.height = (el.h || 78) + 'px';
+      const lab = document.createElement('div'); lab.className = 'lab'; lab.textContent = el.label || el.id;
+      root.appendChild(lab);
+      let valEl = null, barEl = null;
+      if (el.symbol === 'bar'){
+        valEl = document.createElement('div'); valEl.className = 'val'; valEl.innerHTML = '—<span class="u">%</span>';
+        const bar = document.createElement('div'); bar.className = 'bar';
+        barEl = document.createElement('i'); barEl.style.width = '0%'; bar.appendChild(barEl);
+        root.appendChild(valEl); root.appendChild(bar);
+      } else {
+        valEl = document.createElement('div'); valEl.className = 'val';
+        valEl.innerHTML = '—<span class="u">' + (el.unit || '') + '</span>';
+        root.appendChild(valEl);
+      }
+      canvas.appendChild(root);
+      nodes.set(el.id, { root, valEl, barEl, el });
+    }
+    refresh();
+  }
+
+  function refresh(){
+    if (!screen) return;
+    for (const el of screen.elements){
+      const n = nodes.get(el.id); if (!n) continue;
+      const v = state[primaryTag(el)];
+      const num = (typeof v === 'number') ? v : null;
+      const fill = fillFor(el);
+      if (el.symbol === 'bar'){
+        const b = el.bindings.find(x => x.property === 'value');
+        const scaled = (num == null) ? 0 : num * ((b && b.transform && b.transform.scale) || 1);
+        n.valEl.innerHTML = (num == null ? '—' : num.toFixed(1)) + '<span class="u">%</span>';
+        if (n.barEl){ n.barEl.style.width = Math.max(0, Math.min(100, scaled)) + '%'; n.barEl.style.background = fill || 'var(--equip-line)'; }
+      } else {
+        n.valEl.innerHTML = (num == null ? '—' : num.toFixed(el.unit === 'MPa' || el.unit === '%' ? 2 : num >= 100 ? 0 : 1))
+          + '<span class="u">' + (el.unit || '') + '</span>';
+        n.valEl.style.color = fill || 'var(--pv)';
+      }
+    }
+    $('kMw').textContent = (state.GEN_MW_01 ?? 0).toFixed(0);
+    $('kSteam').textContent = (state.BLR_STEAM_FLOW_01 ?? 0).toFixed(0);
+    $('kPress').textContent = (state.BLR_MSTM_SH_PRESS_01 ?? 0).toFixed(2);
+    $('kO2').textContent = (state.BLR_FLUE_O2_01 ?? 0).toFixed(2);
+  }
+
+  let ws, current = null;
+  function subscribe(id){ if (ws && ws.readyState === 1) ws.send(JSON.stringify({ cmd: 'screen', screenId: id })); }
+  function openScreen(id){
+    current = id;
+    document.querySelectorAll('#navList button').forEach(b => b.classList.toggle('active', b.dataset.id === id));
+    fetch('/screen/' + id).then(r => r.json()).then(buildScreen).catch(() => {});
+    subscribe(id);
+  }
+  function connect(){
+    ws = new WebSocket('ws://' + location.host);
+    ws.onopen = () => { $('linkDot').className = 'dot'; $('linkTxt').textContent = 'LINK'; if (current) subscribe(current); };
+    ws.onclose = () => { $('linkDot').className = 'dot off'; $('linkTxt').textContent = 'reconnecting…'; setTimeout(connect, 1000); };
+    ws.onmessage = (e) => { try { const m = JSON.parse(e.data); if (m.type === 'delta'){ Object.assign(state, m.values); refresh(); } } catch {} };
+  }
+
+  document.querySelectorAll('.controls button[data-load]').forEach(b =>
+    b.onclick = () => ws && ws.readyState === 1 && ws.send(JSON.stringify({ cmd: 'load', value: Number(b.dataset.load) })));
+  document.querySelectorAll('.controls button[data-cmd]').forEach(b =>
+    b.onclick = () => ws && ws.readyState === 1 && ws.send(JSON.stringify({ cmd: b.dataset.cmd })));
+
+  fetch('/screens').then(r => r.json()).then(list => {
+    const nav = $('navList');
+    for (const s of list){
+      const b = document.createElement('button');
+      b.dataset.id = s.screenId;
+      b.innerHTML = '<span class="lvl">' + s.level + '</span>' + (s.title ? s.title.vi : s.screenId);
+      b.onclick = () => openScreen(s.screenId);
+      nav.appendChild(b);
+    }
+    if (list[0]) openScreen(list[0].screenId);
+  }).catch(() => {});
+  connect();
+</script>
+</body>
+</html>

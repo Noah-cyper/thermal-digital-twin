@@ -14,15 +14,18 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "start": "node dist/server.js"
   },
   "dependencies": {
     "@idtp/sdk": "workspace:*",
     "@idtp/engines": "workspace:*",
-    "@idtp/plugin-thermal-power-600": "workspace:*"
+    "@idtp/plugin-thermal-power-600": "workspace:*",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
     "@types/node": "^22.5.0",
+    "@types/ws": "^8.5.12",
     "typescript": "^5.5.4",
     "vitest": "^2.0.5"
   }

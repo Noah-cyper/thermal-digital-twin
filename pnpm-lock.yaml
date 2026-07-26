@@ -29,10 +29,16 @@ importers:
       '@idtp/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
+      ws:
+        specifier: ^8.18.0
+        version: 8.21.1
     devDependencies:
       '@types/node':
         specifier: ^22.5.0
         version: 22.20.1
+      '@types/ws':
+        specifier: ^8.5.12
+        version: 8.18.1
       typescript:
         specifier: ^5.5.4
         version: 5.9.3
