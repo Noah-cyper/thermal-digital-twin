@@ -2,5 +2,6 @@
 export * from './tag-realtime';
 export * from './control';
 export * from './control-loop-engine';
+export * from './alarm-engine';
 export * from './simulation-host';
 export * from './graphics';

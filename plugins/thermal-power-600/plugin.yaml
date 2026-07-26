@@ -10,6 +10,7 @@ provides:
   tagRegistry: tags/**/*.yaml
   simulation: dist/sim/boiler-island.js
   control: dist/control/loops.js
+  alarms: dist/alarms/boiler-alarms.js
   graphics: dist/graphics/screens.js
   navigation: nav/tree.yaml
   i18n: i18n/{vi,en}.json
