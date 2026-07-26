@@ -8,6 +8,7 @@ import { dirname, join } from 'node:path';
 import type { AddressInfo } from 'node:net';
 import { WebSocketServer, WebSocket } from 'ws';
 import type { ScreenDef } from '@idtp/sdk';
+import type { ReplaySession } from '@idtp/engines';
 import { boilerScreens, screenTags } from '@idtp/plugin-thermal-power-600';
 import { createThermalRuntime } from './runtime';
 
@@ -27,6 +28,8 @@ interface Command {
   alarmId?: string;
   value?: number;
 }
+
+const LIVE_CMDS = new Set(['load', 'leak', 'mill-trip', 'ack']); // lệnh ra thiết bị — chặn khi replay
 
 export interface RunningServer {
   server: http.Server;
@@ -87,9 +90,16 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
 
   const alarmsMsg = (): string => JSON.stringify({ type: 'alarms', active: rt.activeAlarms(), kpi: rt.alarmKpi() });
 
+  let replay: ReplaySession | null = null;
   const wss = new WebSocketServer({ server });
+  const broadcast = (msg: string): void => {
+    for (const ws of wss.clients) if (ws.readyState === WebSocket.OPEN) ws.send(msg);
+  };
+  const modeMsg = (): string => JSON.stringify({ type: 'mode', mode: replay ? 'REPLAY' : 'LIVE' });
+
   wss.on('connection', (ws) => {
-    ws.send(alarmsMsg()); // snapshot alarm khi kết nối
+    ws.send(alarmsMsg());
+    ws.send(modeMsg());
     ws.on('message', (data) => {
       let m: Command;
       try {
@@ -97,11 +107,16 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
       } catch {
         return;
       }
+      // DATA REPLAY: chặn CỨNG mọi lệnh ra thiết bị ở tầng server (doc 05-04 §4/§10, §12.2 prompt cha).
+      if (replay && m.cmd !== undefined && LIVE_CMDS.has(m.cmd)) {
+        ws.send(JSON.stringify({ type: 'blocked', reason: 'DATA REPLAY: lệnh ra thiết bị bị chặn (an toàn)' }));
+        return;
+      }
       if (m.cmd === 'screen' && m.screenId !== undefined && screensById.has(m.screenId)) {
         const scr = screensById.get(m.screenId);
         if (scr) {
           subs.set(ws, { tags: screenTags(scr), last: new Map() });
-          sendScreen(ws, true); // snapshot đầy đủ khi vào màn hình
+          if (!replay) sendScreen(ws, true);
         }
       } else if (m.cmd === 'load' && typeof m.value === 'number') {
         rt.setLoadDemand(m.value);
@@ -111,7 +126,26 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
         if (typeof m.value === 'number' && m.value > 0) rt.injectMalfunction({ id: 'tube-leak', params: { rate: m.value } });
         else rt.clearMalfunction('tube-leak');
       } else if (m.cmd === 'ack' && m.alarmId !== undefined) {
-        rt.ackAlarm(m.alarmId, 'operator'); // RBAC vai + xác nhận 2 bước: Pha C-4
+        rt.ackAlarm(m.alarmId, 'operator'); // RBAC + xác nhận 2 bước: Pha C-4
+      } else if (m.cmd === 'replay-start') {
+        const range = rt.historian.dataRange();
+        if (range) {
+          replay = rt.historian.openReplay(range.from, range.to, 1);
+          broadcast(modeMsg());
+        }
+      } else if (m.cmd === 'replay-speed' && typeof m.value === 'number' && replay) {
+        rt.historian.setSpeed(replay.id, m.value);
+      } else if (m.cmd === 'replay-seek' && typeof m.value === 'number' && replay) {
+        const range = rt.historian.dataRange();
+        if (range) {
+          const f = Date.parse(range.from);
+          const t = Date.parse(range.to);
+          rt.historian.seek(replay.id, new Date(f + Math.max(0, Math.min(1, m.value)) * (t - f)).toISOString());
+        }
+      } else if (m.cmd === 'replay-stop' && replay) {
+        rt.historian.closeReplay(replay.id);
+        replay = null;
+        broadcast(modeMsg());
       }
     });
     ws.on('close', () => subs.delete(ws));
@@ -123,14 +157,30 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
     const sig = rt.activeAlarms().map((a) => `${a.alarmId}:${a.state}`).join('|');
     if (sig === lastAlarmSig) return;
     lastAlarmSig = sig;
-    const msg = alarmsMsg();
-    for (const ws of wss.clients) if (ws.readyState === WebSocket.OPEN) ws.send(msg);
+    broadcast(alarmsMsg());
+  };
+
+  const sendReplayFrame = (ws: WebSocket, clockMs: number, sess: ReplaySession): void => {
+    const sub = subs.get(ws);
+    if (!sub) return;
+    const values: Record<string, number> = {};
+    for (const [t, p] of Object.entries(rt.historian.frameAt(clockMs, sub.tags))) values[t] = Math.round(p.value * 100) / 100;
+    if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'delta', mode: 'REPLAY', replay: sess, values }));
   };
 
   const timer = setInterval(() => {
-    rt.step();
-    for (const ws of wss.clients) if (ws.readyState === WebSocket.OPEN) sendScreen(ws, false);
-    broadcastAlarms();
+    rt.step(); // live luôn chạy + ghi historian, kể cả khi đang replay
+    if (replay) {
+      const clockTs = rt.historian.advanceReplay(replay.id, stepMs);
+      const sess = rt.historian.session(replay.id);
+      if (clockTs && sess) {
+        const clockMs = Date.parse(clockTs);
+        for (const ws of wss.clients) if (ws.readyState === WebSocket.OPEN) sendReplayFrame(ws, clockMs, sess);
+      }
+    } else {
+      for (const ws of wss.clients) if (ws.readyState === WebSocket.OPEN) sendScreen(ws, false);
+      broadcastAlarms();
+    }
   }, stepMs);
 
   const ready = new Promise<number>((resolve) => {

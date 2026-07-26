@@ -80,4 +80,51 @@ describe('thermal-runtime server', () => {
     ws.close();
     await app.close();
   });
+
+  it('DATA REPLAY: stream frame lịch sử (mode REPLAY) + chặn cứng lệnh ra thiết bị', async () => {
+    const app = startServer(0, { stepMs: 10 });
+    const port = await app.ready;
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`);
+    const msgs: { type?: string; mode?: string; reason?: string }[] = [];
+    ws.on('message', (d) => msgs.push(JSON.parse(d.toString()) as { type?: string; mode?: string }));
+    await new Promise<void>((r) => ws.on('open', () => r()));
+    ws.send(JSON.stringify({ cmd: 'screen', screenId: 'D1-plant-overview' }));
+    await sleep(600); // tích luỹ dữ liệu historian
+
+    ws.send(JSON.stringify({ cmd: 'replay-start' }));
+    let modeReplay = false;
+    let deltaReplay = false;
+    const t0 = Date.now();
+    while (Date.now() - t0 < 2000 && !(modeReplay && deltaReplay)) {
+      await sleep(20);
+      modeReplay = msgs.some((m) => m.type === 'mode' && m.mode === 'REPLAY');
+      deltaReplay = msgs.some((m) => m.type === 'delta' && m.mode === 'REPLAY');
+    }
+    expect(modeReplay).toBe(true);
+    expect(deltaReplay).toBe(true);
+
+    // lệnh ra thiết bị khi replay → blocked
+    const mark = msgs.length;
+    ws.send(JSON.stringify({ cmd: 'load', value: 400 }));
+    let blocked = false;
+    const t1 = Date.now();
+    while (Date.now() - t1 < 1000 && !blocked) {
+      await sleep(20);
+      blocked = msgs.slice(mark).some((m) => m.type === 'blocked');
+    }
+    expect(blocked).toBe(true);
+
+    // thoát replay → LIVE
+    ws.send(JSON.stringify({ cmd: 'replay-stop' }));
+    let live = false;
+    const t2 = Date.now();
+    while (Date.now() - t2 < 1000 && !live) {
+      await sleep(20);
+      live = msgs.filter((m) => m.type === 'mode').pop()?.mode === 'LIVE';
+    }
+    expect(live).toBe(true);
+
+    ws.close();
+    await app.close();
+  });
 });

@@ -2,7 +2,7 @@
 // khép kín với ĐỒNG HỒ SIM tiến theo dt (Time Service, không Date.now trong vòng process).
 // Sim→control→alarm→tag không dùng Math.random. App tổ hợp import engines/kernel/plugin; plugin
 // runtime vẫn chỉ import @idtp/sdk.
-import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine } from '@idtp/engines';
+import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian } from '@idtp/engines';
 import type { AlarmKpi } from '@idtp/engines';
 import { TimeService } from '@idtp/kernel';
 import {
@@ -10,8 +10,13 @@ import {
   boilerControlLoops,
   boilerLoopSeeds,
   boilerAlarms,
+  boilerScreens,
+  screenTags,
 } from '@idtp/plugin-thermal-power-600';
 import type { IMalfunction, LoopMode, Quality, AlarmEvent } from '@idtp/sdk';
+
+const REC_EVERY = 5; // ghi historian mỗi 5 bước (~2 Hz) — raw layer (doc 05-04)
+const SNAPSHOT_EVERY = 3000; // snapshot toàn tag mỗi 3000 bước = 5 phút
 
 const GOOD: Quality = 'Good';
 const DEFAULT_MW = 448; // ~1500 t/h hơi
@@ -34,8 +39,10 @@ export interface ThermalRuntime {
   alarmKpi(): AlarmKpi;
   value(tagId: string): number;
   nowIso(): string;
+  recordedTags(): ReadonlyArray<string>;
   tag: TagRealtimeEngine;
   alarms: AlarmEngine;
+  historian: MemoryHistorian;
 }
 
 export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalRuntime {
@@ -96,6 +103,17 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
     }
   };
 
+  // Historian (adapter memory): ghi tag hiển thị + tag alarm để truy vấn lịch sử + DATA REPLAY.
+  const historian = new MemoryHistorian({ formatTs: (ms) => time.formatEpoch(ms) });
+  const recordedTags = [...new Set([...boilerScreens.flatMap((s) => screenTags(s)), ...alarmTags])];
+  const record = (): void => {
+    if (stepCount % REC_EVERY === 0) {
+      const ts = nowIso();
+      historian.write(recordedTags.map((t) => ({ tagId: t, value: num(t), quality: GOOD, ts })));
+    }
+    if (stepCount % SNAPSHOT_EVERY === 0) void historian.snapshot(nowIso());
+  };
+
   const advance = (): void => {
     stepCount += 1;
     host.step(); // sim đọc OP → ghi PV
@@ -113,12 +131,15 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   const step = (): void => {
     advance();
     evalAlarms();
+    record();
   };
 
   return {
     step,
     tag,
     alarms,
+    historian,
+    recordedTags: () => recordedTags,
     setLoadDemand: (mw) => put('BLR_MW_DEMAND', mw),
     injectMalfunction: (m) => host.inject(model.id, m),
     clearMalfunction: (id) => host.clear(model.id, id),

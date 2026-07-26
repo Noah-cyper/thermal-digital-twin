@@ -59,6 +59,16 @@
     border:1px solid var(--border);border-radius:2px;padding:6px 12px;cursor:pointer}
   .ackbtn:hover{border-color:var(--equip-line)}
   .ackbtn[disabled]{opacity:.35;cursor:default}
+  .replaybar{display:none;align-items:center;gap:12px;height:36px;padding:0 16px;background:#B14CFF;color:#12161B;
+    font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.03em}
+  .replaybar.on{display:flex}
+  .replaybar input[type=range]{flex:1;max-width:280px;accent-color:#12161B}
+  .replaybar .grp{margin-left:auto;display:flex;align-items:center;gap:6px}
+  .replaybar button{font-family:var(--mono);font-size:11px;font-weight:600;background:rgba(18,22,27,.15);
+    color:#12161B;border:1px solid rgba(18,22,27,.45);border-radius:2px;padding:4px 9px;cursor:pointer}
+  .replaybar button:hover{background:rgba(18,22,27,.28)}
+  #rMsg{color:var(--alarm-1);font-weight:700}
+  button[disabled]{opacity:.35;cursor:default}
 </style>
 </head>
 <body>
@@ -66,6 +76,18 @@
     <span><b>UNIT1</b> · Nhiệt điện than 600 MW · CCS runtime</span>
     <span class="kpi">MW <b id="kMw">—</b> · Hơi <b id="kSteam">—</b> t/h · Áp <b id="kPress">—</b> MPa · O₂ <b id="kO2">—</b>%</span>
     <span class="link"><i class="dot" id="linkDot"></i><span id="linkTxt">connecting…</span></span>
+  </div>
+  <div class="replaybar" id="replaybar">
+    <span>⏵ DATA REPLAY</span>
+    <span id="rClock">—</span>
+    <input type="range" id="rSeek" min="0" max="1000" value="0" title="Seek">
+    <span class="grp">
+      <span id="rMsg"></span>
+      <button data-rspeed="0.5">0,5×</button><button data-rspeed="1">1×</button>
+      <button data-rspeed="10">10×</button><button data-rspeed="60">60×</button>
+      <b id="rSpeed">1×</b>
+      <button data-rstop="1">Thoát replay</button>
+    </span>
   </div>
   <main>
     <nav>
@@ -82,6 +104,7 @@
         <button class="warn" data-cmd="mill-trip">Mill trip</button>
         <button class="warn" data-leak="800">Tube leak (800 t/h)</button>
         <button data-leak="0">Clear leak</button>
+        <button data-rstart="1">▶ Replay lịch sử</button>
       </div>
       <div class="note">Màn hình là JSON khai báo của plugin (/screen/&lt;id&gt;); client render generic
       theo symbol + áp binding {property,tag,transform,condition}. Dữ liệu từ mô hình vật lý qua vòng
@@ -191,10 +214,40 @@
     ws.onopen = () => { $('linkDot').className = 'dot'; $('linkTxt').textContent = 'LINK'; if (current) subscribe(current); };
     ws.onclose = () => { $('linkDot').className = 'dot off'; $('linkTxt').textContent = 'reconnecting…'; setTimeout(connect, 1000); };
     ws.onmessage = (e) => { try { const m = JSON.parse(e.data);
-      if (m.type === 'delta'){ Object.assign(state, m.values); refresh(); }
+      if (m.type === 'delta'){ Object.assign(state, m.values); refresh(); if (m.mode === 'REPLAY' && m.replay) updateReplay(m.replay); }
       else if (m.type === 'alarms'){ renderAlarms(m.active || []); }
+      else if (m.type === 'mode'){ setMode(m.mode); }
+      else if (m.type === 'blocked'){ flashBlocked(m.reason); }
     } catch {} };
   }
+  const send = (o) => ws && ws.readyState === 1 && ws.send(JSON.stringify(o));
+
+  let replayMode = false, seeking = false, blockedTimer = null;
+  function setMode(mode){
+    replayMode = (mode === 'REPLAY');
+    $('replaybar').classList.toggle('on', replayMode);
+    document.querySelectorAll('.controls button[data-load],.controls button[data-leak],.controls button[data-cmd],.controls button[data-rstart]')
+      .forEach(b => b.disabled = replayMode);
+    if (!replayMode){ $('rMsg').textContent = ''; if (current) subscribe(current); } // về LIVE → làm mới snapshot
+  }
+  function updateReplay(r){
+    $('rClock').textContent = (r.clockTs || '').replace('T', ' ').slice(0, 19);
+    $('rSpeed').textContent = (r.speed || 1) + '×';
+    if (!seeking && r.from && r.to){
+      const f = Date.parse(r.from), t = Date.parse(r.to), c = Date.parse(r.clockTs);
+      if (t > f) $('rSeek').value = Math.round((c - f) / (t - f) * 1000);
+    }
+  }
+  function flashBlocked(reason){
+    $('rMsg').textContent = '⛔ ' + reason;
+    if (blockedTimer) clearTimeout(blockedTimer);
+    blockedTimer = setTimeout(() => { $('rMsg').textContent = ''; }, 2500);
+  }
+  document.querySelector('button[data-rstart]').onclick = () => send({ cmd: 'replay-start' });
+  document.querySelector('button[data-rstop]').onclick = () => send({ cmd: 'replay-stop' });
+  document.querySelectorAll('button[data-rspeed]').forEach(b => b.onclick = () => send({ cmd: 'replay-speed', value: Number(b.dataset.rspeed) }));
+  $('rSeek').oninput = () => { seeking = true; };
+  $('rSeek').onchange = () => { send({ cmd: 'replay-seek', value: Number($('rSeek').value) / 1000 }); seeking = false; };
 
   const PRIO = { P1:'alarm-1', P2:'alarm-2', P3:'alarm-3', P4:'alarm-4' };
   const isUnack = (s) => s === 'UnackAlarm' || s === 'RtnUnack';
