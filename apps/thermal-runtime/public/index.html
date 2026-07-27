@@ -197,8 +197,13 @@
       <span><i class="pip" style="background:var(--alarm-4)"></i>P4 <b id="cP4">0</b></span>
     </div>
     <div class="alist" id="alist"><div class="arow"><span class="cs">Không có alarm đang hoạt động</span></div></div>
+    <button class="ackbtn" id="adviseBtn" disabled title="AI Advisor (rule-based, chỉ đọc) — giải thích alarm mới nhất">💡 Giải thích</button>
     <button class="ackbtn" id="ackBtn" disabled>ACK alarm mới nhất</button>
   </div>
+  <div id="advicePanel" hidden style="position:fixed;right:16px;bottom:16px;max-width:380px;z-index:50;
+    background:var(--panel,#141a20);color:var(--text,#e7edf2);border:1px solid var(--line,#2a343d);
+    border-left:3px solid var(--accent,#e3a24a);border-radius:6px;padding:14px 16px;box-shadow:0 8px 30px rgba(0,0,0,.4);
+    font-size:13px;line-height:1.5"></div>
 
 <script>
   const $ = (id) => document.getElementById(id);
@@ -347,6 +352,23 @@
       if (t.length){ const b = document.createElement('button'); b.textContent = 'Reset'; b.onclick = () => send({ cmd: 'ce-reset', matrixId: mx.matrixId }); bar.appendChild(b); }
     }
   }
+  function onAdvice(a){
+    const p = $('advicePanel');
+    if (!a){ p.hidden = true; return; }
+    const cites = (a.citations || []).map(c => '<span style="display:inline-block;background:rgba(227,162,74,.14);border:1px solid rgba(227,162,74,.4);border-radius:3px;padding:1px 6px;margin:2px 4px 0 0;font-size:11px">' + c.kind + ':' + c.ref + '</span>').join('');
+    p.innerHTML =
+      '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px">' +
+      '<b>💡 AI Advisor — ' + a.alarmId + ' <span style="opacity:.6">(' + a.priority + ')</span></b>' +
+      '<span style="cursor:pointer;opacity:.6" id="adviceX">✕</span></div>' +
+      '<div style="margin:.2rem 0"><b>Hậu quả:</b> ' + a.summary + '</div>' +
+      '<div style="margin:.2rem 0"><b>Nguyên nhân:</b> ' + a.likelyCause + '</div>' +
+      '<div style="margin:.2rem 0"><b>Khắc phục:</b> ' + a.recommended + '</div>' +
+      (a.escalation ? '<div style="margin:.2rem 0;color:var(--accent,#e3a24a)"><b>⚠ Leo thang:</b> ' + a.escalation + '</div>' : '') +
+      '<div style="margin-top:.5rem;opacity:.8">Nguồn: ' + cites + '</div>' +
+      '<div style="margin-top:.5rem;font-size:11px;opacity:.55">Chỉ đọc · rule-based · không ghi tag/setpoint (RAG thật ở v2)</div>';
+    p.hidden = false;
+    const x = $('adviceX'); if (x) x.onclick = () => { p.hidden = true; };
+  }
   function connect(){
     ws = new WebSocket('ws://' + location.host);
     ws.onopen = () => { $('linkDot').className = 'dot'; $('linkTxt').textContent = 'LINK'; if (current) subscribe(current); send({ cmd: 'faceplate-list' }); };
@@ -370,6 +392,7 @@
       else if (m.type === 'seq-list'){ onSeqList(m.items || []); }
       else if (m.type === 'seq-live'){ onSeqLive(m.active || []); }
       else if (m.type === 'ce'){ onCe(m.matrices || []); }
+      else if (m.type === 'advice'){ onAdvice(m.advice); }
     } catch {} };
   }
   const KPI_LABEL = { 'heat-rate': 'Heat rate', 'efficiency': 'Hiệu suất', 'steam-rate': 'Steam rate' };
@@ -528,8 +551,13 @@
     const btn = $('ackBtn');
     btn.disabled = !latest;
     btn.dataset.id = latest ? latest.alarmId : '';
+    const adv = $('adviseBtn');
+    const first = active[0];
+    adv.disabled = !first;
+    adv.dataset.id = first ? first.alarmId : '';
   }
   $('ackBtn').onclick = () => { const id = $('ackBtn').dataset.id; if (id && ws && ws.readyState === 1) ws.send(JSON.stringify({ cmd: 'ack', alarmId: id })); };
+  $('adviseBtn').onclick = () => { const id = $('adviseBtn').dataset.id; if (id && ws && ws.readyState === 1) ws.send(JSON.stringify({ cmd: 'advise', alarmId: id })); };
 
   document.querySelectorAll('.controls button[data-load]').forEach(b =>
     b.onclick = () => ws && ws.readyState === 1 && ws.send(JSON.stringify({ cmd: 'load', value: Number(b.dataset.load) })));

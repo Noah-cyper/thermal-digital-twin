@@ -346,6 +346,10 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
         handleSeqLive(ws, m);
       } else if (m.cmd === 'ce-reset') {
         handleCeReset(ws, m);
+      } else if (m.cmd === 'advise' && m.alarmId !== undefined) {
+        // AI Advisor READ-ONLY: chỉ cần đăng nhập, không đổi thiết bị → không chặn khi replay.
+        if (tokens.get(ws) === undefined) ws.send(JSON.stringify({ type: 'denied', reason: 'chưa đăng nhập' }));
+        else ws.send(JSON.stringify({ type: 'advice', advice: rt.explainAlarm(m.alarmId) ?? null }));
       } else if (m.cmd === 'replay-start') {
         const range = rt.historian.dataRange();
         if (range) {

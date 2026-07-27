@@ -20,3 +20,4 @@ export * from './cause-effect-engine';
 export * from './timescale-historian';
 export * from './loadgen';
 export * from './sparkplug';
+export * from './ai-advisor';
