@@ -121,6 +121,7 @@
     <section class="process">
       <h1 id="scrTitle">—</h1>
       <div class="kpis" id="kpis"></div>
+      <div class="kpis" id="maint"></div>
       <div class="canvas" id="canvas"></div>
       <div class="controls">
         <button data-load="400">Giảm tải → 400 MW</button>
@@ -135,6 +136,7 @@
         <button data-ots="freeze" id="otsFreeze">Freeze (OTS)</button>
         <button data-ots="snapshot">Snapshot</button>
         <button data-ots="restore" id="otsRestore" disabled>Restore</button>
+        <button data-wo="1">Work order CM (UNIT1)</button>
       </div>
       <div class="note">Màn hình là JSON khai báo của plugin (/screen/&lt;id&gt;); client render generic
       theo symbol + áp binding {property,tag,transform,condition}. Dữ liệu từ mô hình vật lý qua vòng
@@ -253,6 +255,7 @@
       else if (m.type === 'confirm-needed'){ onConfirmNeeded(m); }
       else if (m.type === 'ots'){ onOts(m); }
       else if (m.type === 'kpi'){ renderKpis(m.results || []); }
+      else if (m.type === 'maint'){ renderMaint(m); }
     } catch {} };
   }
   const KPI_LABEL = { 'heat-rate': 'Heat rate', 'efficiency': 'Hiệu suất', 'steam-rate': 'Steam rate' };
@@ -260,6 +263,11 @@
     $('kpis').innerHTML = results.map(r =>
       '<span>' + (KPI_LABEL[r.kpiId] || r.kpiId) + ' <b>' + Number(r.value).toFixed(r.kpiId === 'heat-rate' ? 0 : 2) + '</b> '
       + (r.unit ? r.unit.symbol : '') + '</span>').join('');
+  }
+  function renderMaint(m){
+    const rt = (m.runtime || []).map(r =>
+      '<span>' + r.assetId + ' <b>' + Number(r.runningHours).toFixed(2) + '</b> h · ' + r.startCount + ' start' + (r.running ? '' : ' (dừng)') + '</span>').join('');
+    $('maint').innerHTML = rt + '<span>WO <b>' + (m.workOrders || []).length + '</b> · MTBF UNIT1 <b>' + Number(m.mtbf || 0).toFixed(1) + '</b> h</span>';
   }
   const send = (o) => ws && ws.readyState === 1 && ws.send(JSON.stringify(o));
 
@@ -293,6 +301,7 @@
     else if (k === 'restore') send({ cmd: 'ots-restore' });
   });
   document.querySelectorAll('.controls button[data-vacuum]').forEach(b => b.onclick = () => send({ cmd: 'vacuum', value: Number(b.dataset.vacuum) }));
+  document.querySelectorAll('.controls button[data-wo]').forEach(b => b.onclick = () => send({ cmd: 'create-wo', assetId: 'UNIT1', woType: 'CM', reason: 'thao tác thủ công' }));
 
   let replayMode = false, seeking = false, blockedTimer = null;
   function setMode(mode){

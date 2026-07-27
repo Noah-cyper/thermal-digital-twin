@@ -45,6 +45,7 @@
 | GĐ‑37 | Số liệu plugin #2 water-treatment-demo là DEMO tổng hợp: FEED_MAX 200 m³/h · surge tank 60 m³ · SP mức 60% · setpoint alarm (LL10/LO25/HI80/HH90). Mục đích = bài test generic, không phải plant thật | doc 00 §5.4 |
 | GĐ‑38 | OTS loss-of-vacuum: mục tiêu 30 kPa (τ 10 s), hệ số công suất = clamp(1−(vac−5,4)/40, 0,5..1) — chân không danh định 5,4 kPa là Design Basis §3.3 | doc 05-05/10 |
 | GĐ‑39 | KPI v1: aux power cố định 7% (net = gross×0,93, theo Design Basis §3.1 558/600) — chưa đo house load; KPI tính trên toàn dải historian đã ghi (shift/daily report là v2, doc 21 §3) | doc 21 |
+| GĐ‑40 | Maintenance: ngưỡng PM (UNIT1 8000h · MILL 2000h · BFP 4000h); run-state suy từ tag>ngưỡng (MW/coal/fw >10); MTBF = giờ chạy/số hỏng, event hỏng lấy alarm P1 của UNIT1 (v1 đơn giản hoá; CMMS thật = v3) | doc 05-18 |
 
 ## 2. Vấn đề mở
 > ✔ M‑05 (bài test generic): thêm `water-treatment-demo` chỉ chạm `plugins/water-treatment-demo/*` + `pnpm-lock.yaml` — **0 dòng sửa `packages/*` & `apps/*`** (kiểm bằng `git status`). Luận điểm "mọi nhà máy chỉ là plugin" đứng vững.

@@ -2,7 +2,7 @@
 // khép kín với ĐỒNG HỒ SIM tiến theo dt (Time Service, không Date.now trong vòng process).
 // Sim→control→alarm→tag không dùng Math.random. App tổ hợp import engines/kernel/plugin; plugin
 // runtime vẫn chỉ import @idtp/sdk.
-import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian, KpiEngine, historianKpiInput } from '@idtp/engines';
+import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian, KpiEngine, historianKpiInput, MaintenanceEngine } from '@idtp/engines';
 import type { AlarmKpi } from '@idtp/engines';
 import { TimeService } from '@idtp/kernel';
 import {
@@ -13,8 +13,19 @@ import {
   boilerScreens,
   screenTags,
   thermalKpis,
+  thermalMaintenance,
 } from '@idtp/plugin-thermal-power-600';
-import type { IMalfunction, LoopMode, Quality, AlarmEvent, ISimSnapshot, IKpiResult } from '@idtp/sdk';
+import type {
+  IMalfunction,
+  LoopMode,
+  Quality,
+  AlarmEvent,
+  ISimSnapshot,
+  IKpiResult,
+  EquipmentRuntime,
+  WorkOrder,
+  WorkOrderStatus,
+} from '@idtp/sdk';
 
 /** Ảnh chụp OTS: trạng thái model + tag chính + số bước — để freeze/restore huấn luyện (doc 05-05). */
 export interface OtsSnapshot {
@@ -50,6 +61,11 @@ export interface ThermalRuntime {
   snapshot(): OtsSnapshot;
   restore(snap: OtsSnapshot): void;
   computeKpis(): Promise<IKpiResult[]>;
+  maintenanceRuntime(): ReadonlyArray<EquipmentRuntime>;
+  maintenanceMtbf(assetId: string): number;
+  workOrders(): ReadonlyArray<WorkOrder>;
+  createWorkOrder(assetId: string, type: 'PM' | 'CM', reason: string, user: string): WorkOrder;
+  updateWorkOrder(woId: string, status: WorkOrderStatus, user: string): WorkOrder | { error: string };
   value(tagId: string): number;
   nowIso(): string;
   recordedTags(): ReadonlyArray<string>;
@@ -127,6 +143,12 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
     if (stepCount % SNAPSHOT_EVERY === 0) void historian.snapshot(nowIso());
   };
 
+  // Maintenance: tích giờ chạy từ run-tag; MTBF lấy alarm P1 làm event hỏng của UNIT1.
+  const maintenance = new MaintenanceEngine(thermalMaintenance, { formatTs: (ms) => time.formatEpoch(ms) });
+  alarms.onTransition((e) => {
+    if (e.state === 'UnackAlarm' && e.priority === 'P1') maintenance.recordFailure('UNIT1', nowMs());
+  });
+
   const advance = (): void => {
     stepCount += 1;
     host.step(); // sim đọc OP → ghi PV
@@ -162,6 +184,7 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
     advance();
     evalAlarms();
     record();
+    maintenance.sample((id) => num(id), nowMs());
   };
 
   return {
@@ -197,6 +220,11 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
       const r = historian.dataRange();
       return r ? new KpiEngine(thermalKpis).computeAll(historianKpiInput(historian, r.from, r.to)) : Promise.resolve([]);
     },
+    maintenanceRuntime: () => maintenance.allRuntime(),
+    maintenanceMtbf: (assetId) => maintenance.mtbf(assetId),
+    workOrders: () => maintenance.workOrders(),
+    createWorkOrder: (assetId, type, reason, user) => maintenance.createWorkOrder({ assetId, type, reason }, user, nowMs()),
+    updateWorkOrder: (woId, status, user) => maintenance.updateWorkOrder(woId, status, user, nowMs()),
     value: (id) => num(id),
     nowIso,
   };

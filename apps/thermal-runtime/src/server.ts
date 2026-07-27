@@ -44,6 +44,9 @@ interface Command {
   value?: number;
   user?: string;
   confirm?: boolean;
+  assetId?: string;
+  woType?: 'PM' | 'CM';
+  reason?: string;
 }
 
 const LIVE_CMDS = new Set(['load', 'leak', 'mill-trip', 'vacuum', 'ack']); // lệnh ra thiết bị — chặn khi replay
@@ -163,6 +166,26 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
     } else if (cmd === 'ack' && m.alarmId !== undefined) rt.ackAlarm(m.alarmId, sec.resolve(access)?.userId ?? 'operator');
   };
 
+  const maintMsg = (): string =>
+    JSON.stringify({ type: 'maint', runtime: rt.maintenanceRuntime(), workOrders: rt.workOrders(), mtbf: rt.maintenanceMtbf('UNIT1') });
+
+  // Tạo work order — action 'oos' (Maintenance/ShiftSup/Engineer/Admin), audit, không 2 bước.
+  const handleCreateWo = (ws: WebSocket, m: Command): void => {
+    const access = tokens.get(ws);
+    if (access === undefined) {
+      ws.send(JSON.stringify({ type: 'denied', reason: 'chưa đăng nhập' }));
+      return;
+    }
+    const assetId = m.assetId ?? 'UNIT1';
+    const res = sec.guardedWrite(access, 'oos', assetId, undefined, m.woType ?? 'CM', `create work order ${assetId}`);
+    if (!res.allow) {
+      ws.send(JSON.stringify({ type: 'denied', reason: res.reason }));
+      return;
+    }
+    rt.createWorkOrder(assetId, m.woType ?? 'CM', m.reason ?? 'sự cố', sec.resolve(access)?.userId ?? 'maint');
+    broadcast(maintMsg());
+  };
+
   // OTS session control (freeze/snapshot/restore) — action 'engineer', audit, không 2 bước (thao tác đảo được).
   let otsSnap: OtsSnapshot | null = null;
   const otsMsg = (): string => JSON.stringify({ type: 'ots', frozen: rt.isFrozen(), hasSnapshot: otsSnap !== null });
@@ -191,6 +214,7 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
     ws.send(modeMsg());
     ws.send(authMsg(ws));
     ws.send(otsMsg());
+    ws.send(maintMsg());
 
     ws.on('message', (data) => {
       let m: Command;
@@ -226,6 +250,10 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
         handleWrite(ws, m);
       } else if (m.cmd !== undefined && LIVE_OTS.has(m.cmd)) {
         handleOts(ws, m.cmd, m.value);
+      } else if (m.cmd === 'maintenance-query') {
+        ws.send(maintMsg());
+      } else if (m.cmd === 'create-wo') {
+        handleCreateWo(ws, m);
       } else if (m.cmd === 'replay-start') {
         const range = rt.historian.dataRange();
         if (range) {
@@ -283,7 +311,10 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
     } else {
       for (const ws of wss.clients) if (ws.readyState === WebSocket.OPEN) sendScreen(ws, false);
       broadcastAlarms();
-      if (++kpiTick % 50 === 0) void rt.computeKpis().then((results) => broadcast(JSON.stringify({ type: 'kpi', results })));
+      if (++kpiTick % 50 === 0) {
+        void rt.computeKpis().then((results) => broadcast(JSON.stringify({ type: 'kpi', results })));
+        broadcast(maintMsg());
+      }
     }
   }, stepMs);
 

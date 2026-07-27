@@ -13,6 +13,7 @@ provides:
   alarms: dist/alarms/boiler-alarms.js
   graphics: dist/graphics/screens.js
   kpi: dist/kpi/calculators.js
+  maintenance: dist/maintenance/items.js
   navigation: nav/tree.yaml
   i18n: i18n/{vi,en}.json
 
