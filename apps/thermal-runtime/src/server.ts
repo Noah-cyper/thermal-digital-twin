@@ -7,10 +7,23 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import type { AddressInfo } from 'node:net';
 import { WebSocketServer, WebSocket } from 'ws';
-import type { ScreenDef } from '@idtp/sdk';
+import type { ScreenDef, PermissionAction, Role } from '@idtp/sdk';
 import type { ReplaySession } from '@idtp/engines';
+import { SecurityEngine } from '@idtp/engines';
 import { boilerScreens, screenTags } from '@idtp/plugin-thermal-power-600';
 import { createThermalRuntime } from './runtime';
+
+// Người dùng demo (mật khẩu 'p') — đủ minh hoạ RBAC 6 vai. Thật: SSO/LDAP (doc 18).
+const DEMO_USERS: ReadonlyArray<{ user: string; roles: Role[] }> = [
+  { user: 'viewer', roles: ['Viewer'] },
+  { user: 'operator', roles: ['Operator'] },
+  { user: 'supervisor', roles: ['ShiftSupervisor'] },
+  { user: 'engineer', roles: ['Engineer'] },
+  { user: 'maint', roles: ['Maintenance'] },
+  { user: 'admin', roles: ['Admin'] },
+];
+// Ánh xạ lệnh WS → hành động RBAC (doc 05-07). load = setpoint; leak/mill-trip = override (OTS nguy hiểm).
+const CMD_ACTION: Record<string, PermissionAction> = { load: 'setpoint', ack: 'ack', leak: 'override', 'mill-trip': 'override' };
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PUBLIC = join(HERE, '..', 'public');
@@ -27,6 +40,8 @@ interface Command {
   screenId?: string;
   alarmId?: string;
   value?: number;
+  user?: string;
+  confirm?: boolean;
 }
 
 const LIVE_CMDS = new Set(['load', 'leak', 'mill-trip', 'ack']); // lệnh ra thiết bị — chặn khi replay
@@ -42,6 +57,11 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
   const stepMs = opts.stepMs ?? 100;
   const rt = createThermalRuntime();
   const subs = new Map<WebSocket, Sub>();
+
+  // Security/RBAC — enforcement ở tầng API gateway (server). Clock thực (auth không phải sim data).
+  const sec = new SecurityEngine({ nowMs: () => Date.now(), formatTs: (ms) => new Date(ms).toISOString() });
+  for (const u of DEMO_USERS) sec.addUser(u.user, 'p', u.roles);
+  const tokens = new Map<WebSocket, string>(); // ws → access token
 
   const server = http.createServer((req, res) => {
     try {
@@ -96,15 +116,73 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
     for (const ws of wss.clients) if (ws.readyState === WebSocket.OPEN) ws.send(msg);
   };
   const modeMsg = (): string => JSON.stringify({ type: 'mode', mode: replay ? 'REPLAY' : 'LIVE' });
+  const authMsg = (ws: WebSocket): string => {
+    const a = tokens.get(ws);
+    const ctx = a !== undefined ? sec.resolve(a) : undefined;
+    return JSON.stringify({ type: 'auth', ok: ctx !== undefined, user: ctx?.userId, roles: ctx?.roles });
+  };
 
-  wss.on('connection', (ws) => {
+  // Lệnh ghi thiết bị → RBAC guardedWrite + audit bất biến + xác nhận 2 bước (doc 05-07).
+  const handleWrite = (ws: WebSocket, m: Command): void => {
+    const cmd = m.cmd as string;
+    const access = tokens.get(ws);
+    if (access === undefined) {
+      ws.send(JSON.stringify({ type: 'denied', reason: 'chưa đăng nhập' }));
+      return;
+    }
+    const action = CMD_ACTION[cmd] as PermissionAction;
+    const target = cmd === 'ack' ? m.alarmId ?? '' : cmd === 'load' ? 'BLR_MW_DEMAND' : cmd === 'leak' ? 'tube-leak' : 'mill';
+    const oldVal = cmd === 'load' ? rt.value('BLR_MW_DEMAND') : undefined;
+    const newVal = cmd === 'load' ? m.value : cmd === 'leak' ? m.value : cmd === 'ack' ? m.alarmId : 'trip';
+
+    let confirmToken: string | undefined;
+    if (sec.requiresTwoStep(action)) {
+      if (m.confirm !== true) {
+        ws.send(JSON.stringify({ type: 'confirm-needed', cmd, value: m.value, alarmId: m.alarmId, action, target }));
+        return;
+      }
+      const ctx = sec.resolve(access);
+      if (ctx) confirmToken = sec.requestConfirm(ctx, action, target);
+    }
+
+    const res = sec.guardedWrite(access, action, target, oldVal, newVal, `WS ${cmd}`, confirmToken);
+    if (!res.allow) {
+      ws.send(JSON.stringify({ type: 'denied', reason: res.reason }));
+      return;
+    }
+    if (cmd === 'load' && typeof m.value === 'number') rt.setLoadDemand(m.value);
+    else if (cmd === 'mill-trip') rt.injectMalfunction({ id: 'mill-trip' });
+    else if (cmd === 'leak') {
+      if (typeof m.value === 'number' && m.value > 0) rt.injectMalfunction({ id: 'tube-leak', params: { rate: m.value } });
+      else rt.clearMalfunction('tube-leak');
+    } else if (cmd === 'ack' && m.alarmId !== undefined) rt.ackAlarm(m.alarmId, sec.resolve(access)?.userId ?? 'operator');
+  };
+
+  wss.on('connection', (ws, req) => {
+    const clientIp = req.socket.remoteAddress ?? '?';
+    const initial = sec.authenticate('operator', 'p', clientIp); // auto-login vai Operator để dùng ngay
+    if ('access' in initial) tokens.set(ws, initial.access);
     ws.send(alarmsMsg());
     ws.send(modeMsg());
+    ws.send(authMsg(ws));
+
     ws.on('message', (data) => {
       let m: Command;
       try {
         m = JSON.parse(data.toString()) as Command;
       } catch {
+        return;
+      }
+      if (m.cmd === 'login') {
+        const r = sec.authenticate(m.user ?? 'operator', 'p', clientIp);
+        if ('access' in r) {
+          tokens.set(ws, r.access);
+          ws.send(authMsg(ws));
+        } else ws.send(JSON.stringify({ type: 'auth', ok: false, error: r.error }));
+        return;
+      }
+      if (m.cmd === 'audit-query') {
+        ws.send(JSON.stringify({ type: 'audit', entries: sec.auditList().slice(-20) }));
         return;
       }
       // DATA REPLAY: chặn CỨNG mọi lệnh ra thiết bị ở tầng server (doc 05-04 §4/§10, §12.2 prompt cha).
@@ -118,15 +196,8 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
           subs.set(ws, { tags: screenTags(scr), last: new Map() });
           if (!replay) sendScreen(ws, true);
         }
-      } else if (m.cmd === 'load' && typeof m.value === 'number') {
-        rt.setLoadDemand(m.value);
-      } else if (m.cmd === 'mill-trip') {
-        rt.injectMalfunction({ id: 'mill-trip' });
-      } else if (m.cmd === 'leak') {
-        if (typeof m.value === 'number' && m.value > 0) rt.injectMalfunction({ id: 'tube-leak', params: { rate: m.value } });
-        else rt.clearMalfunction('tube-leak');
-      } else if (m.cmd === 'ack' && m.alarmId !== undefined) {
-        rt.ackAlarm(m.alarmId, 'operator'); // RBAC + xác nhận 2 bước: Pha C-4
+      } else if (m.cmd !== undefined && m.cmd in CMD_ACTION) {
+        handleWrite(ws, m);
       } else if (m.cmd === 'replay-start') {
         const range = rt.historian.dataRange();
         if (range) {
@@ -148,7 +219,10 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
         broadcast(modeMsg());
       }
     });
-    ws.on('close', () => subs.delete(ws));
+    ws.on('close', () => {
+      subs.delete(ws);
+      tokens.delete(ws);
+    });
   });
 
   // Broadcast alarm khi tập alarm hoạt động đổi (report-by-exception).

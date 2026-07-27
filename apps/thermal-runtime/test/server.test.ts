@@ -41,8 +41,8 @@ describe('thermal-runtime server', () => {
     }
     expect(got).toBe(true);
 
-    // lệnh tải 400 MW → MW giảm khỏi 448
-    ws.send(JSON.stringify({ cmd: 'load', value: 400 }));
+    // lệnh tải 400 MW (setpoint → xác nhận 2 bước) → MW giảm khỏi 448
+    ws.send(JSON.stringify({ cmd: 'load', value: 400, confirm: true }));
     let mw = 999;
     const t1 = Date.now();
     while (Date.now() - t1 < 4000) {
@@ -123,6 +123,53 @@ describe('thermal-runtime server', () => {
       live = msgs.filter((m) => m.type === 'mode').pop()?.mode === 'LIVE';
     }
     expect(live).toBe(true);
+
+    ws.close();
+    await app.close();
+  });
+
+  it('RBAC: auth khi kết nối · setpoint cần xác nhận 2 bước · Viewer bị từ chối · audit ghi lệnh', async () => {
+    interface Msg {
+      type?: string;
+      ok?: boolean;
+      roles?: string[];
+      action?: string;
+      reason?: string;
+      entries?: { action?: string; newValue?: unknown }[];
+    }
+    const app = startServer(0, { stepMs: 15 });
+    const port = await app.ready;
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`);
+    const msgs: Msg[] = [];
+    ws.on('message', (d) => msgs.push(JSON.parse(d.toString()) as Msg));
+    const until = async (fn: () => boolean): Promise<boolean> => {
+      const t0 = Date.now();
+      while (Date.now() - t0 < 2000) {
+        if (fn()) return true;
+        await sleep(20);
+      }
+      return false;
+    };
+    await new Promise<void>((r) => ws.on('open', () => r()));
+
+    expect(await until(() => msgs.some((m) => m.type === 'auth' && m.ok === true))).toBe(true);
+    expect(msgs.filter((m) => m.type === 'auth').pop()?.roles).toContain('Operator');
+
+    ws.send(JSON.stringify({ cmd: 'load', value: 460 }));
+    expect(await until(() => msgs.some((m) => m.type === 'confirm-needed' && m.action === 'setpoint'))).toBe(true);
+
+    ws.send(JSON.stringify({ cmd: 'load', value: 460, confirm: true }));
+    await sleep(150);
+    ws.send(JSON.stringify({ cmd: 'audit-query' }));
+    expect(await until(() => (msgs.filter((m) => m.type === 'audit').pop()?.entries?.length ?? 0) > 0)).toBe(true);
+    const audit = msgs.filter((m) => m.type === 'audit').pop();
+    expect(audit?.entries?.some((e) => e.action === 'setpoint' && e.newValue === 460)).toBe(true);
+
+    ws.send(JSON.stringify({ cmd: 'login', user: 'viewer' }));
+    expect(await until(() => (msgs.filter((m) => m.type === 'auth').pop()?.roles?.includes('Viewer') ?? false))).toBe(true);
+    const mark = msgs.length;
+    ws.send(JSON.stringify({ cmd: 'load', value: 470, confirm: true }));
+    expect(await until(() => msgs.slice(mark).some((m) => m.type === 'denied'))).toBe(true);
 
     ws.close();
     await app.close();

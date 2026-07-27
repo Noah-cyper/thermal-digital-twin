@@ -69,14 +69,34 @@
   .replaybar button:hover{background:rgba(18,22,27,.28)}
   #rMsg{color:var(--alarm-1);font-weight:700}
   button[disabled]{opacity:.35;cursor:default}
+  .user{display:inline-flex;align-items:center;gap:6px;color:var(--text-dim)}
+  .user b{color:var(--pv)}
+  .user select{font-family:var(--mono);font-size:12px;background:var(--bg-canvas);color:var(--text);
+    border:1px solid var(--border);border-radius:2px;padding:3px 5px}
+  .toast{position:fixed;top:52px;left:50%;transform:translateX(-50%);z-index:20;display:none;
+    font-family:var(--mono);font-size:12px;padding:8px 14px;border-radius:3px;color:#fff;background:var(--alarm-1)}
+  .toast.on{display:block}
+  .toast.ok{background:var(--run)}
 </style>
 </head>
 <body>
   <div class="banner">
     <span><b>UNIT1</b> · Nhiệt điện than 600 MW · CCS runtime</span>
     <span class="kpi">MW <b id="kMw">—</b> · Hơi <b id="kSteam">—</b> t/h · Áp <b id="kPress">—</b> MPa · O₂ <b id="kO2">—</b>%</span>
+    <span class="user">Vai:
+      <select id="roleSel">
+        <option value="viewer">Viewer</option>
+        <option value="operator" selected>Operator</option>
+        <option value="supervisor">Shift Supervisor</option>
+        <option value="engineer">Engineer</option>
+        <option value="maint">Maintenance</option>
+        <option value="admin">Admin</option>
+      </select>
+      <b id="whoami">—</b>
+    </span>
     <span class="link"><i class="dot" id="linkDot"></i><span id="linkTxt">connecting…</span></span>
   </div>
+  <div class="toast" id="toast"></div>
   <div class="replaybar" id="replaybar">
     <span>⏵ DATA REPLAY</span>
     <span id="rClock">—</span>
@@ -217,10 +237,29 @@
       if (m.type === 'delta'){ Object.assign(state, m.values); refresh(); if (m.mode === 'REPLAY' && m.replay) updateReplay(m.replay); }
       else if (m.type === 'alarms'){ renderAlarms(m.active || []); }
       else if (m.type === 'mode'){ setMode(m.mode); }
-      else if (m.type === 'blocked'){ flashBlocked(m.reason); }
+      else if (m.type === 'blocked'){ flashBlocked(m.reason); showToast('⛔ ' + m.reason, false); }
+      else if (m.type === 'auth'){ onAuth(m); }
+      else if (m.type === 'denied'){ showToast('⛔ Từ chối: ' + m.reason, false); }
+      else if (m.type === 'confirm-needed'){ onConfirmNeeded(m); }
     } catch {} };
   }
   const send = (o) => ws && ws.readyState === 1 && ws.send(JSON.stringify(o));
+
+  let toastTimer = null;
+  function showToast(msg, ok){
+    const t = $('toast'); t.textContent = msg; t.className = 'toast on' + (ok ? ' ok' : '');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.className = 'toast'; }, 2600);
+  }
+  function onAuth(m){
+    if (m.ok){ $('whoami').textContent = (m.user || '') + ' · ' + ((m.roles || []).join(',')); showToast('Đăng nhập: ' + m.user + ' (' + (m.roles || []).join(',') + ')', true); }
+    else showToast('Đăng nhập lỗi: ' + (m.error || ''), false);
+  }
+  function onConfirmNeeded(m){
+    const ok = confirm('Xác nhận 2 bước (' + m.action + '): ' + (m.target || '') + (m.value != null ? ' = ' + m.value : '') + ' ?');
+    if (ok) send({ cmd: m.cmd, value: m.value, alarmId: m.alarmId, confirm: true });
+  }
+  $('roleSel').onchange = () => send({ cmd: 'login', user: $('roleSel').value });
 
   let replayMode = false, seeking = false, blockedTimer = null;
   function setMode(mode){

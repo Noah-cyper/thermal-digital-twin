@@ -4,3 +4,4 @@ export * from './manifest';
 export * from './interfaces';
 export * from './graphics';
 export * from './alarm';
+export * from './security';
