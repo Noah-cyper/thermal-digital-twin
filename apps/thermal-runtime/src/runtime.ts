@@ -2,7 +2,7 @@
 // khép kín với ĐỒNG HỒ SIM tiến theo dt (Time Service, không Date.now trong vòng process).
 // Sim→control→alarm→tag không dùng Math.random. App tổ hợp import engines/kernel/plugin; plugin
 // runtime vẫn chỉ import @idtp/sdk.
-import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian, KpiEngine, historianKpiInput, MaintenanceEngine, FaceplateEngine, NavigationEngine, generateRegistry, generateScreens } from '@idtp/engines';
+import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian, KpiEngine, historianKpiInput, MaintenanceEngine, FaceplateEngine, NavigationEngine, generateRegistry, generateScreens, generateControlLoops } from '@idtp/engines';
 import type { AlarmKpi, FaceplateResolvers, FaceplateOverview, FaceplateAlarmRow, FaceplateDetail } from '@idtp/engines';
 import { TimeService } from '@idtp/kernel';
 import {
@@ -39,6 +39,7 @@ export interface RegistrySummary {
   tags: number;
   alarms: number;
   screens: number; // màn hình danh mục sinh từ registry (doc 12, §10 ≥ 70)
+  loops: number; // control loop danh mục (doc 09, §10 ≥ 25) — chưa gồm 7 loop CCS live
   byCell: Record<string, number>;
   byScanClass: Record<ScanClass, number>;
 }
@@ -214,6 +215,7 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   const registry = generateRegistry(thermalSeedSpec);
   const registryByName = new Map(registry.tags.map((t) => [t.name, t] as const));
   const catalogScreens = generateScreens(registry, thermalSeedSpec.instances); // ≥ 70 màn hình (doc 12)
+  const catalogLoops = generateControlLoops(registry); // ≥ 25 control loop (doc 09)
 
   const advance = (): void => {
     stepCount += 1;
@@ -327,6 +329,7 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
       tags: registry.tags.length,
       alarms: registry.alarms.length,
       screens: catalogScreens.length,
+      loops: catalogLoops.length,
       byCell: registry.byCell,
       byScanClass: registry.byScanClass,
     }),

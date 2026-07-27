@@ -8,6 +8,7 @@ describe('thermal-runtime — Registry §10 (catalog ≥ 3.000 tag / ≥ 600 ala
     expect(s.tags).toBeGreaterThanOrEqual(3000);
     expect(s.alarms).toBeGreaterThanOrEqual(600);
     expect(s.screens).toBeGreaterThanOrEqual(70);
+    expect(s.loops).toBeGreaterThanOrEqual(25);
     expect(s.byCell['boiler']).toBe(600);
 
     const t = rt.registryTag('BLR_MILL_01_CURRENT');

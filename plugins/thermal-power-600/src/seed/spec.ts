@@ -80,6 +80,12 @@ const instances: InstanceGroup[] = [
   { template: 'breaker', area: AREA, cell: 'ups', unit: 'switchgear', equip: 'cb', count: 4, namePrefix: 'UPS_CB', kksSystem: 'BTA', descVi: 'Máy cắt UPS', descEn: 'UPS breaker' },
   { template: 'transmitter', area: AREA, cell: 'ups', unit: 'measurement', equip: 'xmtr', count: 10, namePrefix: 'UPS_XMTR', kksSystem: 'BTB', descVi: 'Đo lường UPS/ắc quy', descEn: 'UPS/battery measurement' },
 
+  /* ── Control loop breadth (BoP) — cho loop generator §10 (≥ 25) ── */
+  { template: 'control_loop', area: AREA, cell: 'flue-gas', unit: 'control', equip: 'loop', count: 3, namePrefix: 'FLG_LOOP', kksSystem: 'HTC', descVi: 'Vòng điều khiển FGD', descEn: 'FGD control loop' },
+  { template: 'control_loop', area: AREA, cell: 'coal', unit: 'control', equip: 'loop', count: 4, namePrefix: 'COA_LOOP', kksSystem: 'EGC', descVi: 'Vòng điều khiển than', descEn: 'Coal control loop' },
+  { template: 'control_loop', area: AREA, cell: 'air', unit: 'control', equip: 'loop', count: 2, namePrefix: 'AIR_LOOP', kksSystem: 'SCC', descVi: 'Vòng áp khí nén', descEn: 'Air pressure loop' },
+  { template: 'control_loop', area: AREA, cell: 'hvac', unit: 'control', equip: 'loop', count: 2, namePrefix: 'HVA_LOOP', kksSystem: 'SAD', descVi: 'Vòng nhiệt độ HVAC', descEn: 'HVAC temperature loop' },
+
   /* ── Calc / KPI / derived (~200) ── */
   { template: 'calc_point', area: AREA, cell: 'system', unit: 'derived', equip: 'calc', count: 200, namePrefix: 'SYS_CALC', kksSystem: 'CJA', descVi: 'Điểm dẫn xuất/KPI', descEn: 'Derived/KPI point', source: 'calc' },
 ];
