@@ -11,3 +11,4 @@ export * from './faceplate-engine';
 export * from './navigation-engine';
 export * from './simulation-host';
 export * from './graphics';
+export * from './seed-generator';

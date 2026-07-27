@@ -2,7 +2,7 @@
 // khép kín với ĐỒNG HỒ SIM tiến theo dt (Time Service, không Date.now trong vòng process).
 // Sim→control→alarm→tag không dùng Math.random. App tổ hợp import engines/kernel/plugin; plugin
 // runtime vẫn chỉ import @idtp/sdk.
-import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian, KpiEngine, historianKpiInput, MaintenanceEngine, FaceplateEngine, NavigationEngine } from '@idtp/engines';
+import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian, KpiEngine, historianKpiInput, MaintenanceEngine, FaceplateEngine, NavigationEngine, generateRegistry } from '@idtp/engines';
 import type { AlarmKpi, FaceplateResolvers, FaceplateOverview, FaceplateAlarmRow, FaceplateDetail } from '@idtp/engines';
 import { TimeService } from '@idtp/kernel';
 import {
@@ -16,6 +16,7 @@ import {
   thermalMaintenance,
   thermalFaceplates,
   thermalNav,
+  thermalSeedSpec,
 } from '@idtp/plugin-thermal-power-600';
 import type {
   IMalfunction,
@@ -29,7 +30,17 @@ import type {
   WorkOrderStatus,
   FaceplateDef,
   NavNode,
+  ScanClass,
+  TagRecord,
 } from '@idtp/sdk';
+
+/** Số liệu roll-up registry (doc 07 §4) — phục vụ giám sát quy mô §10 trên HMI. */
+export interface RegistrySummary {
+  tags: number;
+  alarms: number;
+  byCell: Record<string, number>;
+  byScanClass: Record<ScanClass, number>;
+}
 
 /** Dữ liệu 4 tab faceplate đã ráp (Trend trả thống kê min/max/last theo tag). */
 export interface FaceplateData {
@@ -86,6 +97,8 @@ export interface ThermalRuntime {
   navAlarmIndex(): Record<string, string>;
   navHome(): string;
   navBreadcrumb(screenId: string): ReadonlyArray<NavNode>;
+  registrySummary(): RegistrySummary;
+  registryTag(name: string): TagRecord | undefined;
   value(tagId: string): number;
   nowIso(): string;
   recordedTags(): ReadonlyArray<string>;
@@ -193,6 +206,12 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
 
   // Navigation: cây điều hướng khai báo + index alarm→D3 (từ tag của alarm & tag màn hình hiển thị).
   const nav = new NavigationEngine(thermalNav, { alarms: boilerAlarms, screens: boilerScreens });
+
+  // Registry §10: expand spec seed khai báo của plugin (≥ 3.000 tag / ≥ 600 alarm) bằng engine
+  // generic — chứng minh nền tảng chịu quy mô thật. Là DANH MỤC (catalog); vòng process live chỉ
+  // chạy lõi Boiler Island đã mô phỏng (17 tag sim), không nạp cả registry vào TagRealtimeEngine.
+  const registry = generateRegistry(thermalSeedSpec);
+  const registryByName = new Map(registry.tags.map((t) => [t.name, t] as const));
 
   const advance = (): void => {
     stepCount += 1;
@@ -302,6 +321,13 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
     navAlarmIndex: () => nav.alarmIndex(),
     navHome: () => nav.home(),
     navBreadcrumb: (screenId) => nav.breadcrumb(screenId),
+    registrySummary: () => ({
+      tags: registry.tags.length,
+      alarms: registry.alarms.length,
+      byCell: registry.byCell,
+      byScanClass: registry.byScanClass,
+    }),
+    registryTag: (name) => registryByName.get(name),
     value: (id) => num(id),
     nowIso,
   };

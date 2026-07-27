@@ -137,6 +137,9 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sdk
     devDependencies:
+      '@idtp/engines':
+        specifier: workspace:*
+        version: link:../../packages/engines
       '@types/node':
         specifier: ^22.5.0
         version: 22.20.1

@@ -282,4 +282,30 @@ describe('thermal-runtime server', () => {
     ws.close();
     await app.close();
   });
+
+  it('Registry §10: gửi summary (≥ 3.000 tag / ≥ 600 alarm) khi kết nối', async () => {
+    interface RegMsg {
+      type?: string;
+      summary?: { tags?: number; alarms?: number; byCell?: Record<string, number> };
+    }
+    const app = startServer(0, { stepMs: 15 });
+    const port = await app.ready;
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`);
+    const regs: RegMsg[] = [];
+    ws.on('message', (d) => {
+      const m = JSON.parse(d.toString()) as RegMsg;
+      if (m.type === 'registry') regs.push(m);
+    });
+    await new Promise<void>((r) => ws.on('open', () => r()));
+
+    const t0 = Date.now();
+    while (regs.length === 0 && Date.now() - t0 < 2000) await sleep(20);
+    expect(regs.length).toBeGreaterThan(0);
+    expect(regs[0]?.summary?.tags ?? 0).toBeGreaterThanOrEqual(3000);
+    expect(regs[0]?.summary?.alarms ?? 0).toBeGreaterThanOrEqual(600);
+    expect(regs[0]?.summary?.byCell?.['boiler']).toBe(600);
+
+    ws.close();
+    await app.close();
+  });
 });

@@ -10,3 +10,5 @@ export { thermalKpis } from './kpi/calculators';
 export { thermalMaintenance } from './maintenance/items';
 export { thermalFaceplates } from './faceplates/defs';
 export { thermalNav } from './nav/tree';
+export { thermalTagTemplates } from './seed/templates';
+export { thermalSeedSpec } from './seed/spec';

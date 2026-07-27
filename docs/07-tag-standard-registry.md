@@ -54,6 +54,10 @@ Chi tiết YAML: `docs/07-tag-registry/templates.tags.yaml`.
 → **≥ 3.000 ✓** (nghiệm thu §10). Mục tiêu plugin đầy đủ = **15.000** (§9) — mở rộng bằng tăng
 instance & điểm chi tiết, không đổi template.
 
+> **Seed thực (đã code):** `SeedGenerator` (@idtp/engines) expand `thermalSeedSpec` (plugin) →
+> **3.522 tag** (khớp roll-up trên) — kiểm bằng `plugins/thermal-power-600/test/seed.test.ts`. Con số
+> chốt lại của GĐ‑13. Chi tiết: GĐ‑42 (doc 25).
+
 ## 5. Cách sinh registry (YAML)
 1. `templates.tags.yaml` — tag chuẩn theo loại thiết bị.
 2. Danh sách instance theo asset (doc 04 asset model) — mỗi asset gắn `type`.
@@ -62,6 +66,9 @@ instance & điểm chi tiết, không đổi template.
 4. Mẫu đã sinh: `docs/07-tag-registry/boiler-island.sample.tags.yaml`.
 
 > Seed script chạy ở **pha code** (sau doc 24); doc 07 chốt chuẩn + template + mẫu (được phép: YAML/schema).
+> **Đã hiện thực (pha code):** template `packages/sdk` (`TagTemplate`/`InstanceGroup`/`PlantSeedSpec`),
+> expander generic `packages/engines/seed-generator.ts` (`generateRegistry`), dữ liệu thermal
+> `plugins/thermal-power-600/src/seed/` (templates.ts ↔ templates.tags.yaml, spec.ts = 47 nhóm instance).
 
 ## 6. Quy ước EU & deadband
 - EU chuẩn: MPa·kPa·°C·t/h·m³/h·mm·%·A·kV·mm/s·µS/cm·mg/Nm³·ppb.

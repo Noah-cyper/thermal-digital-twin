@@ -47,9 +47,11 @@
 | GĐ‑39 | KPI v1: aux power cố định 7% (net = gross×0,93, theo Design Basis §3.1 558/600) — chưa đo house load; KPI tính trên toàn dải historian đã ghi (shift/daily report là v2, doc 21 §3) | doc 21 |
 | GĐ‑40 | Maintenance: ngưỡng PM (UNIT1 8000h · MILL 2000h · BFP 4000h); run-state suy từ tag>ngưỡng (MW/coal/fw >10); MTBF = giờ chạy/số hỏng, event hỏng lấy alarm P1 của UNIT1 (v1 đơn giản hoá; CMMS thật = v3) | doc 05-18 |
 | GĐ‑41 | Faceplate: interlock blockedReason = null (mô hình interlock first-class để pha sau); lý do chặn LỆNH vẫn hiện đủ qua Control/Security (RBAC/replay/2-step). KKS SH temp 10LBA10CT001 thuộc GĐ-04 (chờ đối chiếu VGB-B 106) | doc 05-15 |
+| GĐ‑42 | Seed registry §10 (SeedGenerator + thermalSeedSpec): roll-up thực **3.522 tag / 651 alarm** (≥ 3.000/≥ 600 ✓, khớp bảng doc 07 §4 & ~650 doc 08 §4 — hiệu chỉnh GĐ‑13/16). Phân bố scan_class thực fast 12% / process 56% / slow 14% / diag 18% (lệch GĐ‑14 15/50/25/10 do CEMS+calc dồn diag). KKS breadth = [GIẢ ĐỊNH] có cấu trúc `<unit><sys><nn><mã><seq>` (GĐ‑04). `source='opcua'` = đường thu thập hiện trường bản thật; v1 chỉ mô phỏng lõi Boiler Island (17 tag sim). Registry là DANH MỤC (catalog): Alarm/Tag Engine live chạy subset rationalized, không nạp cả 3.522 tag. id = UUID tất định (cyrb53→splitmix, không Math.random) | doc 07 §5 / doc 08 |
 
 ## 2. Vấn đề mở
 > ✔ M‑05 (bài test generic): thêm `water-treatment-demo` chỉ chạm `plugins/water-treatment-demo/*` + `pnpm-lock.yaml` — **0 dòng sửa `packages/*` & `apps/*`** (kiểm bằng `git status`). Luận điểm "mọi nhà máy chỉ là plugin" đứng vững.
+> ✔ Seed §10 (doc 07 §5): `SeedGenerator` (engine generic) + `thermalSeedSpec` (dữ liệu plugin) → **3.522 tag / 651 alarm**, đạt ngưỡng nghiệm thu §10 (≥ 3.000 / ≥ 600). Bề rộng = thêm DỮ LIỆU khai báo, engine/kernel không đổi (GĐ‑42).
 | # | Vấn đề | Cần |
 |---|---|---|
 | M‑01 | Hiệu chỉnh GĐ‑02 (person‑month) bằng velocity thực Pha A | đo khi code |

@@ -111,6 +111,7 @@
   <div class="banner">
     <span><b>UNIT1</b> · Nhiệt điện than 600 MW · CCS runtime</span>
     <span class="kpi">MW <b id="kMw">—</b> · Hơi <b id="kSteam">—</b> t/h · Áp <b id="kPress">—</b> MPa · O₂ <b id="kO2">—</b>%</span>
+    <span class="kpi" id="regStat" title="Registry §10: tổng tag/alarm sinh từ template KKS (doc 07/08)">Tag <b id="rTags">—</b> · Alarm <b id="rAlarms">—</b></span>
     <span class="user">Vai:
       <select id="roleSel">
         <option value="viewer">Viewer</option>
@@ -308,6 +309,13 @@
     if (!current) openScreen(navHomeId || (navNodes[0] && navNodes[0].screenId));
     else document.querySelectorAll('#navList button').forEach(b => b.classList.toggle('active', b.dataset.id === current));
   }
+  function onRegistry(s){
+    if (!s) return;
+    $('rTags').textContent = (s.tags || 0).toLocaleString('en-US');
+    $('rAlarms').textContent = (s.alarms || 0).toLocaleString('en-US');
+    const cells = Object.entries(s.byCell || {}).map(([c, n]) => c + ' ' + n).join(' · ');
+    $('regStat').title = 'Registry §10 (doc 07/08) — tag theo khu vực: ' + cells;
+  }
   function connect(){
     ws = new WebSocket('ws://' + location.host);
     ws.onopen = () => { $('linkDot').className = 'dot'; $('linkTxt').textContent = 'LINK'; if (current) subscribe(current); send({ cmd: 'faceplate-list' }); };
@@ -327,6 +335,7 @@
       else if (m.type === 'fp-data'){ if (m.assetId === fpOpen){ fpData = m.data; renderFp(); } }
       else if (m.type === 'fp-trend'){ if (m.assetId === fpOpen){ fpTrend = m.trend; if (fpTab === 'Trend') renderFp(); } }
       else if (m.type === 'nav'){ onNav(m); }
+      else if (m.type === 'registry'){ onRegistry(m.summary); }
     } catch {} };
   }
   const KPI_LABEL = { 'heat-rate': 'Heat rate', 'efficiency': 'Hiệu suất', 'steam-rate': 'Steam rate' };

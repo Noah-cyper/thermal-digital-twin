@@ -173,6 +173,7 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
   const maintMsg = (): string =>
     JSON.stringify({ type: 'maint', runtime: rt.maintenanceRuntime(), workOrders: rt.workOrders(), mtbf: rt.maintenanceMtbf('UNIT1') });
   const navMsg = (): string => JSON.stringify({ type: 'nav', tree: rt.navTree(), alarmIndex: rt.navAlarmIndex(), home: rt.navHome() });
+  const registryMsg = (): string => JSON.stringify({ type: 'registry', summary: rt.registrySummary() });
 
   // Tạo work order — action 'oos' (Maintenance/ShiftSup/Engineer/Admin), audit, không 2 bước.
   const handleCreateWo = (ws: WebSocket, m: Command): void => {
@@ -248,6 +249,7 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
     ws.send(otsMsg());
     ws.send(maintMsg());
     ws.send(navMsg());
+    ws.send(registryMsg());
 
     ws.on('message', (data) => {
       let m: Command;

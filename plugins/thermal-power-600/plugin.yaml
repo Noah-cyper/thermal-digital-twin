@@ -16,7 +16,7 @@ provides:
   navigation: dist/nav/tree.js
   kpi: dist/kpi/calculators.js
   maintenance: dist/maintenance/items.js
-  navigation: nav/tree.yaml
+  seed: dist/seed/spec.js
   i18n: i18n/{vi,en}.json
 
 requires:
