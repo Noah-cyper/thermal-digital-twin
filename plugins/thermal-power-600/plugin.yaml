@@ -19,6 +19,7 @@ provides:
   seed: dist/seed/spec.js
   sequences: dist/sequences/defs.js
   scenarios: dist/scenarios/defs.js
+  causeEffect: dist/cause-effect/matrices.js
   i18n: i18n/{vi,en}.json
 
 requires:

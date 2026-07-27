@@ -14,3 +14,4 @@ export { thermalTagTemplates } from './seed/templates';
 export { thermalSeedSpec } from './seed/spec';
 export { thermalSequences } from './sequences/defs';
 export { thermalScenarios } from './scenarios/defs';
+export { thermalCauseEffect } from './cause-effect/matrices';

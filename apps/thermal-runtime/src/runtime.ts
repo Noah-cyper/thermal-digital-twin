@@ -2,7 +2,7 @@
 // khép kín với ĐỒNG HỒ SIM tiến theo dt (Time Service, không Date.now trong vòng process).
 // Sim→control→alarm→tag không dùng Math.random. App tổ hợp import engines/kernel/plugin; plugin
 // runtime vẫn chỉ import @idtp/sdk.
-import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian, KpiEngine, historianKpiInput, MaintenanceEngine, FaceplateEngine, NavigationEngine, generateRegistry, generateScreens, generateControlLoops, SequenceEngine, executeScenario } from '@idtp/engines';
+import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian, KpiEngine, historianKpiInput, MaintenanceEngine, FaceplateEngine, NavigationEngine, generateRegistry, generateScreens, generateControlLoops, SequenceEngine, executeScenario, CauseEffectEngine } from '@idtp/engines';
 import type { AlarmKpi, FaceplateResolvers, FaceplateOverview, FaceplateAlarmRow, FaceplateDetail } from '@idtp/engines';
 import { TimeService } from '@idtp/kernel';
 import {
@@ -19,6 +19,7 @@ import {
   thermalSeedSpec,
   thermalSequences,
   thermalScenarios,
+  thermalCauseEffect,
 } from '@idtp/plugin-thermal-power-600';
 import type {
   IMalfunction,
@@ -36,6 +37,8 @@ import type {
   TagRecord,
   SeqRunState,
   ScenarioPhaseResult,
+  CauseEffectMatrix,
+  CeState,
 } from '@idtp/sdk';
 
 /** Số liệu roll-up registry (doc 07 §4) — phục vụ giám sát quy mô §10 trên HMI. */
@@ -46,6 +49,7 @@ export interface RegistrySummary {
   loops: number; // control loop danh mục (doc 09, §10 ≥ 25) — chưa gồm 7 loop CCS live
   sequences: number; // chuỗi SFC khai báo (doc 09, §10: 8 sequence)
   scenarios: number; // kịch bản vận hành (doc 22, §10: cold-start→coast-down)
+  ceMatrices: number; // ma trận cause&effect (doc 09 §4: MFT + turbine trip)
   byCell: Record<string, number>;
   byScanClass: Record<ScanClass, number>;
 }
@@ -111,6 +115,9 @@ export interface ThermalRuntime {
   runSequenceToCompletion(sequenceId: string): SeqRunState;
   scenarioList(): ReadonlyArray<{ scenarioId: string; title: { vi: string; en: string }; phases: number }>;
   runScenario(scenarioId: string): ScenarioPhaseResult[];
+  causeEffectMatrices(): ReadonlyArray<CauseEffectMatrix>;
+  causeEffectState(matrixId: string): CeState | undefined;
+  resetCauseEffect(matrixId: string): boolean;
   value(tagId: string): number;
   nowIso(): string;
   recordedTags(): ReadonlyArray<string>;
@@ -248,6 +255,16 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
     return eng.state();
   };
 
+  // Cause & Effect (doc 09 §4): MFT + turbine trip. Đánh giá mỗi bước; hệ quả CHỐT ghi tag trip
+  // (flag, không nối vào CCS ở v1 — actuation sâu để sau). Ở điểm vận hành mọi nguyên nhân bất hoạt.
+  const ceEngines = thermalCauseEffect.map(
+    (m) => new CauseEffectEngine(m, { command: (cmd) => put(cmd.tagId, typeof cmd.value === 'number' ? cmd.value : cmd.value ? 1 : 0) }),
+  );
+  const ceById = new Map(ceEngines.map((e) => [e.matrixId, e] as const));
+  const evalCe = (): void => {
+    for (const e of ceEngines) e.evaluate((id) => num(id));
+  };
+
   const advance = (): void => {
     stepCount += 1;
     host.step(); // sim đọc OP → ghi PV
@@ -282,6 +299,7 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
     if (frozen) return; // OTS freeze: đóng băng sim + control + alarm + đồng hồ
     advance();
     evalAlarms();
+    evalCe();
     record();
     maintenance.sample((id) => num(id), nowMs());
   };
@@ -363,12 +381,16 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
       loops: catalogLoops.length,
       sequences: thermalSequences.length,
       scenarios: thermalScenarios.length,
+      ceMatrices: thermalCauseEffect.length,
       byCell: registry.byCell,
       byScanClass: registry.byScanClass,
     }),
     registryTag: (name) => registryByName.get(name),
     sequenceList: () => thermalSequences.map((s) => ({ sequenceId: s.sequenceId, title: s.title, steps: s.steps.length })),
     runSequenceToCompletion: (sequenceId) => runSeqState(sequenceId),
+    causeEffectMatrices: () => thermalCauseEffect,
+    causeEffectState: (matrixId) => ceById.get(matrixId)?.state(),
+    resetCauseEffect: (matrixId) => ceById.get(matrixId)?.reset() ?? false,
     scenarioList: () => thermalScenarios.map((s) => ({ scenarioId: s.scenarioId, title: s.title, phases: s.phases.length })),
     runScenario: (scenarioId) => {
       const def = thermalScenarios.find((s) => s.scenarioId === scenarioId);

@@ -16,3 +16,4 @@ export * from './screen-generator';
 export * from './loop-generator';
 export * from './sequence-engine';
 export * from './scenario-runner';
+export * from './cause-effect-engine';
