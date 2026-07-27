@@ -29,6 +29,13 @@
   nav button:hover{background:var(--bg-canvas)}
   nav button.active{border-color:var(--equip-line);background:var(--bg-canvas)}
   nav .lvl{color:var(--text-dim);font-size:10px;margin-right:6px}
+  nav button .hk{float:right;color:var(--text-dim);font-size:10px}
+  .navbtns{display:flex;gap:4px;margin-bottom:8px}
+  .navbtns button{flex:1;font-family:var(--mono);font-size:12px;background:var(--bg-canvas);color:var(--text);border:1px solid var(--border);border-radius:2px;padding:6px;cursor:pointer}
+  .navbtns button:hover{border-color:var(--equip-line)}
+  .crumb{font-family:var(--mono);font-size:11px;color:var(--text-dim);margin:2px 0 6px}
+  .crumb b{color:var(--pv)} .crumb span{cursor:pointer} .crumb span:hover{color:var(--text)}
+  .arow{cursor:pointer}
   .process{position:relative;flex:1;padding:12px 14px;overflow:auto}
   .process h1{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);margin:2px 0 8px}
   .canvas{position:relative;width:720px;height:280px}
@@ -146,9 +153,15 @@
   <main>
     <nav>
       <h2>Điều hướng (ISA-101)</h2>
+      <div class="navbtns">
+        <button id="navBack" title="Back">←</button>
+        <button id="navFwd" title="Forward">→</button>
+        <button id="navHome" title="Về D1">D1</button>
+      </div>
       <div id="navList"></div>
     </nav>
     <section class="process">
+      <div class="crumb" id="crumb"></div>
       <h1 id="scrTitle">—</h1>
       <div class="kpis" id="kpis"></div>
       <div class="kpis" id="maint"></div>
@@ -265,12 +278,35 @@
   }
 
   let ws, current = null;
+  let navNodes = [], navAlarmIdx = {}, navHomeId = '';
+  const navHist = { stack: [], idx: -1 };
   function subscribe(id){ if (ws && ws.readyState === 1) ws.send(JSON.stringify({ cmd: 'screen', screenId: id })); }
-  function openScreen(id){
+  function openScreen(id, fromHist){
+    if (!id) return;
     current = id;
+    if (!fromHist){ navHist.stack = navHist.stack.slice(0, navHist.idx + 1); navHist.stack.push(id); navHist.idx = navHist.stack.length - 1; }
     document.querySelectorAll('#navList button').forEach(b => b.classList.toggle('active', b.dataset.id === id));
+    renderCrumb(id);
     fetch('/screen/' + id).then(r => r.json()).then(buildScreen).catch(() => {});
     subscribe(id);
+  }
+  function renderCrumb(id){
+    const path = []; const seen = {}; let cur = navNodes.find(n => n.screenId === id);
+    while (cur && !seen[cur.screenId]){ seen[cur.screenId] = 1; path.unshift(cur); cur = cur.parentId ? navNodes.find(n => n.screenId === cur.parentId) : null; }
+    $('crumb').innerHTML = path.map((n, i) => (i === path.length - 1 ? '<b>' + n.title.vi + '</b>' : '<span data-id="' + n.screenId + '">' + n.title.vi + '</span> › ')).join('');
+    $('crumb').querySelectorAll('span[data-id]').forEach(s => s.onclick = () => openScreen(s.dataset.id));
+  }
+  function onNav(m){
+    navNodes = m.tree || []; navAlarmIdx = m.alarmIndex || {}; navHomeId = m.home || '';
+    const list = $('navList'); list.innerHTML = '';
+    for (const n of navNodes){
+      const b = document.createElement('button'); b.dataset.id = n.screenId;
+      b.innerHTML = '<span class="lvl">' + n.level + '</span>' + n.title.vi + (n.hotkey ? '<span class="hk">' + n.hotkey + '</span>' : '');
+      b.onclick = () => openScreen(n.screenId);
+      list.appendChild(b);
+    }
+    if (!current) openScreen(navHomeId || (navNodes[0] && navNodes[0].screenId));
+    else document.querySelectorAll('#navList button').forEach(b => b.classList.toggle('active', b.dataset.id === current));
   }
   function connect(){
     ws = new WebSocket('ws://' + location.host);
@@ -290,6 +326,7 @@
       else if (m.type === 'fp-list'){ (m.items || []).forEach(it => { fpByTag[it.pvTag] = it.assetId; }); }
       else if (m.type === 'fp-data'){ if (m.assetId === fpOpen){ fpData = m.data; renderFp(); } }
       else if (m.type === 'fp-trend'){ if (m.assetId === fpOpen){ fpTrend = m.trend; if (fpTab === 'Trend') renderFp(); } }
+      else if (m.type === 'nav'){ onNav(m); }
     } catch {} };
   }
   const KPI_LABEL = { 'heat-rate': 'Heat rate', 'efficiency': 'Hiệu suất', 'steam-rate': 'Steam rate' };
@@ -376,6 +413,15 @@
   });
   $('roleSel').onchange = () => send({ cmd: 'login', user: $('roleSel').value });
 
+  $('navBack').onclick = () => { if (navHist.idx > 0){ navHist.idx--; openScreen(navHist.stack[navHist.idx], true); } };
+  $('navFwd').onclick = () => { if (navHist.idx < navHist.stack.length - 1){ navHist.idx++; openScreen(navHist.stack[navHist.idx], true); } };
+  $('navHome').onclick = () => openScreen(navHomeId);
+  document.addEventListener('keydown', (e) => {
+    if (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
+    const n = Number(e.key);
+    if (n >= 1 && n <= 9){ const node = navNodes.find(x => x.hotkey === n); if (node) openScreen(node.screenId); }
+  });
+
   let otsFrozen = false;
   function onOts(m){
     otsFrozen = !!m.frozen;
@@ -430,10 +476,11 @@
     const list = $('alist');
     if (!show.length) list.innerHTML = '<div class="arow"><span class="cs">Không có alarm đang hoạt động</span></div>';
     else list.innerHTML = show.map(a =>
-      '<div class="arow ' + (isUnack(a.state) ? 'unack' : '') + '">'
+      '<div class="arow ' + (isUnack(a.state) ? 'unack' : '') + '" data-alarm="' + a.alarmId + '" title="Nhảy tới màn hình chứa tag">'
       + '<i class="pip" style="background:var(--' + PRIO[a.priority] + ')"></i>'
       + '<span class="id">' + a.alarmId + '</span><span class="cs">' + a.priority + '</span>'
       + '<span class="st">' + a.state + (typeof a.value === 'number' ? ' · ' + a.value.toFixed(1) : '') + '</span></div>').join('');
+    list.querySelectorAll('.arow[data-alarm]').forEach(r => { r.onclick = () => { const s = navAlarmIdx[r.dataset.alarm]; if (s) openScreen(s); }; });
     const latest = unacked[unacked.length - 1];
     const btn = $('ackBtn');
     btn.disabled = !latest;
@@ -448,17 +495,7 @@
   document.querySelectorAll('.controls button[data-leak]').forEach(b =>
     b.onclick = () => ws && ws.readyState === 1 && ws.send(JSON.stringify({ cmd: 'leak', value: Number(b.dataset.leak) })));
 
-  fetch('/screens').then(r => r.json()).then(list => {
-    const nav = $('navList');
-    for (const s of list){
-      const b = document.createElement('button');
-      b.dataset.id = s.screenId;
-      b.innerHTML = '<span class="lvl">' + s.level + '</span>' + (s.title ? s.title.vi : s.screenId);
-      b.onclick = () => openScreen(s.screenId);
-      nav.appendChild(b);
-    }
-    if (list[0]) openScreen(list[0].screenId);
-  }).catch(() => {});
+  // Cây điều hướng đến từ WS ('nav' — Navigation Engine); onNav dựng nav + mở D1.
   connect();
 </script>
 </body>

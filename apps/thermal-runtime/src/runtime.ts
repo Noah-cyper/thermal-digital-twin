@@ -2,7 +2,7 @@
 // khép kín với ĐỒNG HỒ SIM tiến theo dt (Time Service, không Date.now trong vòng process).
 // Sim→control→alarm→tag không dùng Math.random. App tổ hợp import engines/kernel/plugin; plugin
 // runtime vẫn chỉ import @idtp/sdk.
-import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian, KpiEngine, historianKpiInput, MaintenanceEngine, FaceplateEngine } from '@idtp/engines';
+import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian, KpiEngine, historianKpiInput, MaintenanceEngine, FaceplateEngine, NavigationEngine } from '@idtp/engines';
 import type { AlarmKpi, FaceplateResolvers, FaceplateOverview, FaceplateAlarmRow, FaceplateDetail } from '@idtp/engines';
 import { TimeService } from '@idtp/kernel';
 import {
@@ -15,6 +15,7 @@ import {
   thermalKpis,
   thermalMaintenance,
   thermalFaceplates,
+  thermalNav,
 } from '@idtp/plugin-thermal-power-600';
 import type {
   IMalfunction,
@@ -27,6 +28,7 @@ import type {
   WorkOrder,
   WorkOrderStatus,
   FaceplateDef,
+  NavNode,
 } from '@idtp/sdk';
 
 /** Dữ liệu 4 tab faceplate đã ráp (Trend trả thống kê min/max/last theo tag). */
@@ -80,6 +82,10 @@ export interface ThermalRuntime {
   faceplateList(): ReadonlyArray<{ faceplateId: string; assetId: string; title: { vi: string; en: string }; pvTag: string }>;
   faceplateData(assetId: string): FaceplateData | undefined;
   faceplateTrend(assetId: string, hours: number): Promise<FaceplateTrend>;
+  navTree(): ReadonlyArray<NavNode>;
+  navAlarmIndex(): Record<string, string>;
+  navHome(): string;
+  navBreadcrumb(screenId: string): ReadonlyArray<NavNode>;
   value(tagId: string): number;
   nowIso(): string;
   recordedTags(): ReadonlyArray<string>;
@@ -185,6 +191,9 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
     blockedReason: () => null, // interlock model để pha sau; lệnh bị chặn hiện qua Control/Security
   };
 
+  // Navigation: cây điều hướng khai báo + index alarm→D3 (từ tag của alarm & tag màn hình hiển thị).
+  const nav = new NavigationEngine(thermalNav, { alarms: boilerAlarms, screens: boilerScreens });
+
   const advance = (): void => {
     stepCount += 1;
     host.step(); // sim đọc OP → ghi PV
@@ -289,6 +298,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
       }
       return out;
     },
+    navTree: () => nav.tree(),
+    navAlarmIndex: () => nav.alarmIndex(),
+    navHome: () => nav.home(),
+    navBreadcrumb: (screenId) => nav.breadcrumb(screenId),
     value: (id) => num(id),
     nowIso,
   };

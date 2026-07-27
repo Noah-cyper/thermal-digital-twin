@@ -256,4 +256,30 @@ describe('thermal-runtime server', () => {
     ws.close();
     await app.close();
   });
+
+  it('Navigation: gửi cây điều hướng + alarm index khi kết nối', async () => {
+    interface NavMsg {
+      type?: string;
+      tree?: { level?: string }[];
+      alarmIndex?: Record<string, string>;
+    }
+    const app = startServer(0, { stepMs: 15 });
+    const port = await app.ready;
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`);
+    const navs: NavMsg[] = [];
+    ws.on('message', (d) => {
+      const m = JSON.parse(d.toString()) as NavMsg;
+      if (m.type === 'nav') navs.push(m);
+    });
+    await new Promise<void>((r) => ws.on('open', () => r()));
+
+    const t0 = Date.now();
+    while (navs.length === 0 && Date.now() - t0 < 2000) await sleep(20);
+    expect(navs.length).toBeGreaterThan(0);
+    expect((navs[0]?.tree ?? []).some((n) => n.level === 'D1')).toBe(true);
+    expect(navs[0]?.alarmIndex?.['BLR-DRUM-LVL-HH']).toBe('D3-steam-drum');
+
+    ws.close();
+    await app.close();
+  });
 });

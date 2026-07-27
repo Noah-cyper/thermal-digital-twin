@@ -8,5 +8,6 @@ export * from './security';
 export * from './kpi-engine';
 export * from './maintenance-engine';
 export * from './faceplate-engine';
+export * from './navigation-engine';
 export * from './simulation-host';
 export * from './graphics';

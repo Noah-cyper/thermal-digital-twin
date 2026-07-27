@@ -172,6 +172,7 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
 
   const maintMsg = (): string =>
     JSON.stringify({ type: 'maint', runtime: rt.maintenanceRuntime(), workOrders: rt.workOrders(), mtbf: rt.maintenanceMtbf('UNIT1') });
+  const navMsg = (): string => JSON.stringify({ type: 'nav', tree: rt.navTree(), alarmIndex: rt.navAlarmIndex(), home: rt.navHome() });
 
   // Tạo work order — action 'oos' (Maintenance/ShiftSup/Engineer/Admin), audit, không 2 bước.
   const handleCreateWo = (ws: WebSocket, m: Command): void => {
@@ -246,6 +247,7 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
     ws.send(authMsg(ws));
     ws.send(otsMsg());
     ws.send(maintMsg());
+    ws.send(navMsg());
 
     ws.on('message', (data) => {
       let m: Command;
@@ -285,6 +287,8 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
         ws.send(maintMsg());
       } else if (m.cmd === 'create-wo') {
         handleCreateWo(ws, m);
+      } else if (m.cmd === 'nav-query') {
+        ws.send(navMsg());
       } else if (m.cmd === 'faceplate-list') {
         ws.send(JSON.stringify({ type: 'fp-list', items: rt.faceplateList() }));
       } else if (m.cmd === 'faceplate-open' && m.assetId !== undefined) {
