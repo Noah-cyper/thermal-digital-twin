@@ -182,6 +182,8 @@
         <button data-ots="restore" id="otsRestore" disabled>Restore</button>
         <button data-wo="1">Work order CM (UNIT1)</button>
       </div>
+      <div class="controls" id="sfcBar" title="Chạy chuỗi SFC live (điều khiển OTS)"></div>
+      <div class="controls" id="ceBar" title="Cause & Effect: trạng thái trip + reset"></div>
       <div class="note">Màn hình là JSON khai báo của plugin (/screen/&lt;id&gt;); client render generic
       theo symbol + áp binding {property,tag,transform,condition}. Dữ liệu từ mô hình vật lý qua vòng
       CCS khép kín (không Math.random). Giá trị trung tính, chỉ đổi màu khi bất thường (ISA-101).</div>
@@ -321,6 +323,30 @@
     const cells = Object.entries(s.byCell || {}).map(([c, n]) => c + ' ' + n).join(' · ');
     $('regStat').title = 'Registry §10 (doc 07/08) — tag theo khu vực: ' + cells;
   }
+  function onSeqList(items){
+    const bar = $('sfcBar'); bar.innerHTML = '<b style="margin-right:6px">SFC live:</b>';
+    for (const s of items){
+      const b = document.createElement('button'); b.textContent = '▶ ' + s.title.vi;
+      b.onclick = () => send({ cmd: 'seq-live-start', sequenceId: s.sequenceId });
+      bar.appendChild(b);
+    }
+    const r = document.createElement('span'); r.id = 'sfcRun'; r.style.cssText = 'margin-left:8px;opacity:.85'; bar.appendChild(r);
+  }
+  function onSeqLive(active){
+    const r = $('sfcRun');
+    if (r) r.textContent = active.length ? ('· đang chạy: ' + active.map(a => a.sequenceId + '/' + (a.stepId || '?')).join(', ')) : '';
+  }
+  function onCe(matrices){
+    const bar = $('ceBar'); bar.innerHTML = '<b style="margin-right:6px">C&amp;E:</b>';
+    for (const mx of matrices){
+      const t = (mx.state && mx.state.trippedEffects) || [];
+      const s = document.createElement('span');
+      s.style.cssText = 'margin-right:10px' + (t.length ? ';color:var(--alarm-1);font-weight:600' : ';opacity:.7');
+      s.textContent = mx.title.vi + (t.length ? (' ⛔ ' + t.join(',')) : ' ✓');
+      bar.appendChild(s);
+      if (t.length){ const b = document.createElement('button'); b.textContent = 'Reset'; b.onclick = () => send({ cmd: 'ce-reset', matrixId: mx.matrixId }); bar.appendChild(b); }
+    }
+  }
   function connect(){
     ws = new WebSocket('ws://' + location.host);
     ws.onopen = () => { $('linkDot').className = 'dot'; $('linkTxt').textContent = 'LINK'; if (current) subscribe(current); send({ cmd: 'faceplate-list' }); };
@@ -341,6 +367,9 @@
       else if (m.type === 'fp-trend'){ if (m.assetId === fpOpen){ fpTrend = m.trend; if (fpTab === 'Trend') renderFp(); } }
       else if (m.type === 'nav'){ onNav(m); }
       else if (m.type === 'registry'){ onRegistry(m.summary); }
+      else if (m.type === 'seq-list'){ onSeqList(m.items || []); }
+      else if (m.type === 'seq-live'){ onSeqLive(m.active || []); }
+      else if (m.type === 'ce'){ onCe(m.matrices || []); }
     } catch {} };
   }
   const KPI_LABEL = { 'heat-rate': 'Heat rate', 'efficiency': 'Hiệu suất', 'steam-rate': 'Steam rate' };
