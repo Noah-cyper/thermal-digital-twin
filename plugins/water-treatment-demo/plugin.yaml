@@ -1,0 +1,20 @@
+plugin:
+  id: water-treatment-demo
+  version: 1.0.0
+  engineApi: "^1.0.0"
+  domain: water.treatment.dm
+  displayName: { vi: "Xử lý nước DM (demo)", en: "Water Treatment DM (demo)" }
+
+# Plugin #2 — BÀI TEST GENERIC (doc 00 §5.4): thêm plugin này KHÔNG sửa 1 dòng packages/* & apps/*.
+# Mọi thứ là dữ liệu khai báo; runtime chỉ import @idtp/sdk. Số liệu là demo tổng hợp ([GIẢ ĐỊNH]).
+provides:
+  simulation: dist/sim/tank.js
+  control: dist/control/loops.js
+  alarms: dist/alarms/alarms.js
+  graphics: dist/graphics/screens.js
+  i18n: i18n/{vi,en}.json
+
+requires:
+  engines: [tag, alarm, historian, graphics, sim, control]
+  protocols: [mqtt-sparkplug]
+  minTagCapacity: 60

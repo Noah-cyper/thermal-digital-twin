@@ -147,6 +147,25 @@ importers:
         specifier: ^2.0.5
         version: 2.1.9(@types/node@22.20.1)
 
+  plugins/water-treatment-demo:
+    dependencies:
+      '@idtp/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
+    devDependencies:
+      '@idtp/engines':
+        specifier: workspace:*
+        version: link:../../packages/engines
+      '@types/node':
+        specifier: ^22.5.0
+        version: 22.20.1
+      typescript:
+        specifier: ^5.5.4
+        version: 5.9.3
+      vitest:
+        specifier: ^2.0.5
+        version: 2.1.9(@types/node@22.20.1)
+
 packages:
 
   '@esbuild/aix-ppc64@0.21.5':

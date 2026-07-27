@@ -42,8 +42,10 @@
 | GĐ‑34 | Tuning CCS Pha B: gain loop giảm từ doc 10 §9 cho ổn định (pressure kp2/ki0,03 · governor kp3/ki0,3 · fuel kp0,3/ki0,2); FF coordinated (DRAW_TO_FIRING=100/2008 · FIRING_TO_COAL=3 · FIRING_TO_AIR=0,83 · STEAM_TO_FWCV=100/2100); warm-start điểm vận hành ~448 MW | doc 09/10 |
 | GĐ‑35 | Setpoint alarm Boiler Island ngoài Design Basis: MSTM-PRESS-HH 19,3 MPa · PRESS-LO 16,0 · SH-TEMP-HH 551 °C · FLUE-O2-LO 1,5% (drum ±250, furnace ±200 neo Design Basis §3.2) | doc 08 |
 | GĐ‑36 | Auth lát cắt đơn giản hoá: token dạng chuỗi (TTL 15' + refresh xoay) thay JWT ký thật; 6 user demo mật khẩu 'p'; auto-login Operator; leak/mill-trip (OTS) ánh xạ action 'override'. JWT/SSO/LDAP thật ở sau | doc 05-07/18 |
+| GĐ‑37 | Số liệu plugin #2 water-treatment-demo là DEMO tổng hợp: FEED_MAX 200 m³/h · surge tank 60 m³ · SP mức 60% · setpoint alarm (LL10/LO25/HI80/HH90). Mục đích = bài test generic, không phải plant thật | doc 00 §5.4 |
 
 ## 2. Vấn đề mở
+> ✔ M‑05 (bài test generic): thêm `water-treatment-demo` chỉ chạm `plugins/water-treatment-demo/*` + `pnpm-lock.yaml` — **0 dòng sửa `packages/*` & `apps/*`** (kiểm bằng `git status`). Luận điểm "mọi nhà máy chỉ là plugin" đứng vững.
 | # | Vấn đề | Cần |
 |---|---|---|
 | M‑01 | Hiệu chỉnh GĐ‑02 (person‑month) bằng velocity thực Pha A | đo khi code |
