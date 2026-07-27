@@ -52,6 +52,7 @@ const K_AREA = 30; // mm mức / (t nước tích luỹ trong bao hơi)
 const K_PRESS = 2.0e-5; // MPa / (t/h · s) — điện dung hơi (gen−draw → dP/dt)
 const K_SWELL_P = 8000; // mm / (MPa/s) — swell/shrink theo −dP_drum/dt (doc 10 §3)
 const TAU_COAL_ACT = 8; // s — quán tính feeder/mill
+const FILL_TPH = 300; // t/h — lưu lượng bơm điền lò khi SFC feedwater-fill kích [GIẢ ĐỊNH]
 
 // τ (hằng số thời gian) / θ (dead time) — doc 10 §4, đơn vị giây
 const TAU_STEAM = 40;
@@ -223,8 +224,10 @@ export class BoilerIslandModel implements ISimModel {
       ctx.getTag('BLR_PA_FANS_TRIP') > 0;
     const turbineTripped = ctx.getTag('TRB_TRIP') > 0 || ctx.getTag('TRB_MSV_CLOSE') > 0;
 
-    // ── Nhiên liệu: feeder/mill có quán tính; công suất giới hạn số mill còn chạy; MFT → than về 0 ──
-    const coalCap = this.millsAvailable * MILL_TPH;
+    // ── Nhiên liệu: feeder/mill có quán tính; công suất giới hạn số mill còn chạy; MFT → than về 0;
+    //    SFC mill-a-stop (BLR_MILL_A_STOP_CMD) → bớt 1 mill công suất (mill-a-start xoá cờ) ──
+    const millAStopped = ctx.getTag('BLR_MILL_A_STOP_CMD') > 0;
+    const coalCap = Math.max(0, this.millsAvailable - (millAStopped ? 1 : 0)) * MILL_TPH;
     const coalTarget = fuelTripped ? 0 : clamp((fuelDem / 100) * COAL_MAX_TPH, 0, coalCap);
     this.coalFlow += (dtSec / TAU_COAL_ACT) * (coalTarget - this.coalFlow);
 
@@ -245,8 +248,9 @@ export class BoilerIslandModel implements ISimModel {
     const steamGenTarget = (heatKw / DH_EVAP_KJKG) * 3.6; // t/h
     const steamGen = this.steam.step(steamGenTarget, dtSec);
 
-    // ── Feedwater & cân bằng khối lượng bao hơi ──
-    const fw = Math.max(0, (fwCv / 100) * FW_MAX_TPH - this.leak);
+    // ── Feedwater & cân bằng khối lượng bao hơi; SFC feedwater-fill (BLR_FW_FILL_CMD) bơm điền thêm ──
+    const fillFlow = ctx.getTag('BLR_FW_FILL_CMD') > 0 ? FILL_TPH : 0;
+    const fw = Math.max(0, (fwCv / 100) * FW_MAX_TPH - this.leak) + fillFlow;
     const dtH = dtSec / 3600;
     this.massLevel += (fw - steamGen) * dtH * K_AREA;
 

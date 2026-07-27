@@ -46,4 +46,15 @@ describe('BoilerIslandModel — trip đổi physics (doc 09 §4)', () => {
     tags.TRB_TRIP = 0; // reset trip
     expect(out(stepN(m, ctx, 100), 'GEN_MW_01')).toBeGreaterThan(300); // phục hồi
   });
+
+  it('cascade driver: turbine trip → hơi không lấy đi → áp hơi TĂNG (→ C&E ms-press-hh → MFT)', () => {
+    const tags: Record<string, number> = { BLR_FUEL_DEMAND_01: 70, BLR_FD_DAMPER_01: 62, BLR_FW_CV_01: 70, BLR_TURBINE_DEMAND_01: 1490 };
+    const ctx = mkCtx(tags);
+    const m = new BoilerIslandModel();
+    m.init(ctx, { warmStart: WARM });
+    const p0 = out(stepN(m, ctx, 100), 'BLR_MSTM_SH_PRESS_01');
+    tags.TRB_TRIP = 1; // MSV đóng → draw = 0, gen tiếp tục
+    const p1 = out(stepN(m, ctx, 500), 'BLR_MSTM_SH_PRESS_01');
+    expect(p1).toBeGreaterThan(p0 + 0.5); // áp tăng — nếu vượt 19,3 thì C&E MFT nối tiếp (cascade)
+  });
 });

@@ -8,7 +8,7 @@ export const thermalSequences: ReadonlyArray<SequenceDef> = [
     sequenceId: 'mill-a-start',
     title: { vi: 'Khởi động máy nghiền A', en: 'Mill A start' },
     steps: [
-      { stepId: 'purge', title: { vi: 'Thổi sạch mill', en: 'Purge mill' }, permissive: [], actions: [{ tag: 'BLR_MILL_A_PURGE_CMD', value: 1, reason: 'thổi sạch trước khi cấp than' }], transition: [], holdMs: 300, timeoutMs: 30000 },
+      { stepId: 'purge', title: { vi: 'Thổi sạch mill', en: 'Purge mill' }, permissive: [], actions: [{ tag: 'BLR_MILL_A_PURGE_CMD', value: 1, reason: 'thổi sạch trước khi cấp than' }, { tag: 'BLR_MILL_A_STOP_CMD', value: 0, reason: 'xoá cờ dừng — mill A trở lại phối hợp' }], transition: [], holdMs: 300, timeoutMs: 30000 },
       { stepId: 'feeder', title: { vi: 'Chạy feeder', en: 'Start feeder' }, permissive: [], actions: [{ tag: 'BLR_MILL_A_FEEDER_CMD', value: 1, reason: 'cấp than tối thiểu' }], transition: [], holdMs: 300, timeoutMs: 30000 },
       { stepId: 'load', title: { vi: 'Tăng tải mill', en: 'Ramp mill load' }, permissive: [], actions: [{ tag: 'BLR_MILL_A_LOAD_CMD', value: 60, reason: 'đưa mill vào phối hợp CCS' }], transition: [], holdMs: 300, timeoutMs: 30000 },
     ],
