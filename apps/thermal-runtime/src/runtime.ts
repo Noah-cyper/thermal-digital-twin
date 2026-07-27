@@ -390,7 +390,14 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
     runSequenceToCompletion: (sequenceId) => runSeqState(sequenceId),
     causeEffectMatrices: () => thermalCauseEffect,
     causeEffectState: (matrixId) => ceById.get(matrixId)?.state(),
-    resetCauseEffect: (matrixId) => ceById.get(matrixId)?.reset() ?? false,
+    resetCauseEffect: (matrixId) => {
+      const eng = ceById.get(matrixId);
+      if (!eng || !eng.reset()) return false;
+      // Xoá luôn flag hiệu ứng đã ghi → sim thấy trip hết → nhà máy phục hồi (OTS: trip → reset → restart).
+      const m = thermalCauseEffect.find((x) => x.matrixId === matrixId);
+      for (const e of m?.effects ?? []) put(e.tag, 0);
+      return true;
+    },
     scenarioList: () => thermalScenarios.map((s) => ({ scenarioId: s.scenarioId, title: s.title, phases: s.phases.length })),
     runScenario: (scenarioId) => {
       const def = thermalScenarios.find((s) => s.scenarioId === scenarioId);

@@ -214,9 +214,18 @@ export class BoilerIslandModel implements ISimModel {
     const fwCv = clamp(ctx.getTag('BLR_FW_CV_01'), 0, 100); // %
     const turbineDem = Math.max(0, ctx.getTag('BLR_TURBINE_DEMAND_01')); // t/h hơi lấy đi (tải)
 
-    // ── Nhiên liệu: feeder/mill có quán tính; công suất giới hạn số mill còn chạy ──
+    // ── Trip từ Cause&Effect (doc 09 §4): flag do CauseEffectEngine CHỐT → sim đọc để đổi PHYSICS
+    //    THẬT (không chỉ đèn báo). MFT → cắt toàn bộ nhiên liệu; turbine trip → đóng MSV & MW = 0. ──
+    const fuelTripped =
+      ctx.getTag('BLR_MFT_TRIP') > 0 ||
+      ctx.getTag('BLR_MILLS_TRIP') > 0 ||
+      ctx.getTag('BLR_FUEL_VALVES_CLOSE') > 0 ||
+      ctx.getTag('BLR_PA_FANS_TRIP') > 0;
+    const turbineTripped = ctx.getTag('TRB_TRIP') > 0 || ctx.getTag('TRB_MSV_CLOSE') > 0;
+
+    // ── Nhiên liệu: feeder/mill có quán tính; công suất giới hạn số mill còn chạy; MFT → than về 0 ──
     const coalCap = this.millsAvailable * MILL_TPH;
-    const coalTarget = clamp((fuelDem / 100) * COAL_MAX_TPH, 0, coalCap);
+    const coalTarget = fuelTripped ? 0 : clamp((fuelDem / 100) * COAL_MAX_TPH, 0, coalCap);
     this.coalFlow += (dtSec / TAU_COAL_ACT) * (coalTarget - this.coalFlow);
 
     // ── Gió & O₂ (air/fuel ratio → excess air) ──
@@ -241,9 +250,11 @@ export class BoilerIslandModel implements ISimModel {
     const dtH = dtSec / 3600;
     this.massLevel += (fw - steamGen) * dtH * K_AREA;
 
-    // ── Áp hơi chính: tích phân (gen − draw); swell/shrink theo −dP/dt ──
+    // ── Áp hơi chính: tích phân (gen − draw); turbine trip → MSV đóng, hơi không lấy đi (áp tăng);
+    //    swell/shrink theo −dP/dt ──
+    const draw = turbineTripped ? 0 : turbineDem;
     const prevP = this.pressure;
-    this.pressure = clamp(this.pressure + (steamGen - turbineDem) * K_PRESS * dtSec, 0, 22);
+    this.pressure = clamp(this.pressure + (steamGen - draw) * K_PRESS * dtSec, 0, 22);
     const dPdt = (this.pressure - prevP) / dtSec;
     const level = this.massLevel + K_SWELL_P * -dPdt;
 
@@ -258,8 +269,9 @@ export class BoilerIslandModel implements ISimModel {
     // ── Chân không bình ngưng: mất chân không → hệ số giảm → tụt công suất (Stodola đơn giản hoá) ──
     this.vacuum += (dtSec / TAU_VAC) * (this.vacuumTarget - this.vacuum);
     const vacFactor = clamp(1 - (this.vacuum - VACUUM_NOM_KPA) / 40, 0.5, 1);
-    // ── Công suất (turbine đơn giản hoá: MW ∝ hơi lấy đi × hệ số chân không) ──
-    const mw = turbineDem * MW_PER_TPH * vacFactor;
+    // ── Công suất: MW ∝ hơi THỰC qua turbine (min lệnh & hơi sinh — MFT làm hơi sập → MW tụt) ×
+    //    hệ số chân không; turbine trip → MW = 0 ──
+    const mw = turbineTripped ? 0 : Math.min(draw, Math.max(0, steamGen)) * MW_PER_TPH * vacFactor;
 
     // ── Nhiễu đo có seed (thứ tự rút cố định để tất định) ──
     const m = (v: number, amp: number): number => v + this.rng.sym(amp);
