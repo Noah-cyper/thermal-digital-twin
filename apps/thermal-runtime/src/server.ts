@@ -50,9 +50,11 @@ interface Command {
   loopId?: string;
   mode?: string;
   hours?: number;
+  sequenceId?: string;
+  matrixId?: string;
 }
 
-const LIVE_CMDS = new Set(['load', 'leak', 'mill-trip', 'vacuum', 'ack', 'set-mode']); // lệnh ra thiết bị — chặn khi replay
+const LIVE_CMDS = new Set(['load', 'leak', 'mill-trip', 'vacuum', 'ack', 'set-mode', 'seq-live-start', 'ce-reset']); // lệnh ra thiết bị — chặn khi replay
 const MODES: ReadonlySet<string> = new Set(['MAN', 'AUTO', 'CASCADE']);
 
 export interface RunningServer {
@@ -174,6 +176,44 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
     JSON.stringify({ type: 'maint', runtime: rt.maintenanceRuntime(), workOrders: rt.workOrders(), mtbf: rt.maintenanceMtbf('UNIT1') });
   const navMsg = (): string => JSON.stringify({ type: 'nav', tree: rt.navTree(), alarmIndex: rt.navAlarmIndex(), home: rt.navHome() });
   const registryMsg = (): string => JSON.stringify({ type: 'registry', summary: rt.registrySummary() });
+  const seqListMsg = (): string => JSON.stringify({ type: 'seq-list', items: rt.sequenceList() });
+  const ceStates = (): Array<{ matrixId: string; title: { vi: string; en: string }; state: unknown }> =>
+    rt.causeEffectMatrices().map((mx) => ({ matrixId: mx.matrixId, title: mx.title, state: rt.causeEffectState(mx.matrixId) }));
+  const ceMsg = (): string => JSON.stringify({ type: 'ce', matrices: ceStates() });
+
+  // Chạy SFC "live" (điều khiển OTS, cùng lớp với freeze) — action 'engineer' (Engineer+), audit, không 2 bước.
+  const handleSeqLive = (ws: WebSocket, m: Command): void => {
+    const access = tokens.get(ws);
+    if (access === undefined) {
+      ws.send(JSON.stringify({ type: 'denied', reason: 'chưa đăng nhập' }));
+      return;
+    }
+    const id = m.sequenceId ?? '';
+    const res = sec.guardedWrite(access, 'engineer', id, undefined, 'start', `SFC live ${id}`);
+    if (!res.allow) {
+      ws.send(JSON.stringify({ type: 'denied', reason: res.reason }));
+      return;
+    }
+    rt.startLiveSequence(id);
+    broadcast(JSON.stringify({ type: 'seq-live', active: rt.liveSequenceState() }));
+  };
+
+  // Reset trip Cause&Effect — action 'engineer', audit. Chỉ thành công khi hết nguyên nhân active.
+  const handleCeReset = (ws: WebSocket, m: Command): void => {
+    const access = tokens.get(ws);
+    if (access === undefined) {
+      ws.send(JSON.stringify({ type: 'denied', reason: 'chưa đăng nhập' }));
+      return;
+    }
+    const id = m.matrixId ?? '';
+    const res = sec.guardedWrite(access, 'engineer', id, undefined, 'reset', `C&E reset ${id}`);
+    if (!res.allow) {
+      ws.send(JSON.stringify({ type: 'denied', reason: res.reason }));
+      return;
+    }
+    rt.resetCauseEffect(id);
+    broadcast(ceMsg());
+  };
 
   // Tạo work order — action 'oos' (Maintenance/ShiftSup/Engineer/Admin), audit, không 2 bước.
   const handleCreateWo = (ws: WebSocket, m: Command): void => {
@@ -250,6 +290,8 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
     ws.send(maintMsg());
     ws.send(navMsg());
     ws.send(registryMsg());
+    ws.send(seqListMsg());
+    ws.send(ceMsg());
 
     ws.on('message', (data) => {
       let m: Command;
@@ -300,6 +342,10 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
         void rt.faceplateTrend(asset, m.hours ?? 1).then((trend) => ws.send(JSON.stringify({ type: 'fp-trend', assetId: asset, trend })));
       } else if (m.cmd === 'set-mode') {
         handleSetMode(ws, m);
+      } else if (m.cmd === 'seq-live-start') {
+        handleSeqLive(ws, m);
+      } else if (m.cmd === 'ce-reset') {
+        handleCeReset(ws, m);
       } else if (m.cmd === 'replay-start') {
         const range = rt.historian.dataRange();
         if (range) {
@@ -336,6 +382,22 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
     broadcast(alarmsMsg());
   };
 
+  // Broadcast trạng thái SFC live + C&E khi đổi (report-by-exception).
+  let lastSeqSig = '';
+  let lastCeSig = '';
+  const broadcastSeqCe = (): void => {
+    const seqSig = JSON.stringify(rt.liveSequenceState());
+    if (seqSig !== lastSeqSig) {
+      lastSeqSig = seqSig;
+      broadcast(JSON.stringify({ type: 'seq-live', active: rt.liveSequenceState() }));
+    }
+    const ceSig = JSON.stringify(ceStates());
+    if (ceSig !== lastCeSig) {
+      lastCeSig = ceSig;
+      broadcast(ceMsg());
+    }
+  };
+
   const sendReplayFrame = (ws: WebSocket, clockMs: number, sess: ReplaySession): void => {
     const sub = subs.get(ws);
     if (!sub) return;
@@ -357,6 +419,7 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
     } else {
       for (const ws of wss.clients) if (ws.readyState === WebSocket.OPEN) sendScreen(ws, false);
       broadcastAlarms();
+      broadcastSeqCe();
       if (++kpiTick % 50 === 0) {
         void rt.computeKpis().then((results) => broadcast(JSON.stringify({ type: 'kpi', results })));
         broadcast(maintMsg());

@@ -313,4 +313,38 @@ describe('thermal-runtime server', () => {
     ws.close();
     await app.close();
   });
+
+  it('OTS control: seq-list + ce khi kết nối; seq-live-start chạy chuỗi live', async () => {
+    interface Msg {
+      type?: string;
+      items?: { sequenceId?: string }[];
+      matrices?: { matrixId?: string }[];
+      active?: { sequenceId?: string }[];
+    }
+    const app = startServer(0, { stepMs: 12 });
+    const port = await app.ready;
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`);
+    const msgs: Msg[] = [];
+    ws.on('message', (d) => msgs.push(JSON.parse(d.toString()) as Msg));
+    const until = async (fn: () => boolean): Promise<boolean> => {
+      const t0 = Date.now();
+      while (Date.now() - t0 < 2000) {
+        if (fn()) return true;
+        await sleep(20);
+      }
+      return false;
+    };
+    await new Promise<void>((r) => ws.on('open', () => r()));
+
+    expect(await until(() => msgs.some((m) => m.type === 'seq-list' && (m.items ?? []).length >= 8))).toBe(true);
+    expect(await until(() => msgs.some((m) => m.type === 'ce' && (m.matrices ?? []).length === 2))).toBe(true);
+
+    ws.send(JSON.stringify({ cmd: 'login', user: 'engineer' })); // SFC live = action 'engineer'
+    await sleep(80);
+    ws.send(JSON.stringify({ cmd: 'seq-live-start', sequenceId: 'mill-a-stop' }));
+    expect(await until(() => msgs.some((m) => m.type === 'seq-live' && (m.active ?? []).some((a) => a.sequenceId === 'mill-a-stop')))).toBe(true);
+
+    ws.close();
+    await app.close();
+  });
 });
