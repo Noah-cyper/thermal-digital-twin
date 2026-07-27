@@ -174,4 +174,40 @@ describe('thermal-runtime server', () => {
     ws.close();
     await app.close();
   });
+
+  it('OTS: Engineer freeze được (action engineer); Operator bị từ chối', async () => {
+    interface Msg {
+      type?: string;
+      roles?: string[];
+      frozen?: boolean;
+    }
+    const app = startServer(0, { stepMs: 15 });
+    const port = await app.ready;
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`);
+    const msgs: Msg[] = [];
+    ws.on('message', (d) => msgs.push(JSON.parse(d.toString()) as Msg));
+    const until = async (fn: () => boolean): Promise<boolean> => {
+      const t0 = Date.now();
+      while (Date.now() - t0 < 2000) {
+        if (fn()) return true;
+        await sleep(20);
+      }
+      return false;
+    };
+    await new Promise<void>((r) => ws.on('open', () => r()));
+
+    // mặc định Operator → OTS freeze (action engineer) bị từ chối
+    ws.send(JSON.stringify({ cmd: 'ots-freeze', value: 1 }));
+    expect(await until(() => msgs.some((m) => m.type === 'denied'))).toBe(true);
+
+    // đổi vai Engineer → freeze được → nhận ots frozen=true
+    ws.send(JSON.stringify({ cmd: 'login', user: 'engineer' }));
+    expect(await until(() => msgs.filter((m) => m.type === 'auth').pop()?.roles?.includes('Engineer') ?? false)).toBe(true);
+    const mark = msgs.length;
+    ws.send(JSON.stringify({ cmd: 'ots-freeze', value: 1 }));
+    expect(await until(() => msgs.slice(mark).some((m) => m.type === 'ots' && m.frozen === true))).toBe(true);
+
+    ws.close();
+    await app.close();
+  });
 });

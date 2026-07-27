@@ -12,6 +12,7 @@ import type { ReplaySession } from '@idtp/engines';
 import { SecurityEngine } from '@idtp/engines';
 import { boilerScreens, screenTags } from '@idtp/plugin-thermal-power-600';
 import { createThermalRuntime } from './runtime';
+import type { OtsSnapshot } from './runtime';
 
 // Người dùng demo (mật khẩu 'p') — đủ minh hoạ RBAC 6 vai. Thật: SSO/LDAP (doc 18).
 const DEMO_USERS: ReadonlyArray<{ user: string; roles: Role[] }> = [
@@ -23,7 +24,8 @@ const DEMO_USERS: ReadonlyArray<{ user: string; roles: Role[] }> = [
   { user: 'admin', roles: ['Admin'] },
 ];
 // Ánh xạ lệnh WS → hành động RBAC (doc 05-07). load = setpoint; leak/mill-trip = override (OTS nguy hiểm).
-const CMD_ACTION: Record<string, PermissionAction> = { load: 'setpoint', ack: 'ack', leak: 'override', 'mill-trip': 'override' };
+const CMD_ACTION: Record<string, PermissionAction> = { load: 'setpoint', ack: 'ack', leak: 'override', 'mill-trip': 'override', vacuum: 'override' };
+const LIVE_OTS = new Set(['ots-freeze', 'ots-snapshot', 'ots-restore']); // OTS: action 'engineer'
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PUBLIC = join(HERE, '..', 'public');
@@ -44,7 +46,7 @@ interface Command {
   confirm?: boolean;
 }
 
-const LIVE_CMDS = new Set(['load', 'leak', 'mill-trip', 'ack']); // lệnh ra thiết bị — chặn khi replay
+const LIVE_CMDS = new Set(['load', 'leak', 'mill-trip', 'vacuum', 'ack']); // lệnh ra thiết bị — chặn khi replay
 
 export interface RunningServer {
   server: http.Server;
@@ -131,9 +133,9 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
       return;
     }
     const action = CMD_ACTION[cmd] as PermissionAction;
-    const target = cmd === 'ack' ? m.alarmId ?? '' : cmd === 'load' ? 'BLR_MW_DEMAND' : cmd === 'leak' ? 'tube-leak' : 'mill';
+    const target = cmd === 'ack' ? m.alarmId ?? '' : cmd === 'load' ? 'BLR_MW_DEMAND' : cmd === 'leak' ? 'tube-leak' : cmd === 'vacuum' ? 'loss-of-vacuum' : 'mill';
     const oldVal = cmd === 'load' ? rt.value('BLR_MW_DEMAND') : undefined;
-    const newVal = cmd === 'load' ? m.value : cmd === 'leak' ? m.value : cmd === 'ack' ? m.alarmId : 'trip';
+    const newVal = cmd === 'load' ? m.value : cmd === 'leak' || cmd === 'vacuum' ? m.value : cmd === 'ack' ? m.alarmId : 'trip';
 
     let confirmToken: string | undefined;
     if (sec.requiresTwoStep(action)) {
@@ -155,7 +157,30 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
     else if (cmd === 'leak') {
       if (typeof m.value === 'number' && m.value > 0) rt.injectMalfunction({ id: 'tube-leak', params: { rate: m.value } });
       else rt.clearMalfunction('tube-leak');
+    } else if (cmd === 'vacuum') {
+      if (typeof m.value === 'number' && m.value > 6) rt.injectMalfunction({ id: 'loss-of-vacuum', params: { kpa: m.value } });
+      else rt.clearMalfunction('loss-of-vacuum');
     } else if (cmd === 'ack' && m.alarmId !== undefined) rt.ackAlarm(m.alarmId, sec.resolve(access)?.userId ?? 'operator');
+  };
+
+  // OTS session control (freeze/snapshot/restore) — action 'engineer', audit, không 2 bước (thao tác đảo được).
+  let otsSnap: OtsSnapshot | null = null;
+  const otsMsg = (): string => JSON.stringify({ type: 'ots', frozen: rt.isFrozen(), hasSnapshot: otsSnap !== null });
+  const handleOts = (ws: WebSocket, cmd: string, value?: number): void => {
+    const access = tokens.get(ws);
+    if (access === undefined) {
+      ws.send(JSON.stringify({ type: 'denied', reason: 'chưa đăng nhập' }));
+      return;
+    }
+    const res = sec.guardedWrite(access, 'engineer', cmd, undefined, value, `OTS ${cmd}`);
+    if (!res.allow) {
+      ws.send(JSON.stringify({ type: 'denied', reason: res.reason }));
+      return;
+    }
+    if (cmd === 'ots-freeze') rt.freeze(value !== 0);
+    else if (cmd === 'ots-snapshot') otsSnap = rt.snapshot();
+    else if (cmd === 'ots-restore' && otsSnap) rt.restore(otsSnap);
+    broadcast(otsMsg());
   };
 
   wss.on('connection', (ws, req) => {
@@ -165,6 +190,7 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
     ws.send(alarmsMsg());
     ws.send(modeMsg());
     ws.send(authMsg(ws));
+    ws.send(otsMsg());
 
     ws.on('message', (data) => {
       let m: Command;
@@ -198,6 +224,8 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
         }
       } else if (m.cmd !== undefined && m.cmd in CMD_ACTION) {
         handleWrite(ws, m);
+      } else if (m.cmd !== undefined && LIVE_OTS.has(m.cmd)) {
+        handleOts(ws, m.cmd, m.value);
       } else if (m.cmd === 'replay-start') {
         const range = rt.historian.dataRange();
         if (range) {

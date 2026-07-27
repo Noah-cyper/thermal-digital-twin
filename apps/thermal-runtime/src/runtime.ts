@@ -13,7 +13,14 @@ import {
   boilerScreens,
   screenTags,
 } from '@idtp/plugin-thermal-power-600';
-import type { IMalfunction, LoopMode, Quality, AlarmEvent } from '@idtp/sdk';
+import type { IMalfunction, LoopMode, Quality, AlarmEvent, ISimSnapshot } from '@idtp/sdk';
+
+/** Ảnh chụp OTS: trạng thái model + tag chính + số bước — để freeze/restore huấn luyện (doc 05-05). */
+export interface OtsSnapshot {
+  sim: ReadonlyMap<string, ISimSnapshot>;
+  tags: Record<string, number>;
+  step: number;
+}
 
 const REC_EVERY = 5; // ghi historian mỗi 5 bước (~2 Hz) — raw layer (doc 05-04)
 const SNAPSHOT_EVERY = 3000; // snapshot toàn tag mỗi 3000 bước = 5 phút
@@ -37,6 +44,10 @@ export interface ThermalRuntime {
   ackAlarm(alarmId: string, user: string): AlarmEvent;
   activeAlarms(): ReadonlyArray<AlarmEvent>;
   alarmKpi(): AlarmKpi;
+  freeze(on: boolean): void;
+  isFrozen(): boolean;
+  snapshot(): OtsSnapshot;
+  restore(snap: OtsSnapshot): void;
   value(tagId: string): number;
   nowIso(): string;
   recordedTags(): ReadonlyArray<string>;
@@ -128,7 +139,24 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   for (let i = 0; i < warmupSteps; i++) advance();
   for (const loopId of Object.keys(boilerLoopSeeds)) loops.setMode(loopId, 'AUTO');
 
+  // OTS: freeze (dừng toàn bộ vòng) + snapshot/restore (SimulationHost + tag chính).
+  let frozen = false;
+  const captureTags = [
+    ...new Set([
+      ...recordedTags,
+      'BLR_FUEL_DEMAND_01',
+      'BLR_FD_DAMPER_01',
+      'BLR_ID_VANE_01',
+      'BLR_SH_SPRAY_CV_01',
+      'BLR_FW_CV_01',
+      'BLR_TURBINE_DEMAND_01',
+      'BLR_FIRING_DEMAND',
+      'BLR_MW_DEMAND',
+    ]),
+  ];
+
   const step = (): void => {
+    if (frozen) return; // OTS freeze: đóng băng sim + control + alarm + đồng hồ
     advance();
     evalAlarms();
     record();
@@ -140,6 +168,22 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
     alarms,
     historian,
     recordedTags: () => recordedTags,
+    freeze: (on) => {
+      frozen = on;
+      host.freeze(on);
+    },
+    isFrozen: () => frozen,
+    snapshot: () => {
+      const tags: Record<string, number> = {};
+      for (const t of captureTags) tags[t] = num(t);
+      return { sim: host.snapshotAll(), tags, step: stepCount };
+    },
+    restore: (snap) => {
+      host.restoreAll(snap.sim);
+      const ts = nowIso();
+      tag.ingest(Object.entries(snap.tags).map(([id, value]) => ({ tagId: id, value, quality: GOOD, ts })));
+      stepCount = snap.step;
+    },
     setLoadDemand: (mw) => put('BLR_MW_DEMAND', mw),
     injectMalfunction: (m) => host.inject(model.id, m),
     clearMalfunction: (id) => host.clear(model.id, id),

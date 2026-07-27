@@ -77,6 +77,7 @@
     font-family:var(--mono);font-size:12px;padding:8px 14px;border-radius:3px;color:#fff;background:var(--alarm-1)}
   .toast.on{display:block}
   .toast.ok{background:var(--run)}
+  .otsind{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--alarm-4)}
 </style>
 </head>
 <body>
@@ -94,6 +95,7 @@
       </select>
       <b id="whoami">—</b>
     </span>
+    <span id="otsState" class="otsind"></span>
     <span class="link"><i class="dot" id="linkDot"></i><span id="linkTxt">connecting…</span></span>
   </div>
   <div class="toast" id="toast"></div>
@@ -124,7 +126,12 @@
         <button class="warn" data-cmd="mill-trip">Mill trip</button>
         <button class="warn" data-leak="800">Tube leak (800 t/h)</button>
         <button data-leak="0">Clear leak</button>
+        <button class="warn" data-vacuum="30">Loss of vacuum</button>
+        <button data-vacuum="0">Clear vacuum</button>
         <button data-rstart="1">▶ Replay lịch sử</button>
+        <button data-ots="freeze" id="otsFreeze">Freeze (OTS)</button>
+        <button data-ots="snapshot">Snapshot</button>
+        <button data-ots="restore" id="otsRestore" disabled>Restore</button>
       </div>
       <div class="note">Màn hình là JSON khai báo của plugin (/screen/&lt;id&gt;); client render generic
       theo symbol + áp binding {property,tag,transform,condition}. Dữ liệu từ mô hình vật lý qua vòng
@@ -241,6 +248,7 @@
       else if (m.type === 'auth'){ onAuth(m); }
       else if (m.type === 'denied'){ showToast('⛔ Từ chối: ' + m.reason, false); }
       else if (m.type === 'confirm-needed'){ onConfirmNeeded(m); }
+      else if (m.type === 'ots'){ onOts(m); }
     } catch {} };
   }
   const send = (o) => ws && ws.readyState === 1 && ws.send(JSON.stringify(o));
@@ -261,11 +269,26 @@
   }
   $('roleSel').onchange = () => send({ cmd: 'login', user: $('roleSel').value });
 
+  let otsFrozen = false;
+  function onOts(m){
+    otsFrozen = !!m.frozen;
+    $('otsState').textContent = otsFrozen ? 'FROZEN (OTS)' : '';
+    $('otsFreeze').textContent = otsFrozen ? 'Resume (OTS)' : 'Freeze (OTS)';
+    $('otsRestore').disabled = !m.hasSnapshot;
+  }
+  document.querySelectorAll('.controls button[data-ots]').forEach(b => b.onclick = () => {
+    const k = b.dataset.ots;
+    if (k === 'freeze') send({ cmd: 'ots-freeze', value: otsFrozen ? 0 : 1 });
+    else if (k === 'snapshot') send({ cmd: 'ots-snapshot' });
+    else if (k === 'restore') send({ cmd: 'ots-restore' });
+  });
+  document.querySelectorAll('.controls button[data-vacuum]').forEach(b => b.onclick = () => send({ cmd: 'vacuum', value: Number(b.dataset.vacuum) }));
+
   let replayMode = false, seeking = false, blockedTimer = null;
   function setMode(mode){
     replayMode = (mode === 'REPLAY');
     $('replaybar').classList.toggle('on', replayMode);
-    document.querySelectorAll('.controls button[data-load],.controls button[data-leak],.controls button[data-cmd],.controls button[data-rstart]')
+    document.querySelectorAll('.controls button[data-load],.controls button[data-leak],.controls button[data-vacuum],.controls button[data-cmd],.controls button[data-rstart]')
       .forEach(b => b.disabled = replayMode);
     if (!replayMode){ $('rMsg').textContent = ''; if (current) subscribe(current); } // về LIVE → làm mới snapshot
   }

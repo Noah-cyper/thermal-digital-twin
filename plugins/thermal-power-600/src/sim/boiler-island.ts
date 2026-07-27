@@ -35,6 +35,9 @@ const MILLS_RUNNING = 5;
 const O2_NOM_PCT = 3.2; // O₂ sau economizer
 const DRAFT_NOM_PA = -50; // áp buồng lửa
 const P_MSTM_NOM_MPA = 17.5; // áp hơi chính SH out (điểm vận hành danh định)
+const VACUUM_NOM_KPA = 5.4; // chân không bình ngưng (Design Basis §3.3)
+const TAU_VAC = 10; // s — quán tính chân không [GIẢ ĐỊNH]
+const LOSS_VAC_KPA = 30; // mục tiêu khi mất chân không [GIẢ ĐỊNH]
 
 /* ── [GIẢ ĐỊNH] hiệu chỉnh — doc 25 GĐ-32/33 (tuning trên sim thực) ─────── */
 const COAL_MAX_TPH = MILL_TPH * MILLS_RUNNING; // 300 t/h công suất nghiền tối đa
@@ -166,6 +169,7 @@ export class BoilerIslandModel implements ISimModel {
     'BLR_FLUE_O2_01', // %
     'BLR_FURN_PRESS_01', // Pa
     'GEN_MW_01', // MW (turbine đơn giản hoá)
+    'TRB_COND_VACUUM_01', // kPa(a) — chân không bình ngưng
   ];
 
   // Trạng thái tích phân
@@ -174,6 +178,8 @@ export class BoilerIslandModel implements ISimModel {
   private coalFlow = 0; // t/h
   private millsAvailable = MILLS_RUNNING;
   private leak = 0; // t/h — tube leak (malfunction)
+  private vacuum = VACUUM_NOM_KPA; // kPa(a)
+  private vacuumTarget = VACUUM_NOM_KPA;
 
   private readonly steam = new Foptd(TAU_STEAM, TH_STEAM, 0.1);
   private readonly o2 = new Foptd(TAU_O2, TH_O2, 0.1);
@@ -188,6 +194,8 @@ export class BoilerIslandModel implements ISimModel {
     this.coalFlow = ws.coalFlow;
     this.millsAvailable = MILLS_RUNNING;
     this.leak = 0;
+    this.vacuum = VACUUM_NOM_KPA;
+    this.vacuumTarget = VACUUM_NOM_KPA;
     this.steam.reset(ws.steamGen);
     this.o2.reset(ws.o2);
     this.shTemp.reset(ws.shTemp);
@@ -247,8 +255,11 @@ export class BoilerIslandModel implements ISimModel {
     const furnTarget = DRAFT_NOM_PA + K_DRAFT * (fdDamper - idVane);
     const furnNow = this.furnace.step(furnTarget, dtSec);
 
-    // ── Công suất (turbine đơn giản hoá: MW ∝ hơi lấy đi) ──
-    const mw = turbineDem * MW_PER_TPH;
+    // ── Chân không bình ngưng: mất chân không → hệ số giảm → tụt công suất (Stodola đơn giản hoá) ──
+    this.vacuum += (dtSec / TAU_VAC) * (this.vacuumTarget - this.vacuum);
+    const vacFactor = clamp(1 - (this.vacuum - VACUUM_NOM_KPA) / 40, 0.5, 1);
+    // ── Công suất (turbine đơn giản hoá: MW ∝ hơi lấy đi × hệ số chân không) ──
+    const mw = turbineDem * MW_PER_TPH * vacFactor;
 
     // ── Nhiễu đo có seed (thứ tự rút cố định để tất định) ──
     const m = (v: number, amp: number): number => v + this.rng.sym(amp);
@@ -263,6 +274,7 @@ export class BoilerIslandModel implements ISimModel {
         { tagId: 'BLR_FLUE_O2_01', value: m(o2Now, N_O2), quality: 'Good' },
         { tagId: 'BLR_FURN_PRESS_01', value: m(furnNow, N_FURN), quality: 'Good' },
         { tagId: 'GEN_MW_01', value: m(mw, N_MW), quality: 'Good' },
+        { tagId: 'TRB_COND_VACUUM_01', value: m(this.vacuum, 0.05), quality: 'Good' },
       ],
     };
   }
@@ -274,6 +286,8 @@ export class BoilerIslandModel implements ISimModel {
       coalFlow: this.coalFlow,
       millsAvailable: this.millsAvailable,
       leak: this.leak,
+      vacuum: this.vacuum,
+      vacuumTarget: this.vacuumTarget,
       rng: this.rng.state,
     };
     this.steam.dump(state, 'steam');
@@ -290,6 +304,8 @@ export class BoilerIslandModel implements ISimModel {
     this.coalFlow = s.coalFlow ?? 0;
     this.millsAvailable = s.millsAvailable ?? MILLS_RUNNING;
     this.leak = s.leak ?? 0;
+    this.vacuum = s.vacuum ?? VACUUM_NOM_KPA;
+    this.vacuumTarget = s.vacuumTarget ?? VACUUM_NOM_KPA;
     this.rng.state = s.rng ?? SIM_SEED;
     this.steam.load(s, 'steam');
     this.o2.load(s, 'o2');
@@ -300,11 +316,13 @@ export class BoilerIslandModel implements ISimModel {
   injectMalfunction(mf: IMalfunction): void {
     if (mf.id === 'tube-leak') this.leak = mf.params?.rate ?? 50;
     else if (mf.id === 'mill-trip') this.millsAvailable = Math.max(0, this.millsAvailable - 1);
+    else if (mf.id === 'loss-of-vacuum') this.vacuumTarget = mf.params?.kpa ?? LOSS_VAC_KPA;
   }
 
   clearMalfunction(id: string): void {
     if (id === 'tube-leak') this.leak = 0;
     else if (id === 'mill-trip') this.millsAvailable = MILLS_RUNNING;
+    else if (id === 'loss-of-vacuum') this.vacuumTarget = VACUUM_NOM_KPA;
   }
 
   dispose(): void {

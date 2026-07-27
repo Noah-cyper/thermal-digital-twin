@@ -43,6 +43,7 @@
 | GĐ‑35 | Setpoint alarm Boiler Island ngoài Design Basis: MSTM-PRESS-HH 19,3 MPa · PRESS-LO 16,0 · SH-TEMP-HH 551 °C · FLUE-O2-LO 1,5% (drum ±250, furnace ±200 neo Design Basis §3.2) | doc 08 |
 | GĐ‑36 | Auth lát cắt đơn giản hoá: token dạng chuỗi (TTL 15' + refresh xoay) thay JWT ký thật; 6 user demo mật khẩu 'p'; auto-login Operator; leak/mill-trip (OTS) ánh xạ action 'override'. JWT/SSO/LDAP thật ở sau | doc 05-07/18 |
 | GĐ‑37 | Số liệu plugin #2 water-treatment-demo là DEMO tổng hợp: FEED_MAX 200 m³/h · surge tank 60 m³ · SP mức 60% · setpoint alarm (LL10/LO25/HI80/HH90). Mục đích = bài test generic, không phải plant thật | doc 00 §5.4 |
+| GĐ‑38 | OTS loss-of-vacuum: mục tiêu 30 kPa (τ 10 s), hệ số công suất = clamp(1−(vac−5,4)/40, 0,5..1) — chân không danh định 5,4 kPa là Design Basis §3.3 | doc 05-05/10 |
 
 ## 2. Vấn đề mở
 > ✔ M‑05 (bài test generic): thêm `water-treatment-demo` chỉ chạm `plugins/water-treatment-demo/*` + `pnpm-lock.yaml` — **0 dòng sửa `packages/*` & `apps/*`** (kiểm bằng `git status`). Luận điểm "mọi nhà máy chỉ là plugin" đứng vững.
