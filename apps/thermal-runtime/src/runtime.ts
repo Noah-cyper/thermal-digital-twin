@@ -2,8 +2,8 @@
 // khép kín với ĐỒNG HỒ SIM tiến theo dt (Time Service, không Date.now trong vòng process).
 // Sim→control→alarm→tag không dùng Math.random. App tổ hợp import engines/kernel/plugin; plugin
 // runtime vẫn chỉ import @idtp/sdk.
-import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian, KpiEngine, historianKpiInput, MaintenanceEngine, FaceplateEngine, NavigationEngine, generateRegistry, generateScreens, generateControlLoops, SequenceEngine, executeScenario, CauseEffectEngine } from '@idtp/engines';
-import type { AlarmKpi, FaceplateResolvers, FaceplateOverview, FaceplateAlarmRow, FaceplateDetail } from '@idtp/engines';
+import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian, KpiEngine, historianKpiInput, MaintenanceEngine, FaceplateEngine, NavigationEngine, generateRegistry, generateScreens, generateControlLoops, SequenceEngine, executeScenario, CauseEffectEngine, AiAdvisor } from '@idtp/engines';
+import type { AlarmKpi, FaceplateResolvers, FaceplateOverview, FaceplateAlarmRow, FaceplateDetail, Advice } from '@idtp/engines';
 import { TimeService } from '@idtp/kernel';
 import {
   BoilerIslandModel,
@@ -20,6 +20,7 @@ import {
   thermalSequences,
   thermalScenarios,
   thermalCauseEffect,
+  thermalKnowledge,
 } from '@idtp/plugin-thermal-power-600';
 import type {
   IMalfunction,
@@ -134,6 +135,7 @@ export interface ThermalRuntime {
   causeEffectMatrices(): ReadonlyArray<CauseEffectMatrix>;
   causeEffectState(matrixId: string): CeState | undefined;
   resetCauseEffect(matrixId: string): boolean;
+  explainAlarm(alarmId: string): Advice | undefined;
   value(tagId: string): number;
   nowIso(): string;
   recordedTags(): ReadonlyArray<string>;
@@ -280,6 +282,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   const evalCe = (): void => {
     for (const e of ceEngines) e.evaluate((id) => num(id));
   };
+
+  // AI Advisor v1 (rule-based, READ-ONLY): giải thích alarm từ tri thức plugin + ma trận C&E. Không
+  // ghi tag/setpoint/ACK — chỉ đọc để trích dẫn (chống bịa).
+  const advisor = new AiAdvisor({ alarms: boilerAlarms, matrices: thermalCauseEffect, knowledge: thermalKnowledge });
 
   // Chuỗi SFC chạy "live" — tick theo nhịp sim (đồng hồ THẬT), ghi tag lệnh mà sim đọc mỗi bước →
   // SFC tác động PHYSICS qua thời gian (khác runSequenceToCompletion chạy đồng hồ ảo, không bước sim).
@@ -472,6 +478,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
     },
     liveSequenceState: () => [...liveSeqs.entries()].map(([id, eng]) => ({ sequenceId: id, ...eng.state() })),
     causeEffectMatrices: () => thermalCauseEffect,
+    explainAlarm: (alarmId) => {
+      const a = boilerAlarms.find((x) => x.alarmId === alarmId);
+      return advisor.explainAlarm(alarmId, { value: a ? num(a.tagId) : undefined, nowIso: nowIso() });
+    },
     causeEffectState: (matrixId) => ceById.get(matrixId)?.state(),
     resetCauseEffect: (matrixId) => {
       const eng = ceById.get(matrixId);

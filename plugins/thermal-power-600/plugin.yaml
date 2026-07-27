@@ -20,6 +20,7 @@ provides:
   sequences: dist/sequences/defs.js
   scenarios: dist/scenarios/defs.js
   causeEffect: dist/cause-effect/matrices.js
+  aiKnowledge: dist/ai/knowledge.js
   i18n: i18n/{vi,en}.json
 
 requires:
