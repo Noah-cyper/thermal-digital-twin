@@ -12,6 +12,7 @@ provides:
   control: dist/control/loops.js
   alarms: dist/alarms/boiler-alarms.js
   graphics: dist/graphics/screens.js
+  faceplates: dist/faceplates/defs.js
   kpi: dist/kpi/calculators.js
   maintenance: dist/maintenance/items.js
   navigation: nav/tree.yaml

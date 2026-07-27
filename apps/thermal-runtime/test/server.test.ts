@@ -210,4 +210,50 @@ describe('thermal-runtime server', () => {
     ws.close();
     await app.close();
   });
+
+  it('Faceplate: fp-list + fp-data; set-mode 2 bước (Operator ok, Viewer bị từ chối)', async () => {
+    interface Msg {
+      type?: string;
+      assetId?: string;
+      action?: string;
+      roles?: string[];
+      items?: { assetId?: string }[];
+      data?: unknown;
+    }
+    const app = startServer(0, { stepMs: 15 });
+    const port = await app.ready;
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`);
+    const msgs: Msg[] = [];
+    ws.on('message', (d) => msgs.push(JSON.parse(d.toString()) as Msg));
+    const until = async (fn: () => boolean): Promise<boolean> => {
+      const t0 = Date.now();
+      while (Date.now() - t0 < 2000) {
+        if (fn()) return true;
+        await sleep(20);
+      }
+      return false;
+    };
+    await new Promise<void>((r) => ws.on('open', () => r()));
+
+    ws.send(JSON.stringify({ cmd: 'faceplate-list' }));
+    expect(await until(() => msgs.some((m) => m.type === 'fp-list' && (m.items ?? []).some((i) => i.assetId === 'PID-DRUM-LEVEL')))).toBe(true);
+    ws.send(JSON.stringify({ cmd: 'faceplate-open', assetId: 'PID-DRUM-LEVEL' }));
+    expect(await until(() => msgs.some((m) => m.type === 'fp-data' && m.assetId === 'PID-DRUM-LEVEL' && m.data != null))).toBe(true);
+
+    // set-mode cần xác nhận 2 bước
+    ws.send(JSON.stringify({ cmd: 'set-mode', loopId: 'drum-level', mode: 'MAN' }));
+    expect(await until(() => msgs.some((m) => m.type === 'confirm-needed' && m.action === 'mode'))).toBe(true);
+    ws.send(JSON.stringify({ cmd: 'set-mode', loopId: 'drum-level', mode: 'MAN', confirm: true }));
+    await sleep(120);
+
+    // Viewer → set-mode bị từ chối
+    ws.send(JSON.stringify({ cmd: 'login', user: 'viewer' }));
+    expect(await until(() => (msgs.filter((m) => m.type === 'auth').pop()?.roles?.includes('Viewer') ?? false))).toBe(true);
+    const mark = msgs.length;
+    ws.send(JSON.stringify({ cmd: 'set-mode', loopId: 'drum-level', mode: 'AUTO', confirm: true }));
+    expect(await until(() => msgs.slice(mark).some((m) => m.type === 'denied'))).toBe(true);
+
+    ws.close();
+    await app.close();
+  });
 });

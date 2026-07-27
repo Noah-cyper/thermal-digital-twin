@@ -6,3 +6,4 @@ export * from './graphics';
 export * from './alarm';
 export * from './security';
 export * from './maintenance';
+export * from './faceplate';

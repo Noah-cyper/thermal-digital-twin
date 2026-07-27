@@ -1,0 +1,51 @@
+// Plugin thermal-power-600 — FaceplateDef khai báo (doc 05-15). Dữ liệu thuần, chỉ import type từ
+// @idtp/sdk. 4 tab cố định; gắn control loop + tag PV/OP + alarm + trend. KKS neo Phụ lục A §10.1.
+import type { FaceplateDef } from '@idtp/sdk';
+
+export const thermalFaceplates: ReadonlyArray<FaceplateDef> = [
+  {
+    faceplateId: 'fp-drum-level',
+    assetId: 'PID-DRUM-LEVEL',
+    title: { vi: 'Mức bao hơi (3-element)', en: 'Drum level (3-element)' },
+    loopId: 'drum-level',
+    pvTag: 'BLR_DRUM_LEVEL_01',
+    sp: 0,
+    opTag: 'BLR_FW_CV_01',
+    eu: 'mm',
+    rangeLo: -400,
+    rangeHi: 400,
+    kks: '10HAD10CL001',
+    alarmIds: ['BLR-DRUM-LVL-HH', 'BLR-DRUM-LVL-HI', 'BLR-DRUM-LVL-LO', 'BLR-DRUM-LVL-LL'],
+    trendTags: ['BLR_DRUM_LEVEL_01', 'BLR_STEAM_FLOW_01', 'BLR_FW_FLOW_01'],
+  },
+  {
+    faceplateId: 'fp-main-steam-pressure',
+    assetId: 'PID-MSTM-PRESS',
+    title: { vi: 'Áp hơi chính (boiler master)', en: 'Main steam pressure (boiler master)' },
+    loopId: 'boiler-master-pressure',
+    pvTag: 'BLR_MSTM_SH_PRESS_01',
+    sp: 17.5,
+    opTag: 'BLR_FIRING_DEMAND',
+    eu: 'MPa',
+    rangeLo: 0,
+    rangeHi: 22,
+    kks: '10LAB10CP001',
+    alarmIds: ['BLR-MSTM-PRESS-HH', 'BLR-MSTM-PRESS-LO'],
+    trendTags: ['BLR_MSTM_SH_PRESS_01', 'BLR_COAL_FLOW_01'],
+  },
+  {
+    faceplateId: 'fp-sh-temp',
+    assetId: 'PID-SH-TEMP',
+    title: { vi: 'Nhiệt độ hơi SH (spray)', en: 'SH steam temp (spray)' },
+    loopId: 'sh-temp',
+    pvTag: 'BLR_MSTM_SH_TEMP_01',
+    sp: 541,
+    opTag: 'BLR_SH_SPRAY_CV_01',
+    eu: 'degC',
+    rangeLo: 0,
+    rangeHi: 600,
+    kks: '10LBA10CT001',
+    alarmIds: ['BLR-MSTM-TEMP-HH'],
+    trendTags: ['BLR_MSTM_SH_TEMP_01'],
+  },
+];

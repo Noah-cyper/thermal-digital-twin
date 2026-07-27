@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import type { AddressInfo } from 'node:net';
 import { WebSocketServer, WebSocket } from 'ws';
-import type { ScreenDef, PermissionAction, Role } from '@idtp/sdk';
+import type { ScreenDef, PermissionAction, Role, LoopMode } from '@idtp/sdk';
 import type { ReplaySession } from '@idtp/engines';
 import { SecurityEngine } from '@idtp/engines';
 import { boilerScreens, screenTags } from '@idtp/plugin-thermal-power-600';
@@ -47,9 +47,13 @@ interface Command {
   assetId?: string;
   woType?: 'PM' | 'CM';
   reason?: string;
+  loopId?: string;
+  mode?: string;
+  hours?: number;
 }
 
-const LIVE_CMDS = new Set(['load', 'leak', 'mill-trip', 'vacuum', 'ack']); // lệnh ra thiết bị — chặn khi replay
+const LIVE_CMDS = new Set(['load', 'leak', 'mill-trip', 'vacuum', 'ack', 'set-mode']); // lệnh ra thiết bị — chặn khi replay
+const MODES: ReadonlySet<string> = new Set(['MAN', 'AUTO', 'CASCADE']);
 
 export interface RunningServer {
   server: http.Server;
@@ -186,6 +190,33 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
     broadcast(maintMsg());
   };
 
+  // Đổi mode loop (MAN/AUTO/CASCADE) từ faceplate — action 'mode' (xác nhận 2 bước) + audit.
+  const handleSetMode = (ws: WebSocket, m: Command): void => {
+    const access = tokens.get(ws);
+    if (access === undefined) {
+      ws.send(JSON.stringify({ type: 'denied', reason: 'chưa đăng nhập' }));
+      return;
+    }
+    const loopId = m.loopId ?? '';
+    const mode = m.mode ?? '';
+    if (!MODES.has(mode)) {
+      ws.send(JSON.stringify({ type: 'denied', reason: 'mode không hợp lệ' }));
+      return;
+    }
+    if (m.confirm !== true) {
+      ws.send(JSON.stringify({ type: 'confirm-needed', cmd: 'set-mode', loopId, mode, action: 'mode', target: loopId }));
+      return;
+    }
+    const ctx = sec.resolve(access);
+    const confirmToken = ctx ? sec.requestConfirm(ctx, 'mode', loopId) : undefined;
+    const res = sec.guardedWrite(access, 'mode', loopId, undefined, mode, `set mode ${loopId}`, confirmToken);
+    if (!res.allow) {
+      ws.send(JSON.stringify({ type: 'denied', reason: res.reason }));
+      return;
+    }
+    rt.setLoopMode(loopId, mode as LoopMode);
+  };
+
   // OTS session control (freeze/snapshot/restore) — action 'engineer', audit, không 2 bước (thao tác đảo được).
   let otsSnap: OtsSnapshot | null = null;
   const otsMsg = (): string => JSON.stringify({ type: 'ots', frozen: rt.isFrozen(), hasSnapshot: otsSnap !== null });
@@ -254,6 +285,15 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
         ws.send(maintMsg());
       } else if (m.cmd === 'create-wo') {
         handleCreateWo(ws, m);
+      } else if (m.cmd === 'faceplate-list') {
+        ws.send(JSON.stringify({ type: 'fp-list', items: rt.faceplateList() }));
+      } else if (m.cmd === 'faceplate-open' && m.assetId !== undefined) {
+        ws.send(JSON.stringify({ type: 'fp-data', assetId: m.assetId, data: rt.faceplateData(m.assetId) ?? null }));
+      } else if (m.cmd === 'faceplate-trend' && m.assetId !== undefined) {
+        const asset = m.assetId;
+        void rt.faceplateTrend(asset, m.hours ?? 1).then((trend) => ws.send(JSON.stringify({ type: 'fp-trend', assetId: asset, trend })));
+      } else if (m.cmd === 'set-mode') {
+        handleSetMode(ws, m);
       } else if (m.cmd === 'replay-start') {
         const range = rt.historian.dataRange();
         if (range) {

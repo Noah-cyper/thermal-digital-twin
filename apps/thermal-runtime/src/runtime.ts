@@ -2,8 +2,8 @@
 // khép kín với ĐỒNG HỒ SIM tiến theo dt (Time Service, không Date.now trong vòng process).
 // Sim→control→alarm→tag không dùng Math.random. App tổ hợp import engines/kernel/plugin; plugin
 // runtime vẫn chỉ import @idtp/sdk.
-import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian, KpiEngine, historianKpiInput, MaintenanceEngine } from '@idtp/engines';
-import type { AlarmKpi } from '@idtp/engines';
+import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian, KpiEngine, historianKpiInput, MaintenanceEngine, FaceplateEngine } from '@idtp/engines';
+import type { AlarmKpi, FaceplateResolvers, FaceplateOverview, FaceplateAlarmRow, FaceplateDetail } from '@idtp/engines';
 import { TimeService } from '@idtp/kernel';
 import {
   BoilerIslandModel,
@@ -14,6 +14,7 @@ import {
   screenTags,
   thermalKpis,
   thermalMaintenance,
+  thermalFaceplates,
 } from '@idtp/plugin-thermal-power-600';
 import type {
   IMalfunction,
@@ -25,7 +26,17 @@ import type {
   EquipmentRuntime,
   WorkOrder,
   WorkOrderStatus,
+  FaceplateDef,
 } from '@idtp/sdk';
+
+/** Dữ liệu 4 tab faceplate đã ráp (Trend trả thống kê min/max/last theo tag). */
+export interface FaceplateData {
+  def: FaceplateDef;
+  overview: FaceplateOverview;
+  alarms: FaceplateAlarmRow[];
+  detail: FaceplateDetail;
+}
+export type FaceplateTrend = Record<string, { min: number; max: number; last: number }>;
 
 /** Ảnh chụp OTS: trạng thái model + tag chính + số bước — để freeze/restore huấn luyện (doc 05-05). */
 export interface OtsSnapshot {
@@ -66,6 +77,9 @@ export interface ThermalRuntime {
   workOrders(): ReadonlyArray<WorkOrder>;
   createWorkOrder(assetId: string, type: 'PM' | 'CM', reason: string, user: string): WorkOrder;
   updateWorkOrder(woId: string, status: WorkOrderStatus, user: string): WorkOrder | { error: string };
+  faceplateList(): ReadonlyArray<{ faceplateId: string; assetId: string; title: { vi: string; en: string }; pvTag: string }>;
+  faceplateData(assetId: string): FaceplateData | undefined;
+  faceplateTrend(assetId: string, hours: number): Promise<FaceplateTrend>;
   value(tagId: string): number;
   nowIso(): string;
   recordedTags(): ReadonlyArray<string>;
@@ -149,6 +163,28 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
     if (e.state === 'UnackAlarm' && e.priority === 'P1') maintenance.recordFailure('UNIT1', nowMs());
   });
 
+  // Faceplate: ráp 4 tab từ Tag/Loop/Alarm/Maintenance; Trend từ Historian.
+  const faceplateEngine = new FaceplateEngine(thermalFaceplates);
+  const alarmDefById = new Map(boilerAlarms.map((a) => [a.alarmId, a] as const));
+  const faceplateResolvers: FaceplateResolvers = {
+    read: (t) => {
+      const v = tag.getCurrent(t);
+      return v && typeof v.value === 'number' ? { value: v.value, quality: v.quality } : undefined;
+    },
+    loopMode: (id) => loops.getMode(id),
+    loopOutput: (id) => loops.getOutput(id),
+    alarmDef: (id) => {
+      const a = alarmDefById.get(id);
+      return a ? { priority: a.priority, condition: a.condition, setpoint: a.setpoint } : undefined;
+    },
+    activeAlarmIds: () => new Set(alarms.getActive().map((e) => e.alarmId)),
+    runtime: (assetId) => {
+      const r = maintenance.allRuntime().find((x) => x.assetId === assetId);
+      return r ? { runningHours: r.runningHours, startCount: r.startCount } : undefined;
+    },
+    blockedReason: () => null, // interlock model để pha sau; lệnh bị chặn hiện qua Control/Security
+  };
+
   const advance = (): void => {
     stepCount += 1;
     host.step(); // sim đọc OP → ghi PV
@@ -225,6 +261,34 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
     workOrders: () => maintenance.workOrders(),
     createWorkOrder: (assetId, type, reason, user) => maintenance.createWorkOrder({ assetId, type, reason }, user, nowMs()),
     updateWorkOrder: (woId, status, user) => maintenance.updateWorkOrder(woId, status, user, nowMs()),
+    faceplateList: () => faceplateEngine.list().map((d) => ({ faceplateId: d.faceplateId, assetId: d.assetId, title: d.title, pvTag: d.pvTag })),
+    faceplateData: (assetId) => {
+      const def = faceplateEngine.open(assetId);
+      if (!def) return undefined;
+      return {
+        def,
+        overview: faceplateEngine.overview(def, faceplateResolvers),
+        alarms: faceplateEngine.alarms(def, faceplateResolvers),
+        detail: faceplateEngine.detail(def, faceplateResolvers),
+      };
+    },
+    faceplateTrend: async (assetId, hours) => {
+      const out: FaceplateTrend = {};
+      const def = faceplateEngine.open(assetId);
+      const range = historian.dataRange();
+      if (!def || !range) return out;
+      const toMs = Date.parse(range.to);
+      const fromMs = Math.max(Date.parse(range.from), toMs - hours * 3_600_000);
+      const from = time.formatEpoch(fromMs);
+      const span = Math.max(1, toMs - fromMs) + 1;
+      for (const t of def.trendTags ?? []) {
+        const [mn] = await historian.query(t, from, range.to, 'min', span);
+        const [mx] = await historian.query(t, from, range.to, 'max', span);
+        const [lastPt] = await historian.query(t, from, range.to, 'last', span);
+        out[t] = { min: mn?.value ?? 0, max: mx?.value ?? 0, last: lastPt?.value ?? 0 };
+      }
+      return out;
+    },
     value: (id) => num(id),
     nowIso,
   };
