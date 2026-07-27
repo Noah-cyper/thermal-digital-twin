@@ -1,0 +1,67 @@
+# Mẫu alarm đã rationalize cho Boiler Island (doc 08 §6). Schema AlarmDef (doc 05-03).
+# priority: P1|P2|P3|P4 ; condition: HH|H|L|LL|DEV|ROC|DISCRETE
+
+alarms:
+  - alarmId: BLR-DRUM-LVL-HH
+    tagId: BLR_DRUM_LEVEL_01
+    condition: HH
+    priority: P1
+    setpoint: 250            # mm — trip (Design Basis §3.2)
+    deadband: 5
+    onDelayMs: 2000
+    offDelayMs: 8000
+    suppressWhen: "unit_state == SHUTDOWN"
+    consequence: { vi: "Bao hơi quá cao → cuốn nước sang turbine", en: "Drum HH -> water carryover" }
+    corrective: { vi: "Giảm cấp nước; kiểm 3-element", en: "Reduce feedwater; check 3-element" }
+
+  - alarmId: BLR-DRUM-LVL-LL
+    tagId: BLR_DRUM_LEVEL_01
+    condition: LL
+    priority: P1
+    setpoint: -250
+    deadband: 5
+    onDelayMs: 2000
+    offDelayMs: 8000
+    consequence: { vi: "Cạn nước lò → MFT bảo vệ", en: "Low drum -> MFT" }
+    corrective: { vi: "Tăng cấp nước; kiểm BFP", en: "Increase feedwater; check BFP" }
+
+  - alarmId: BLR-DRUM-LVL-HI
+    tagId: BLR_DRUM_LEVEL_01
+    condition: H
+    priority: P2
+    setpoint: 50
+    deadband: 5
+    onDelayMs: 3000
+    offDelayMs: 8000
+    consequence: { vi: "Mức cao bất thường", en: "High level" }
+
+  - alarmId: BLR-DRUM-LVL-LO
+    tagId: BLR_DRUM_LEVEL_01
+    condition: L
+    priority: P2
+    setpoint: -50
+    deadband: 5
+    onDelayMs: 3000
+    offDelayMs: 8000
+    consequence: { vi: "Mức thấp bất thường", en: "Low level" }
+
+  - alarmId: MILL-A-OUTLET-TEMP-HH
+    tagId: MILL_A_OUTLET_TEMP_01
+    condition: HH
+    priority: P1
+    setpoint: 95            # [GIẢ ĐỊNH] — nguy cơ cháy bột than
+    deadband: 2
+    onDelayMs: 3000
+    offDelayMs: 10000
+    consequence: { vi: "Nguy cơ cháy bột than trong mill", en: "Coal dust fire risk" }
+    corrective: { vi: "Trip mill; kiểm PA/seal air", en: "Trip mill; check PA/seal air" }
+
+  - alarmId: BLR-MSTM-PRESS-HH
+    tagId: BLR_MSTM_SH_PRESS_01
+    condition: HH
+    priority: P1
+    setpoint: 19.3           # [GIẢ ĐỊNH] > 17,5 vận hành, mở safety valve
+    deadband: 0.1
+    onDelayMs: 1000
+    offDelayMs: 5000
+    consequence: { vi: "Quá áp hơi chính → safety valve", en: "Main steam overpressure" }

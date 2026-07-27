@@ -1,0 +1,32 @@
+{
+  "name": "@idtp/app-walking-skeleton",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/skeleton.js",
+  "types": "./dist/skeleton.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/skeleton.d.ts",
+      "default": "./dist/skeleton.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "start": "node dist/server.js"
+  },
+  "dependencies": {
+    "@idtp/sdk": "workspace:*",
+    "@idtp/engines": "workspace:*",
+    "@idtp/plugin-thermal-power-600": "workspace:*",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.0",
+    "@types/ws": "^8.5.12",
+    "typescript": "^5.5.4",
+    "vitest": "^2.0.5"
+  }
+}

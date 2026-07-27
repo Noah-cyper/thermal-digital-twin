@@ -1,0 +1,87 @@
+# Mẫu tag đã sinh cho Boiler Island (doc 07 §5). Bản ghi 20 trường theo doc 04.
+# Đây là MẪU minh hoạ (không phải toàn bộ registry); phần còn lại sinh từ templates.tags.yaml.
+
+tags:
+  # --- Steam Drum (transmitter LT-001) ---
+  - id: 7b1e0000-0000-4000-8000-000000000001
+    kks: "10HAD10CL001"          # [GIẢ ĐỊNH]
+    uns: "hoantran/haiphong/unit1/boiler/steam-drum/lt-001/pv"
+    name: "BLR_DRUM_LEVEL_01"
+    desc_vi: "Mức bao hơi"
+    desc_en: "Steam drum level"
+    datatype: float
+    eu: "mm"
+    range_lo: -400
+    range_hi: 400
+    deadband: 5
+    scan_class: process
+    source: sim
+    asset_id: "LT-001"
+    alarm_ids: ["BLR-DRUM-LVL-HH","BLR-DRUM-LVL-HI","BLR-DRUM-LVL-LO","BLR-DRUM-LVL-LL"]
+    retention_class: standard
+    security_level: 0
+    is_writable: false
+    sim_model_ref: "thermal-boiler-island"
+
+  # --- Main Steam SH pressure (KKS verified) ---
+  - id: 7b1e0000-0000-4000-8000-000000000002
+    kks: "10LAB10CP001"          # verified (Phụ lục A §10.1)
+    uns: "hoantran/haiphong/unit1/boiler/main-steam/pt-001/pv"
+    name: "BLR_MSTM_SH_PRESS_01"
+    desc_vi: "Áp suất hơi chính SH out"
+    desc_en: "Main steam SH outlet pressure"
+    datatype: float
+    eu: "MPa"
+    range_lo: 0
+    range_hi: 22
+    deadband: 0.05
+    scan_class: process
+    source: sim
+    asset_id: "PT-001"
+    alarm_ids: ["BLR-MSTM-PRESS-HH","BLR-MSTM-PRESS-LO"]
+    retention_class: standard
+    security_level: 0
+    is_writable: false
+    sim_model_ref: "thermal-boiler-island"
+
+  # --- Mill A outlet temp (từ template 'mill') ---
+  - id: 7b1e0000-0000-4000-8000-000000000003
+    kks: "10HFC10CT001"          # [GIẢ ĐỊNH]
+    uns: "hoantran/haiphong/unit1/boiler/pulverizer-a/tt-001/pv"
+    name: "MILL_A_OUTLET_TEMP_01"
+    desc_vi: "Nhiệt độ ra máy nghiền A"
+    desc_en: "Mill A outlet temperature"
+    datatype: float
+    eu: "degC"
+    range_lo: 0
+    range_hi: 120
+    deadband: 1
+    scan_class: process
+    source: sim
+    asset_id: "MILL-A"
+    alarm_ids: ["MILL-A-OUTLET-TEMP-HH"]
+    retention_class: standard
+    security_level: 0
+    is_writable: false
+    sim_model_ref: "thermal-boiler-island"
+
+  # --- Drum level control loop OP (control_loop, writable) ---
+  - id: 7b1e0000-0000-4000-8000-000000000004
+    kks: "10HAD30AA001"          # [GIẢ ĐỊNH]
+    uns: "hoantran/haiphong/unit1/boiler/steam-drum/fcv-001/op"
+    name: "BLR_FW_CV_01_OP"
+    desc_vi: "Độ mở van nước cấp (OP loop mức 3-element)"
+    desc_en: "Feedwater control valve output (3-element loop)"
+    datatype: float
+    eu: "%"
+    range_lo: 0
+    range_hi: 100
+    deadband: 0.5
+    scan_class: process
+    source: calc
+    asset_id: "FCV-001"
+    alarm_ids: []
+    retention_class: standard
+    security_level: 2          # Operator+ mới ghi
+    is_writable: true
+    sim_model_ref: "thermal-boiler-island"

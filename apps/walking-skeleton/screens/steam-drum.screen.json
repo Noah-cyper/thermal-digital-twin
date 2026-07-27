@@ -1,0 +1,20 @@
+{
+  "screenId": "D3-steam-drum",
+  "level": "D3",
+  "elements": [
+    {
+      "id": "drum-level",
+      "symbol": "Drum",
+      "x": 360,
+      "y": 120,
+      "w": 240,
+      "h": 140,
+      "bindings": [
+        { "property": "text", "tag": "BLR_DRUM_LEVEL_01", "transform": { "kind": "linear", "scale": 1, "offset": 0 } },
+        { "property": "fill", "tag": "BLR_DRUM_LEVEL_01", "condition": { "when": "gt", "value": 250, "then": { "fill": "var(--alarm-1)" } } },
+        { "property": "fill", "tag": "BLR_DRUM_LEVEL_01", "condition": { "when": "lt", "value": -250, "then": { "fill": "var(--alarm-1)" } } },
+        { "property": "fill", "tag": "BLR_DRUM_LEVEL_01", "condition": { "when": "bad", "then": { "fill": "var(--bad-quality)" } } }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+plugin:
+  id: thermal-power-600
+  version: 1.0.0
+  engineApi: "^1.0.0"
+  domain: power.thermal.coal
+  displayName: { vi: "Nhiệt điện than 600 MW", en: "Coal Thermal 600 MW" }
+
+provides:
+  assetModel: model/isa95.yaml
+  tagRegistry: tags/**/*.yaml
+  simulation: dist/sim/boiler-island.js
+  control: dist/control/loops.js
+  alarms: dist/alarms/boiler-alarms.js
+  graphics: dist/graphics/screens.js
+  faceplates: dist/faceplates/defs.js
+  navigation: dist/nav/tree.js
+  kpi: dist/kpi/calculators.js
+  maintenance: dist/maintenance/items.js
+  seed: dist/seed/spec.js
+  sequences: dist/sequences/defs.js
+  scenarios: dist/scenarios/defs.js
+  causeEffect: dist/cause-effect/matrices.js
+  i18n: i18n/{vi,en}.json
+
+requires:
+  engines: [tag, alarm, historian, graphics, sim, control, report]
+  protocols: [mqtt-sparkplug]
+  minTagCapacity: 15000

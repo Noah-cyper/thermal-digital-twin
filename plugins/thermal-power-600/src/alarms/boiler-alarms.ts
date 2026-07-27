@@ -1,0 +1,132 @@
+// Plugin thermal-power-600 — alarm KHAI BÁO đã rationalize (doc 08). Dữ liệu thuần: CHỈ import type
+// từ @idtp/sdk. Alarm Engine chạy state machine. Setpoint neo Design Basis (Phụ lục A §3); ngoài đó
+// gắn [GIẢ ĐỊNH] (doc 25). Deadband + on/off delay bắt buộc (chống chattering, EEMUA 191).
+// Đây là subset Boiler Island; roll-up đầy đủ ~650 alarm ở doc 08 §5.
+import type { AlarmDef } from '@idtp/sdk';
+
+export const boilerAlarms: ReadonlyArray<AlarmDef> = [
+  // --- Drum level (LT-001), trip ±250 mm (Design Basis §3.2) ---
+  {
+    alarmId: 'BLR-DRUM-LVL-HH',
+    tagId: 'BLR_DRUM_LEVEL_01',
+    condition: 'HH',
+    priority: 'P1',
+    setpoint: 250,
+    deadband: 5,
+    onDelayMs: 2000,
+    offDelayMs: 8000,
+    suppressWhen: 'unit_state == SHUTDOWN',
+    consequence: { vi: 'Bao hơi quá cao → cuốn nước sang turbine', en: 'Drum HH -> water carryover to turbine' },
+    corrective: { vi: 'Giảm cấp nước; kiểm 3-element', en: 'Reduce feedwater; check 3-element' },
+  },
+  {
+    alarmId: 'BLR-DRUM-LVL-LL',
+    tagId: 'BLR_DRUM_LEVEL_01',
+    condition: 'LL',
+    priority: 'P1',
+    setpoint: -250,
+    deadband: 5,
+    onDelayMs: 2000,
+    offDelayMs: 8000,
+    suppressWhen: 'unit_state == SHUTDOWN',
+    consequence: { vi: 'Cạn nước lò → MFT bảo vệ', en: 'Low drum -> protective MFT' },
+    corrective: { vi: 'Tăng cấp nước; kiểm BFP', en: 'Increase feedwater; check BFP' },
+  },
+  {
+    alarmId: 'BLR-DRUM-LVL-HI',
+    tagId: 'BLR_DRUM_LEVEL_01',
+    condition: 'H',
+    priority: 'P2',
+    setpoint: 50,
+    deadband: 5,
+    onDelayMs: 3000,
+    offDelayMs: 8000,
+    consequence: { vi: 'Mức bao hơi cao bất thường', en: 'Abnormally high drum level' },
+  },
+  {
+    alarmId: 'BLR-DRUM-LVL-LO',
+    tagId: 'BLR_DRUM_LEVEL_01',
+    condition: 'L',
+    priority: 'P2',
+    setpoint: -50,
+    deadband: 5,
+    onDelayMs: 3000,
+    offDelayMs: 8000,
+    consequence: { vi: 'Mức bao hơi thấp bất thường', en: 'Abnormally low drum level' },
+  },
+  // --- Main steam pressure (17,5 MPa danh định) ---
+  {
+    alarmId: 'BLR-MSTM-PRESS-HH',
+    tagId: 'BLR_MSTM_SH_PRESS_01',
+    condition: 'HH',
+    priority: 'P1',
+    setpoint: 19.3, // [GIẢ ĐỊNH] ~ +10% trên danh định → PSV nguy cơ
+    deadband: 0.1,
+    onDelayMs: 2000,
+    offDelayMs: 8000,
+    consequence: { vi: 'Áp hơi quá cao → mở van an toàn', en: 'Steam HH -> safety valve lift' },
+    corrective: { vi: 'Giảm firing; kiểm turbine bypass', en: 'Reduce firing; check turbine bypass' },
+  },
+  {
+    alarmId: 'BLR-MSTM-PRESS-LO',
+    tagId: 'BLR_MSTM_SH_PRESS_01',
+    condition: 'L',
+    priority: 'P2',
+    setpoint: 16.0, // [GIẢ ĐỊNH]
+    deadband: 0.1,
+    onDelayMs: 3000,
+    offDelayMs: 8000,
+    consequence: { vi: 'Áp hơi thấp → mất phối hợp lò-turbine', en: 'Low steam pressure -> CCS mismatch' },
+  },
+  // --- SH steam temp (541 °C danh định) ---
+  {
+    alarmId: 'BLR-MSTM-TEMP-HH',
+    tagId: 'BLR_MSTM_SH_TEMP_01',
+    condition: 'HH',
+    priority: 'P2',
+    setpoint: 551, // [GIẢ ĐỊNH] +10 °C → nguy cơ quá nhiệt ống góp
+    deadband: 2,
+    onDelayMs: 3000,
+    offDelayMs: 10000,
+    consequence: { vi: 'Quá nhiệt hơi SH → hại ống góp/turbine', en: 'SH overtemp -> header/turbine damage' },
+    corrective: { vi: 'Tăng spray attemperator; giảm tải', en: 'Increase spray; reduce load' },
+  },
+  // --- Flue O2 (3,2% danh định) ---
+  {
+    alarmId: 'BLR-FLUE-O2-LO',
+    tagId: 'BLR_FLUE_O2_01',
+    condition: 'L',
+    priority: 'P2',
+    setpoint: 1.5, // [GIẢ ĐỊNH] cháy thiếu gió → CO cao, nguy cơ nổ
+    deadband: 0.2,
+    onDelayMs: 5000,
+    offDelayMs: 10000,
+    consequence: { vi: 'Thiếu gió → cháy không hết, CO cao', en: 'Low O2 -> incomplete combustion, high CO' },
+    corrective: { vi: 'Tăng gió (FD damper); kiểm air/fuel', en: 'Increase air; check air/fuel ratio' },
+  },
+  // --- Furnace pressure/draft (−50 Pa, dải −200…+200) ---
+  {
+    alarmId: 'BLR-FURN-PRESS-HH',
+    tagId: 'BLR_FURN_PRESS_01',
+    condition: 'HH',
+    priority: 'P1',
+    setpoint: 200,
+    deadband: 10,
+    onDelayMs: 1000,
+    offDelayMs: 5000,
+    consequence: { vi: 'Áp buồng lửa dương cao → phụt lửa/nổ', en: 'Furnace HH -> flame-out/explosion risk' },
+    corrective: { vi: 'Kiểm ID/FD; runback nếu cần', en: 'Check ID/FD fans; runback if needed' },
+  },
+  {
+    alarmId: 'BLR-FURN-PRESS-LL',
+    tagId: 'BLR_FURN_PRESS_01',
+    condition: 'LL',
+    priority: 'P1',
+    setpoint: -200,
+    deadband: 10,
+    onDelayMs: 1000,
+    offDelayMs: 5000,
+    consequence: { vi: 'Áp buồng lửa âm sâu → móp lò (implosion)', en: 'Furnace LL -> furnace implosion' },
+    corrective: { vi: 'Kiểm ID fan; runback', en: 'Check ID fan; runback' },
+  },
+];
