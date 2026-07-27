@@ -111,7 +111,7 @@
   <div class="banner">
     <span><b>UNIT1</b> · Nhiệt điện than 600 MW · CCS runtime</span>
     <span class="kpi">MW <b id="kMw">—</b> · Hơi <b id="kSteam">—</b> t/h · Áp <b id="kPress">—</b> MPa · O₂ <b id="kO2">—</b>%</span>
-    <span class="kpi" id="regStat" title="Registry §10: tổng tag/alarm/màn hình sinh từ template (doc 07/08/12)">Tag <b id="rTags">—</b> · Alarm <b id="rAlarms">—</b> · Màn <b id="rScreens">—</b> · Loop <b id="rLoops">—</b> · Seq <b id="rSeq">—</b></span>
+    <span class="kpi" id="regStat" title="Registry §10: tổng tag/alarm/màn hình sinh từ template (doc 07/08/12)">Tag <b id="rTags">—</b> · Alarm <b id="rAlarms">—</b> · Màn <b id="rScreens">—</b> · Loop <b id="rLoops">—</b> · Seq <b id="rSeq">—</b> · KB <b id="rScen">—</b></span>
     <span class="user">Vai:
       <select id="roleSel">
         <option value="viewer">Viewer</option>
@@ -316,6 +316,7 @@
     $('rScreens').textContent = (s.screens || 0).toLocaleString('en-US');
     $('rLoops').textContent = (s.loops || 0).toLocaleString('en-US');
     $('rSeq').textContent = (s.sequences || 0).toLocaleString('en-US');
+    $('rScen').textContent = (s.scenarios || 0).toLocaleString('en-US');
     const cells = Object.entries(s.byCell || {}).map(([c, n]) => c + ' ' + n).join(' · ');
     $('regStat').title = 'Registry §10 (doc 07/08) — tag theo khu vực: ' + cells;
   }

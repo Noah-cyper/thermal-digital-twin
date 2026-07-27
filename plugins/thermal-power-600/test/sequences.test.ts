@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { IWriteCommand, SequenceDef } from '@idtp/sdk';
 import { SequenceEngine } from '@idtp/engines';
 import { thermalSequences } from '../src/sequences/defs';
+import { thermalScenarios } from '../src/scenarios/defs';
 
 function run(def: SequenceDef, tags: Record<string, number> = {}): string {
   const clock = { t: 0 };
@@ -45,5 +46,12 @@ describe('thermal SFC (doc 09) — 8 chuỗi khai báo, §10', () => {
       expect(run(def, {})).toBe('failed'); // permissive purge chưa đạt
       expect(run(def, { BLR_PURGE_COMPLETE: 1 })).toBe('done');
     }
+  });
+
+  it('kịch bản §10: mọi pha action=sequence trỏ tới SFC tồn tại', () => {
+    const seqIds = new Set(thermalSequences.map((s) => s.sequenceId));
+    expect(thermalScenarios.length).toBeGreaterThanOrEqual(1);
+    for (const sc of thermalScenarios)
+      for (const p of sc.phases) if (p.action === 'sequence') expect(seqIds.has(p.ref ?? '')).toBe(true);
   });
 });
