@@ -15,12 +15,17 @@ describe('thermal-runtime — Alarm wiring (đồng hồ sim + ISA-18.2)', () =>
     expect(rt.activeAlarms().filter((a) => a.priority === 'P1')).toHaveLength(0);
   });
 
-  it('tube-leak mạnh → drum LOW alarm nổi; ack → AckAlarm', () => {
+  it('tube-leak → drum LOW alarm nổi; ack → AckAlarm', () => {
+    // Bắt alarm NGAY khi nó nổi trên đường drum tụt (drum qua −50 trước khi tới −250). Robust với
+    // physics v1.1: dù leak mạnh sau đó chạm LL → MFT cắt nhiên liệu → drum phục hồi, LOW vẫn đã nổi.
     const rt = createThermalRuntime();
     for (let i = 0; i < 300; i++) rt.step();
     rt.injectMalfunction({ id: 'tube-leak', params: { rate: 800 } });
-    for (let i = 0; i < 3000; i++) rt.step();
-    const low = rt.activeAlarms().find((a) => a.alarmId.startsWith('BLR-DRUM-LVL-L'));
+    let low = rt.activeAlarms().find((a) => a.alarmId.startsWith('BLR-DRUM-LVL-L'));
+    for (let i = 0; i < 3000 && !low; i++) {
+      rt.step();
+      low = rt.activeAlarms().find((a) => a.alarmId.startsWith('BLR-DRUM-LVL-L'));
+    }
     expect(low).toBeDefined();
     if (low) expect(rt.ackAlarm(low.alarmId, 'op').state).toBe('AckAlarm');
   });
