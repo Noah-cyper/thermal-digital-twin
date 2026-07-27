@@ -17,6 +17,7 @@ provides:
   kpi: dist/kpi/calculators.js
   maintenance: dist/maintenance/items.js
   seed: dist/seed/spec.js
+  sequences: dist/sequences/defs.js
   i18n: i18n/{vi,en}.json
 
 requires:

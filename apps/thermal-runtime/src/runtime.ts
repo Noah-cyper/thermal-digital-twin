@@ -2,7 +2,7 @@
 // khép kín với ĐỒNG HỒ SIM tiến theo dt (Time Service, không Date.now trong vòng process).
 // Sim→control→alarm→tag không dùng Math.random. App tổ hợp import engines/kernel/plugin; plugin
 // runtime vẫn chỉ import @idtp/sdk.
-import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian, KpiEngine, historianKpiInput, MaintenanceEngine, FaceplateEngine, NavigationEngine, generateRegistry, generateScreens, generateControlLoops } from '@idtp/engines';
+import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian, KpiEngine, historianKpiInput, MaintenanceEngine, FaceplateEngine, NavigationEngine, generateRegistry, generateScreens, generateControlLoops, SequenceEngine } from '@idtp/engines';
 import type { AlarmKpi, FaceplateResolvers, FaceplateOverview, FaceplateAlarmRow, FaceplateDetail } from '@idtp/engines';
 import { TimeService } from '@idtp/kernel';
 import {
@@ -17,6 +17,7 @@ import {
   thermalFaceplates,
   thermalNav,
   thermalSeedSpec,
+  thermalSequences,
 } from '@idtp/plugin-thermal-power-600';
 import type {
   IMalfunction,
@@ -32,6 +33,7 @@ import type {
   NavNode,
   ScanClass,
   TagRecord,
+  SeqRunState,
 } from '@idtp/sdk';
 
 /** Số liệu roll-up registry (doc 07 §4) — phục vụ giám sát quy mô §10 trên HMI. */
@@ -40,6 +42,7 @@ export interface RegistrySummary {
   alarms: number;
   screens: number; // màn hình danh mục sinh từ registry (doc 12, §10 ≥ 70)
   loops: number; // control loop danh mục (doc 09, §10 ≥ 25) — chưa gồm 7 loop CCS live
+  sequences: number; // chuỗi SFC khai báo (doc 09, §10: 8 sequence)
   byCell: Record<string, number>;
   byScanClass: Record<ScanClass, number>;
 }
@@ -101,6 +104,8 @@ export interface ThermalRuntime {
   navBreadcrumb(screenId: string): ReadonlyArray<NavNode>;
   registrySummary(): RegistrySummary;
   registryTag(name: string): TagRecord | undefined;
+  sequenceList(): ReadonlyArray<{ sequenceId: string; title: { vi: string; en: string }; steps: number }>;
+  runSequenceToCompletion(sequenceId: string): SeqRunState;
   value(tagId: string): number;
   nowIso(): string;
   recordedTags(): ReadonlyArray<string>;
@@ -330,10 +335,31 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
       alarms: registry.alarms.length,
       screens: catalogScreens.length,
       loops: catalogLoops.length,
+      sequences: thermalSequences.length,
       byCell: registry.byCell,
       byScanClass: registry.byScanClass,
     }),
     registryTag: (name) => registryByName.get(name),
+    sequenceList: () => thermalSequences.map((s) => ({ sequenceId: s.sequenceId, title: s.title, steps: s.steps.length })),
+    runSequenceToCompletion: (sequenceId) => {
+      const def = thermalSequences.find((s) => s.sequenceId === sequenceId);
+      if (!def) return { status: 'failed', stepIndex: -1, stepId: null, message: `không có chuỗi '${sequenceId}'` };
+      let vnow = nowMs(); // đồng hồ ảo (không đụng đồng hồ sim) — chạy chuỗi tất định
+      const eng = new SequenceEngine(def, {
+        getTag: (id) => {
+          const v = tag.getCurrent(id);
+          return typeof v?.value === 'number' || typeof v?.value === 'boolean' ? v.value : 0;
+        },
+        command: (cmd) => put(cmd.tagId, typeof cmd.value === 'number' ? cmd.value : cmd.value ? 1 : 0),
+        now: () => vnow,
+      });
+      eng.start();
+      for (let i = 0; i < 5000 && eng.state().status === 'running'; i++) {
+        vnow += DT_MS;
+        eng.tick();
+      }
+      return eng.state();
+    },
     value: (id) => num(id),
     nowIso,
   };

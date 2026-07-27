@@ -9,3 +9,4 @@ export * from './maintenance';
 export * from './faceplate';
 export * from './navigation';
 export * from './registry';
+export * from './sequence';

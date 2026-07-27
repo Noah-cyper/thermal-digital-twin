@@ -14,3 +14,4 @@ export * from './graphics';
 export * from './seed-generator';
 export * from './screen-generator';
 export * from './loop-generator';
+export * from './sequence-engine';

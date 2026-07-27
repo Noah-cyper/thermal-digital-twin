@@ -12,3 +12,4 @@ export { thermalFaceplates } from './faceplates/defs';
 export { thermalNav } from './nav/tree';
 export { thermalTagTemplates } from './seed/templates';
 export { thermalSeedSpec } from './seed/spec';
+export { thermalSequences } from './sequences/defs';
