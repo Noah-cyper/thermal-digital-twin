@@ -2,7 +2,7 @@
 // khép kín với ĐỒNG HỒ SIM tiến theo dt (Time Service, không Date.now trong vòng process).
 // Sim→control→alarm→tag không dùng Math.random. App tổ hợp import engines/kernel/plugin; plugin
 // runtime vẫn chỉ import @idtp/sdk.
-import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian } from '@idtp/engines';
+import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian, KpiEngine, historianKpiInput } from '@idtp/engines';
 import type { AlarmKpi } from '@idtp/engines';
 import { TimeService } from '@idtp/kernel';
 import {
@@ -12,8 +12,9 @@ import {
   boilerAlarms,
   boilerScreens,
   screenTags,
+  thermalKpis,
 } from '@idtp/plugin-thermal-power-600';
-import type { IMalfunction, LoopMode, Quality, AlarmEvent, ISimSnapshot } from '@idtp/sdk';
+import type { IMalfunction, LoopMode, Quality, AlarmEvent, ISimSnapshot, IKpiResult } from '@idtp/sdk';
 
 /** Ảnh chụp OTS: trạng thái model + tag chính + số bước — để freeze/restore huấn luyện (doc 05-05). */
 export interface OtsSnapshot {
@@ -48,6 +49,7 @@ export interface ThermalRuntime {
   isFrozen(): boolean;
   snapshot(): OtsSnapshot;
   restore(snap: OtsSnapshot): void;
+  computeKpis(): Promise<IKpiResult[]>;
   value(tagId: string): number;
   nowIso(): string;
   recordedTags(): ReadonlyArray<string>;
@@ -191,6 +193,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
     ackAlarm: (alarmId, user) => alarms.ack(alarmId, user, nowMs()),
     activeAlarms: () => alarms.getActive(),
     alarmKpi: () => alarms.kpi(nowMs()),
+    computeKpis: () => {
+      const r = historian.dataRange();
+      return r ? new KpiEngine(thermalKpis).computeAll(historianKpiInput(historian, r.from, r.to)) : Promise.resolve([]);
+    },
     value: (id) => num(id),
     nowIso,
   };

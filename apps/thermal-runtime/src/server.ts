@@ -270,6 +270,7 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
     if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'delta', mode: 'REPLAY', replay: sess, values }));
   };
 
+  let kpiTick = 0;
   const timer = setInterval(() => {
     rt.step(); // live luôn chạy + ghi historian, kể cả khi đang replay
     if (replay) {
@@ -282,6 +283,7 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
     } else {
       for (const ws of wss.clients) if (ws.readyState === WebSocket.OPEN) sendScreen(ws, false);
       broadcastAlarms();
+      if (++kpiTick % 50 === 0) void rt.computeKpis().then((results) => broadcast(JSON.stringify({ type: 'kpi', results })));
     }
   }, stepMs);
 

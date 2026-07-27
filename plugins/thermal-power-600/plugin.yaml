@@ -12,6 +12,7 @@ provides:
   control: dist/control/loops.js
   alarms: dist/alarms/boiler-alarms.js
   graphics: dist/graphics/screens.js
+  kpi: dist/kpi/calculators.js
   navigation: nav/tree.yaml
   i18n: i18n/{vi,en}.json
 

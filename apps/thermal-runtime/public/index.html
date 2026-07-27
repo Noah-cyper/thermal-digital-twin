@@ -78,6 +78,8 @@
   .toast.on{display:block}
   .toast.ok{background:var(--run)}
   .otsind{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--alarm-4)}
+  .kpis{display:flex;flex-wrap:wrap;gap:18px;font-family:var(--mono);font-size:11px;color:var(--text-dim);margin:0 0 10px}
+  .kpis b{color:var(--pv);font-variant-numeric:tabular-nums}
 </style>
 </head>
 <body>
@@ -118,6 +120,7 @@
     </nav>
     <section class="process">
       <h1 id="scrTitle">—</h1>
+      <div class="kpis" id="kpis"></div>
       <div class="canvas" id="canvas"></div>
       <div class="controls">
         <button data-load="400">Giảm tải → 400 MW</button>
@@ -249,7 +252,14 @@
       else if (m.type === 'denied'){ showToast('⛔ Từ chối: ' + m.reason, false); }
       else if (m.type === 'confirm-needed'){ onConfirmNeeded(m); }
       else if (m.type === 'ots'){ onOts(m); }
+      else if (m.type === 'kpi'){ renderKpis(m.results || []); }
     } catch {} };
+  }
+  const KPI_LABEL = { 'heat-rate': 'Heat rate', 'efficiency': 'Hiệu suất', 'steam-rate': 'Steam rate' };
+  function renderKpis(results){
+    $('kpis').innerHTML = results.map(r =>
+      '<span>' + (KPI_LABEL[r.kpiId] || r.kpiId) + ' <b>' + Number(r.value).toFixed(r.kpiId === 'heat-rate' ? 0 : 2) + '</b> '
+      + (r.unit ? r.unit.symbol : '') + '</span>').join('');
   }
   const send = (o) => ws && ws.readyState === 1 && ws.send(JSON.stringify(o));
 

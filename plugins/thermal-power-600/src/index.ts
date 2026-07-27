@@ -6,3 +6,4 @@ export { DrumModel } from './sim/drum';
 export { boilerControlLoops, boilerLoopSeeds } from './control/loops';
 export { boilerScreens, screenTags } from './graphics/screens';
 export { boilerAlarms } from './alarms/boiler-alarms';
+export { thermalKpis } from './kpi/calculators';
