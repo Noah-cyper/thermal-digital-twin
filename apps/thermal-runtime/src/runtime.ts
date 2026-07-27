@@ -41,6 +41,19 @@ import type {
   CeState,
 } from '@idtp/sdk';
 
+/** Tuỳ chọn & kết quả RE-SIMULATION what-if (doc 05-05 §4) — nhánh mô phỏng độc lập từ snapshot live. */
+export interface ReSimOptions {
+  overrides?: Record<string, number>; // ghi đè tag đầu vào ở nhánh (vd BLR_MW_DEMAND)
+  malfunction?: string; // tiêm malfunction vào NHÁNH (không đụng live)
+  steps?: number; // số bước sim (mặc định 600)
+  sampleTags?: ReadonlyArray<string>; // tag chụp theo quỹ đạo
+  everyN?: number; // chu kỳ chụp (mặc định 50 bước)
+}
+export interface ReSimResult {
+  steps: number;
+  trajectory: Array<{ step: number; tags: Record<string, number> }>;
+}
+
 /** Số liệu roll-up registry (doc 07 §4) — phục vụ giám sát quy mô §10 trên HMI. */
 export interface RegistrySummary {
   tags: number;
@@ -96,6 +109,7 @@ export interface ThermalRuntime {
   isFrozen(): boolean;
   snapshot(): OtsSnapshot;
   restore(snap: OtsSnapshot): void;
+  reSimulate(opts?: ReSimOptions): ReSimResult;
   computeKpis(): Promise<IKpiResult[]>;
   maintenanceRuntime(): ReadonlyArray<EquipmentRuntime>;
   maintenanceMtbf(assetId: string): number;
@@ -347,6 +361,44 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
       const ts = nowIso();
       tag.ingest(Object.entries(snap.tags).map(([id, value]) => ({ tagId: id, value, quality: GOOD, ts })));
       stepCount = snap.step;
+    },
+    reSimulate: (opts = {}) => {
+      const steps = opts.steps ?? 600;
+      const everyN = opts.everyN ?? 50;
+      const sampleTags = opts.sampleTags ?? ['GEN_MW_01', 'BLR_STEAM_FLOW_01', 'BLR_MSTM_SH_PRESS_01', 'BLR_DRUM_LEVEL_01'];
+      // Kho tag NHÁNH — seed từ giá trị live hiện tại; sim/tag LIVE không bị đụng (what-if độc lập).
+      const branch = new Map<string, number>();
+      for (const t of captureTags) branch.set(t, num(t));
+      for (const [k, v] of Object.entries(opts.overrides ?? {})) branch.set(k, v);
+      const bnum = (id: string): number => branch.get(id) ?? 0;
+      const bput = (id: string, v: number): void => void branch.set(id, v);
+      // Sim nhánh (host + model) khôi phục từ SNAPSHOT live → nhánh khởi đầu = trạng thái live.
+      const bModel = new BoilerIslandModel();
+      const bHost = new SimulationHost(DT_MS, {
+        now: () => nowIso(),
+        getTag: bnum,
+        onOutputs: (outs) => {
+          for (const o of outs) bput(o.tagId, o.value);
+        },
+      });
+      bHost.register(bModel);
+      bHost.restoreAll(host.snapshotAll());
+      if (opts.malfunction) bHost.inject(bModel.id, { id: opts.malfunction });
+      // CCS chạy trong nhánh (loop độc lập, AUTO).
+      const bLoops = new ControlLoopEngine(boilerControlLoops);
+      for (const id of Object.keys(boilerLoopSeeds)) bLoops.setMode(id, 'AUTO');
+      const trajectory: Array<{ step: number; tags: Record<string, number> }> = [];
+      for (let i = 1; i <= steps; i++) {
+        bHost.step();
+        const outs = bLoops.step({ getTag: bnum }, DT_MS / 1000);
+        for (const o of outs) bput(o.outTag, o.value);
+        if (i % everyN === 0) {
+          const snap: Record<string, number> = {};
+          for (const t of sampleTags) snap[t] = bnum(t);
+          trajectory.push({ step: i, tags: snap });
+        }
+      }
+      return { steps, trajectory };
     },
     setLoadDemand: (mw) => put('BLR_MW_DEMAND', mw),
     injectMalfunction: (m) => host.inject(model.id, m),
