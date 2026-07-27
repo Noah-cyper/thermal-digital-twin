@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { generateRegistry } from '@idtp/engines';
+import { generateRegistry, generateScreens } from '@idtp/engines';
 import { thermalSeedSpec } from '../src/seed/spec';
 
 // BÀI CHỨNG MINH QUY MÔ §10: spec khai báo của plugin, khi expand bằng engine GENERIC, đạt
@@ -11,13 +11,18 @@ const NAME_RE = /^[A-Z0-9_]+$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 describe('thermal seed registry (doc 07 §4 / doc 08 §4) — quy mô §10', () => {
-  it('roll-up: ≥ 3.000 tag · ≥ 600 alarm', () => {
+  it('roll-up: ≥ 3.000 tag · ≥ 600 alarm · ≥ 70 màn hình', () => {
+    const screens = generateScreens(reg, thermalSeedSpec.instances);
     // eslint-disable-next-line no-console
     console.log(
-      `[seed] tags=${reg.tags.length} alarms=${reg.alarms.length} byScan=${JSON.stringify(reg.byScanClass)} byCell=${JSON.stringify(reg.byCell)}`,
+      `[seed] tags=${reg.tags.length} alarms=${reg.alarms.length} screens=${screens.length} byScan=${JSON.stringify(reg.byScanClass)} byCell=${JSON.stringify(reg.byCell)}`,
     );
     expect(reg.tags.length).toBeGreaterThanOrEqual(3000);
     expect(reg.alarms.length).toBeGreaterThanOrEqual(600);
+    expect(screens.length).toBeGreaterThanOrEqual(70);
+    // mỗi binding trỏ tới tag tồn tại
+    const names = new Set(reg.tags.map((t) => t.name));
+    for (const s of screens) for (const el of s.elements) for (const b of el.bindings) expect(names.has(b.tag)).toBe(true);
   });
 
   it('roll-up theo khu vực khớp thiết kế (doc 07 §4)', () => {

@@ -286,7 +286,7 @@ describe('thermal-runtime server', () => {
   it('Registry §10: gửi summary (≥ 3.000 tag / ≥ 600 alarm) khi kết nối', async () => {
     interface RegMsg {
       type?: string;
-      summary?: { tags?: number; alarms?: number; byCell?: Record<string, number> };
+      summary?: { tags?: number; alarms?: number; screens?: number; byCell?: Record<string, number> };
     }
     const app = startServer(0, { stepMs: 15 });
     const port = await app.ready;
@@ -303,6 +303,7 @@ describe('thermal-runtime server', () => {
     expect(regs.length).toBeGreaterThan(0);
     expect(regs[0]?.summary?.tags ?? 0).toBeGreaterThanOrEqual(3000);
     expect(regs[0]?.summary?.alarms ?? 0).toBeGreaterThanOrEqual(600);
+    expect(regs[0]?.summary?.screens ?? 0).toBeGreaterThanOrEqual(70);
     expect(regs[0]?.summary?.byCell?.['boiler']).toBe(600);
 
     ws.close();

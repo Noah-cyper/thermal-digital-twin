@@ -2,7 +2,7 @@
 // khép kín với ĐỒNG HỒ SIM tiến theo dt (Time Service, không Date.now trong vòng process).
 // Sim→control→alarm→tag không dùng Math.random. App tổ hợp import engines/kernel/plugin; plugin
 // runtime vẫn chỉ import @idtp/sdk.
-import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian, KpiEngine, historianKpiInput, MaintenanceEngine, FaceplateEngine, NavigationEngine, generateRegistry } from '@idtp/engines';
+import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian, KpiEngine, historianKpiInput, MaintenanceEngine, FaceplateEngine, NavigationEngine, generateRegistry, generateScreens } from '@idtp/engines';
 import type { AlarmKpi, FaceplateResolvers, FaceplateOverview, FaceplateAlarmRow, FaceplateDetail } from '@idtp/engines';
 import { TimeService } from '@idtp/kernel';
 import {
@@ -38,6 +38,7 @@ import type {
 export interface RegistrySummary {
   tags: number;
   alarms: number;
+  screens: number; // màn hình danh mục sinh từ registry (doc 12, §10 ≥ 70)
   byCell: Record<string, number>;
   byScanClass: Record<ScanClass, number>;
 }
@@ -212,6 +213,7 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   // chạy lõi Boiler Island đã mô phỏng (17 tag sim), không nạp cả registry vào TagRealtimeEngine.
   const registry = generateRegistry(thermalSeedSpec);
   const registryByName = new Map(registry.tags.map((t) => [t.name, t] as const));
+  const catalogScreens = generateScreens(registry, thermalSeedSpec.instances); // ≥ 70 màn hình (doc 12)
 
   const advance = (): void => {
     stepCount += 1;
@@ -324,6 +326,7 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
     registrySummary: () => ({
       tags: registry.tags.length,
       alarms: registry.alarms.length,
+      screens: catalogScreens.length,
       byCell: registry.byCell,
       byScanClass: registry.byScanClass,
     }),
