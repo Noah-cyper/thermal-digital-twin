@@ -113,6 +113,8 @@ export interface ThermalRuntime {
   registryTag(name: string): TagRecord | undefined;
   sequenceList(): ReadonlyArray<{ sequenceId: string; title: { vi: string; en: string }; steps: number }>;
   runSequenceToCompletion(sequenceId: string): SeqRunState;
+  startLiveSequence(sequenceId: string): SeqRunState;
+  liveSequenceState(): ReadonlyArray<{ sequenceId: string } & SeqRunState>;
   scenarioList(): ReadonlyArray<{ scenarioId: string; title: { vi: string; en: string }; phases: number }>;
   runScenario(scenarioId: string): ScenarioPhaseResult[];
   causeEffectMatrices(): ReadonlyArray<CauseEffectMatrix>;
@@ -265,6 +267,25 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
     for (const e of ceEngines) e.evaluate((id) => num(id));
   };
 
+  // Chuỗi SFC chạy "live" — tick theo nhịp sim (đồng hồ THẬT), ghi tag lệnh mà sim đọc mỗi bước →
+  // SFC tác động PHYSICS qua thời gian (khác runSequenceToCompletion chạy đồng hồ ảo, không bước sim).
+  const liveSeqs = new Map<string, SequenceEngine>();
+  const liveSeqIo = {
+    getTag: (id: string): number | boolean => {
+      const v = tag.getCurrent(id);
+      return typeof v?.value === 'number' || typeof v?.value === 'boolean' ? v.value : 0;
+    },
+    command: (cmd: { tagId: string; value: number | boolean }): void =>
+      put(cmd.tagId, typeof cmd.value === 'number' ? cmd.value : cmd.value ? 1 : 0),
+    now: (): number => nowMs(),
+  };
+  const tickLiveSeqs = (): void => {
+    for (const [id, eng] of liveSeqs) {
+      eng.tick();
+      if (eng.state().status !== 'running') liveSeqs.delete(id);
+    }
+  };
+
   const advance = (): void => {
     stepCount += 1;
     host.step(); // sim đọc OP → ghi PV
@@ -300,6 +321,7 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
     advance();
     evalAlarms();
     evalCe();
+    tickLiveSeqs();
     record();
     maintenance.sample((id) => num(id), nowMs());
   };
@@ -388,6 +410,15 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
     registryTag: (name) => registryByName.get(name),
     sequenceList: () => thermalSequences.map((s) => ({ sequenceId: s.sequenceId, title: s.title, steps: s.steps.length })),
     runSequenceToCompletion: (sequenceId) => runSeqState(sequenceId),
+    startLiveSequence: (sequenceId) => {
+      const def = thermalSequences.find((s) => s.sequenceId === sequenceId);
+      if (!def) return { status: 'failed', stepIndex: -1, stepId: null, message: `không có chuỗi '${sequenceId}'` };
+      const eng = new SequenceEngine(def, liveSeqIo);
+      eng.start();
+      if (eng.state().status === 'running') liveSeqs.set(sequenceId, eng);
+      return eng.state();
+    },
+    liveSequenceState: () => [...liveSeqs.entries()].map(([id, eng]) => ({ sequenceId: id, ...eng.state() })),
     causeEffectMatrices: () => thermalCauseEffect,
     causeEffectState: (matrixId) => ceById.get(matrixId)?.state(),
     resetCauseEffect: (matrixId) => {
