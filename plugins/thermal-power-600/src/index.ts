@@ -10,6 +10,7 @@ export { FlueGasAirModel } from './sim/fluegas-air';
 export { EmissionsModel } from './sim/emissions';
 export { ElectricalModel } from './sim/electrical';
 export { CoolingTowerModel } from './sim/cooling-tower';
+export { CoalHandlingModel } from './sim/coal-handling';
 export { DrumModel } from './sim/drum';
 export { boilerControlLoops, boilerLoopSeeds } from './control/loops';
 export { boilerScreens, screenTags } from './graphics/screens';
