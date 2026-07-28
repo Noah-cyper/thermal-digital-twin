@@ -71,7 +71,8 @@ export interface IKpiCalculator {
 
 /* ── 6.4 IReportSection (L2 Report) ────────────────────────────── */
 export interface IReportContext {
-  read(tagId: TagId, agg: Aggregate, range: { from: Iso8601; to: Iso8601 }): Promise<number>;
+  readonly range: { from: Iso8601; to: Iso8601 }; // context gắn sẵn range báo cáo
+  read(tagId: TagId, agg: Aggregate): Promise<number>; // đọc aggregate trong range
 }
 export type ReportBlock =
   | { kind: 'table'; headers: ReadonlyArray<string>; rows: ReadonlyArray<ReadonlyArray<string>> }

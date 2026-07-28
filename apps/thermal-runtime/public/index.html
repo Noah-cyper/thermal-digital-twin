@@ -181,6 +181,7 @@
         <button data-resim="load:600">🟠 What-if: tải 600 MW</button>
         <button data-build="1" title="Dựng nhanh một màn hình demo mẫu">🧩 Màn hình demo</button>
         <button id="openBuilder" title="Screen Builder (L5): chọn tag, kéo-thả sắp xếp, tạo màn hình — không code">🧩 Screen Builder…</button>
+        <button id="openReport" title="Báo cáo ca/ngày (doc 21): tổng hợp số liệu từ Historian">📋 Báo cáo ca</button>
         <button data-ots="freeze" id="otsFreeze">Freeze (OTS)</button>
         <button data-ots="snapshot">Snapshot</button>
         <button data-ots="restore" id="otsRestore" disabled>Restore</button>
@@ -212,6 +213,14 @@
       <div id="resimLabel" style="font-size:13px;opacity:.8;margin-bottom:8px"></div>
       <canvas id="resimCanvas" width="480" height="180" style="width:100%;height:auto;background:rgba(127,127,127,.08);border-radius:4px"></canvas>
       <div style="font-size:11px;opacity:.6;margin-top:8px">Đường: công suất MW của nhánh giả định theo thời gian (500 bước, độc lập với sim live).</div>
+    </div>
+  </div>
+  <div id="reportModal" hidden style="position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center">
+    <div style="background:var(--panel,#141a20);color:var(--text,#e7edf2);border:1px solid var(--line,#2a343d);border-radius:8px;width:min(620px,95vw);max-height:88vh;overflow:auto;padding:16px 18px;font-size:13px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <b id="reportTitle">📋 Báo cáo vận hành</b>
+        <span id="reportX" style="cursor:pointer;opacity:.6;font-size:16px">✕</span></div>
+      <div id="reportBody"></div>
     </div>
   </div>
   <div id="builderModal" hidden style="position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center">
@@ -388,6 +397,27 @@
       if (t.length){ const b = document.createElement('button'); b.textContent = 'Reset'; b.onclick = () => send({ cmd: 'ce-reset', matrixId: mx.matrixId }); bar.appendChild(b); }
     }
   }
+  function onReport(r){
+    if (!r) return;
+    $('reportTitle').textContent = '📋 ' + (r.title ? r.title.vi : 'Báo cáo') + ' · ' + (r.from ? r.from.slice(0, 16).replace('T', ' ') : '') + ' → ' + (r.to ? r.to.slice(11, 16) : '');
+    const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    let html = '';
+    for (const sec of (r.sections || [])){
+      html += '<h3 style="margin:14px 0 6px;font-size:13px">' + esc(sec.title.vi) + '</h3>';
+      for (const b of (sec.blocks || [])){
+        if (b.kind === 'table'){
+          html += '<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>' + (b.headers || []).map(h => '<th style="text-align:left;border-bottom:1px solid var(--line,#2a343d);padding:4px 6px;opacity:.7">' + esc(h) + '</th>').join('') + '</tr></thead><tbody>'
+            + (b.rows || []).map(row => '<tr>' + row.map(c => '<td style="border-bottom:1px solid rgba(127,127,127,.15);padding:4px 6px;font-family:monospace">' + esc(c) + '</td>').join('') + '</tr>').join('') + '</tbody></table>';
+        } else if (b.kind === 'text'){
+          html += '<p style="margin:4px 0;opacity:.9">' + esc(b.text) + '</p>';
+        } else if (b.kind === 'trend'){
+          html += '<p style="margin:4px 0;opacity:.6;font-size:12px">📈 Xu hướng: ' + (b.tagIds || []).join(', ') + '</p>';
+        }
+      }
+    }
+    $('reportBody').innerHTML = html || '<p style="opacity:.6">Chưa đủ dữ liệu lịch sử.</p>';
+    $('reportModal').hidden = false;
+  }
   let builderTags = [];
   let bTiles = [];
   function openBuilder(){
@@ -479,6 +509,7 @@
       else if (m.type === 'resim'){ onResim(m); }
       else if (m.type === 'built-screen'){ if (m.def){ openScreen(m.def.screenId); showToast('🧩 Đã tạo & mở màn hình: ' + m.def.screenId, true); } }
       else if (m.type === 'tags'){ builderTags = m.items || []; }
+      else if (m.type === 'report'){ onReport(m.report); }
     } catch {} };
   }
   const KPI_LABEL = { 'heat-rate': 'Heat rate', 'efficiency': 'Hiệu suất', 'steam-rate': 'Steam rate' };
@@ -597,6 +628,8 @@
     { tag: 'BLR_STEAM_FLOW_01', label: 'Hơi chính', unit: 't/h' },
     { tag: 'BLR_DRUM_LEVEL_01', label: 'Mức bao hơi', unit: 'mm', alarms: [{ when: 'gt', value: 250, sev: 1 }, { when: 'lt', value: -250, sev: 1 }] },
     { tag: 'BLR_FLUE_O2_01', label: 'O₂ khói', unit: '%' } ] } }));
+  $('openReport').onclick = () => send({ cmd: 'report', hours: 8 });
+  $('reportX').onclick = () => { $('reportModal').hidden = true; };
   $('openBuilder').onclick = openBuilder;
   $('builderX').onclick = () => { $('builderModal').hidden = true; };
   $('bAddTile').onclick = () => { const t = $('bTagPick').value.trim(); if (t){ bTiles.push({ tag: t, label: '', unit: '', kind: 'value' }); $('bTagPick').value = ''; renderBTiles(); } };

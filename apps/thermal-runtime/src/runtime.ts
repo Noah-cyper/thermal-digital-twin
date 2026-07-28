@@ -2,8 +2,8 @@
 // khép kín với ĐỒNG HỒ SIM tiến theo dt (Time Service, không Date.now trong vòng process).
 // Sim→control→alarm→tag không dùng Math.random. App tổ hợp import engines/kernel/plugin; plugin
 // runtime vẫn chỉ import @idtp/sdk.
-import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian, KpiEngine, historianKpiInput, MaintenanceEngine, FaceplateEngine, NavigationEngine, generateRegistry, generateScreens, generateControlLoops, SequenceEngine, executeScenario, CauseEffectEngine, AiAdvisor, PredictiveMaintenance, RegistrySimModel } from '@idtp/engines';
-import type { AlarmKpi, FaceplateResolvers, FaceplateOverview, FaceplateAlarmRow, FaceplateDetail, Advice } from '@idtp/engines';
+import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian, KpiEngine, historianKpiInput, MaintenanceEngine, FaceplateEngine, NavigationEngine, generateRegistry, generateScreens, generateControlLoops, SequenceEngine, executeScenario, CauseEffectEngine, AiAdvisor, PredictiveMaintenance, RegistrySimModel, ReportEngine } from '@idtp/engines';
+import type { AlarmKpi, FaceplateResolvers, FaceplateOverview, FaceplateAlarmRow, FaceplateDetail, Advice, Report } from '@idtp/engines';
 import { TimeService } from '@idtp/kernel';
 import {
   BoilerIslandModel,
@@ -23,6 +23,7 @@ import {
   thermalCauseEffect,
   thermalKnowledge,
   thermalPredictiveRules,
+  thermalReportSections,
 } from '@idtp/plugin-thermal-power-600';
 import type {
   IMalfunction,
@@ -44,6 +45,7 @@ import type {
   CeState,
   PredictiveAdvisory,
   ScreenDef,
+  IReportContext,
 } from '@idtp/sdk';
 
 /** Tuỳ chọn & kết quả RE-SIMULATION what-if (doc 05-05 §4) — nhánh mô phỏng độc lập từ snapshot live. */
@@ -117,6 +119,7 @@ export interface ThermalRuntime {
   restore(snap: OtsSnapshot): void;
   reSimulate(opts?: ReSimOptions): ReSimResult;
   computeKpis(): Promise<IKpiResult[]>;
+  generateReport(hours?: number): Promise<Report>;
   maintenanceRuntime(): ReadonlyArray<EquipmentRuntime>;
   maintenanceMtbf(assetId: string): number;
   evaluatePredictive(): PredictiveAdvisory[];
@@ -303,6 +306,9 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   const predictive = new PredictiveMaintenance(thermalPredictiveRules);
   let lastPredictive: PredictiveAdvisory[] = [];
 
+  // Report Engine (doc 21): ráp báo cáo ca/ngày từ section khai báo của plugin, đọc từ Historian.
+  const reportEngine = new ReportEngine(thermalReportSections);
+
   // Chuỗi SFC chạy "live" — tick theo nhịp sim (đồng hồ THẬT), ghi tag lệnh mà sim đọc mỗi bước →
   // SFC tác động PHYSICS qua thời gian (khác runSequenceToCompletion chạy đồng hồ ảo, không bước sim).
   const liveSeqs = new Map<string, SequenceEngine>();
@@ -436,6 +442,23 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
     computeKpis: () => {
       const r = historian.dataRange();
       return r ? new KpiEngine(thermalKpis).computeAll(historianKpiInput(historian, r.from, r.to)) : Promise.resolve([]);
+    },
+    generateReport: async (hours = 8) => {
+      const title = { vi: 'Báo cáo vận hành', en: 'Operations Report' };
+      const range = historian.dataRange();
+      if (!range) return { title, from: '', to: '', sections: [] };
+      const toMs = Date.parse(range.to);
+      const fromMs = Math.max(Date.parse(range.from), toMs - hours * 3_600_000);
+      const from = time.formatEpoch(fromMs);
+      const span = Math.max(1, toMs - fromMs) + 1;
+      const ctx: IReportContext = {
+        range: { from, to: range.to },
+        read: async (tag, agg) => {
+          const [p] = await historian.query(tag, from, range.to, agg, span);
+          return p?.value ?? 0;
+        },
+      };
+      return reportEngine.generate(ctx, title);
     },
     maintenanceRuntime: () => maintenance.allRuntime(),
     maintenanceMtbf: (assetId) => maintenance.mtbf(assetId),

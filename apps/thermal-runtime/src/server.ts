@@ -400,6 +400,10 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
         }
       } else if (m.cmd === 'build-screen') {
         handleBuildScreen(ws, m);
+      } else if (m.cmd === 'report') {
+        // Báo cáo ca/ngày READ-ONLY: chỉ cần đăng nhập.
+        if (tokens.get(ws) === undefined) ws.send(JSON.stringify({ type: 'denied', reason: 'chưa đăng nhập' }));
+        else void rt.generateReport(m.hours ?? 8).then((report) => ws.send(JSON.stringify({ type: 'report', report })));
       } else if (m.cmd === 'replay-start') {
         const range = rt.historian.dataRange();
         if (range) {

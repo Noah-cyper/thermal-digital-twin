@@ -22,6 +22,7 @@ provides:
   scenarios: dist/scenarios/defs.js
   causeEffect: dist/cause-effect/matrices.js
   aiKnowledge: dist/ai/knowledge.js
+  report: dist/report/sections.js
   i18n: i18n/{vi,en}.json
 
 requires:
