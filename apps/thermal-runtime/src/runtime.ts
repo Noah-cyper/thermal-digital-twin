@@ -8,6 +8,7 @@ import { TimeService } from '@idtp/kernel';
 import {
   BoilerIslandModel,
   TurbineGeneratorModel,
+  ReheatCycleModel,
   boilerControlLoops,
   boilerLoopSeeds,
   boilerAlarms,
@@ -207,6 +208,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   // mỗi bước. Additive: sinh thêm tag turbine/generator, không đổi GEN_MW_01.
   const turbine = new TurbineGeneratorModel();
   host.register(turbine);
+  // Chu trình tái nhiệt + turbine nhiều tầng (v1.18): đăng ký SAU để đọc hơi/áp/nhiệt/MW tươi mỗi bước.
+  // Additive — sinh thêm tag đường reheat + tách công suất HP/IP/LP, không đổi GEN_MW_01.
+  const reheat = new ReheatCycleModel();
+  host.register(reheat);
 
   const loops = new ControlLoopEngine(boilerControlLoops);
   const ingestOut = (): void => {
@@ -233,7 +238,7 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
 
   // Historian (adapter memory): ghi tag hiển thị + tag alarm để truy vấn lịch sử + DATA REPLAY.
   const historian = new MemoryHistorian({ formatTs: (ms) => time.formatEpoch(ms) });
-  const recordedTags = [...new Set([...boilerScreens.flatMap((s) => screenTags(s)), ...alarmTags, ...turbine.tagsProvided])];
+  const recordedTags = [...new Set([...boilerScreens.flatMap((s) => screenTags(s)), ...alarmTags, ...turbine.tagsProvided, ...reheat.tagsProvided])];
   const record = (): void => {
     if (stepCount % REC_EVERY === 0) {
       const ts = nowIso();

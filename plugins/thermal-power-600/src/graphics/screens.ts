@@ -126,6 +126,15 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       valueTile('stodola', 'TRB_STODOLA_FLOW', 'Lưu lượng Stodola', 't/h', 0, 1),
       valueTile('stator', 'GEN_STATOR_TEMP_01', 'Nhiệt cuộn stator', '°C', 1, 1, [{ when: 'gt', value: 120, sev: 2 }]),
       valueTile('vac', 'TRB_COND_VACUUM_01', 'Chân không bình ngưng', 'kPa', 2, 1, [{ when: 'gt', value: 12, sev: 2 }]),
+      // Chu trình tái nhiệt + tách công suất tầng (v1.18) — HP+IP+LP cộng lại = công suất trục.
+      valueTile('hpmw', 'TRB_HP_MW_01', 'Công suất HP', 'MW', 0, 2),
+      valueTile('ipmw', 'TRB_IP_MW_01', 'Công suất IP', 'MW', 1, 2),
+      valueTile('lpmw', 'TRB_LP_MW_01', 'Công suất LP', 'MW', 2, 2),
+      valueTile('rhduty', 'TRB_REHEAT_DUTY_01', 'Nhiệt lượng reheater', 'MWth', 3, 2),
+      valueTile('crhp', 'TRB_CRH_PRESS_01', 'Áp cold reheat', 'MPa', 0, 3),
+      valueTile('crht', 'TRB_CRH_TEMP_01', 'Nhiệt cold reheat', '°C', 1, 3),
+      valueTile('hrhp', 'TRB_HRH_PRESS_01', 'Áp hot reheat', 'MPa', 2, 3),
+      valueTile('hrht', 'TRB_HRH_TEMP_01', 'Nhiệt hot reheat', '°C', 3, 3, [{ when: 'lt', value: 500, sev: 2 }]),
     ],
   },
 ];
