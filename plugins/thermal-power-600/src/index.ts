@@ -5,6 +5,7 @@ export { BoilerIslandModel } from './sim/boiler-island';
 export { TurbineGeneratorModel } from './sim/turbine-generator';
 export { ReheatCycleModel } from './sim/reheat-cycle';
 export { FeedwaterTrainModel } from './sim/feedwater-train';
+export { CondenserCWModel } from './sim/condenser-cw';
 export { DrumModel } from './sim/drum';
 export { boilerControlLoops, boilerLoopSeeds } from './control/loops';
 export { boilerScreens, screenTags } from './graphics/screens';
