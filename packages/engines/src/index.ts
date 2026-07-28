@@ -21,3 +21,4 @@ export * from './timescale-historian';
 export * from './loadgen';
 export * from './sparkplug';
 export * from './ai-advisor';
+export * from './screen-builder';

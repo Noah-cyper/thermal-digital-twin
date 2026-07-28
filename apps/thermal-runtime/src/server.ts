@@ -7,9 +7,9 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import type { AddressInfo } from 'node:net';
 import { WebSocketServer, WebSocket } from 'ws';
-import type { ScreenDef, PermissionAction, Role, LoopMode } from '@idtp/sdk';
+import type { ScreenDef, PermissionAction, Role, LoopMode, ScreenBuildSpec } from '@idtp/sdk';
 import type { ReplaySession } from '@idtp/engines';
-import { SecurityEngine } from '@idtp/engines';
+import { SecurityEngine, buildScreen } from '@idtp/engines';
 import { boilerScreens, screenTags } from '@idtp/plugin-thermal-power-600';
 import { createThermalRuntime } from './runtime';
 import type { OtsSnapshot } from './runtime';
@@ -53,6 +53,7 @@ interface Command {
   sequenceId?: string;
   matrixId?: string;
   malf?: string;
+  spec?: ScreenBuildSpec;
 }
 
 const LIVE_CMDS = new Set(['load', 'leak', 'mill-trip', 'vacuum', 'ack', 'set-mode', 'seq-live-start', 'ce-reset']); // lệnh ra thiết bị — chặn khi replay
@@ -216,6 +217,34 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
     broadcast(ceMsg());
   };
 
+  // Screen Builder (L5 Engineering) — dựng ScreenDef từ spec + đăng ký để render ngay. Action 'engineer', audit.
+  const handleBuildScreen = (ws: WebSocket, m: Command): void => {
+    const access = tokens.get(ws);
+    if (access === undefined) {
+      ws.send(JSON.stringify({ type: 'denied', reason: 'chưa đăng nhập' }));
+      return;
+    }
+    const res = sec.guardedWrite(access, 'engineer', m.spec?.screenId ?? '', undefined, 'build-screen', `build screen ${m.spec?.screenId ?? ''}`);
+    if (!res.allow) {
+      ws.send(JSON.stringify({ type: 'denied', reason: res.reason }));
+      return;
+    }
+    if (!m.spec) {
+      ws.send(JSON.stringify({ type: 'denied', reason: 'thiếu spec' }));
+      return;
+    }
+    let def: ScreenDef;
+    try {
+      def = buildScreen(m.spec);
+    } catch (e) {
+      ws.send(JSON.stringify({ type: 'denied', reason: 'spec lỗi: ' + (e as Error).message }));
+      return;
+    }
+    screensById.set(def.screenId, def);
+    if (!registry.some((r) => r.screenId === def.screenId)) registry.push({ screenId: def.screenId, level: def.level, title: def.title });
+    ws.send(JSON.stringify({ type: 'built-screen', def }));
+  };
+
   // Tạo work order — action 'oos' (Maintenance/ShiftSup/Engineer/Admin), audit, không 2 bước.
   const handleCreateWo = (ws: WebSocket, m: Command): void => {
     const access = tokens.get(ws);
@@ -360,6 +389,8 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
           const result = rt.reSimulate({ ...opts, steps: 500, sampleTags: ['GEN_MW_01', 'BLR_STEAM_FLOW_01', 'BLR_MSTM_SH_PRESS_01'], everyN: 25 });
           ws.send(JSON.stringify({ type: 'resim', label: m.malf ?? (m.value !== undefined ? `tải ${m.value} MW` : 'cơ sở'), result }));
         }
+      } else if (m.cmd === 'build-screen') {
+        handleBuildScreen(ws, m);
       } else if (m.cmd === 'replay-start') {
         const range = rt.historian.dataRange();
         if (range) {

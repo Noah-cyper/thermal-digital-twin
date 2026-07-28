@@ -179,6 +179,7 @@
         <button data-rstart="1">▶ Replay lịch sử</button>
         <button data-resim="loss-of-vacuum">🟠 What-if: mất chân không</button>
         <button data-resim="load:600">🟠 What-if: tải 600 MW</button>
+        <button data-build="1" title="Screen Builder (L5): dựng màn hình từ danh sách tag, không gõ toạ độ">🧩 Tạo màn hình demo</button>
         <button data-ots="freeze" id="otsFreeze">Freeze (OTS)</button>
         <button data-ots="snapshot">Snapshot</button>
         <button data-ots="restore" id="otsRestore" disabled>Restore</button>
@@ -425,6 +426,7 @@
       else if (m.type === 'ce'){ onCe(m.matrices || []); }
       else if (m.type === 'advice'){ onAdvice(m.advice); }
       else if (m.type === 'resim'){ onResim(m); }
+      else if (m.type === 'built-screen'){ if (m.def){ openScreen(m.def.screenId); showToast('🧩 Đã tạo & mở màn hình: ' + m.def.screenId, true); } }
     } catch {} };
   }
   const KPI_LABEL = { 'heat-rate': 'Heat rate', 'efficiency': 'Hiệu suất', 'steam-rate': 'Steam rate' };
@@ -536,6 +538,11 @@
   document.querySelectorAll('.controls button[data-vacuum]').forEach(b => b.onclick = () => send({ cmd: 'vacuum', value: Number(b.dataset.vacuum) }));
   document.querySelectorAll('.controls button[data-wo]').forEach(b => b.onclick = () => send({ cmd: 'create-wo', assetId: 'UNIT1', woType: 'CM', reason: 'thao tác thủ công' }));
   document.querySelectorAll('.controls button[data-resim]').forEach(b => b.onclick = () => { const d = b.dataset.resim; if (d.indexOf('load:') === 0) send({ cmd: 'resim', value: Number(d.slice(5)) }); else send({ cmd: 'resim', malf: d }); });
+  document.querySelectorAll('.controls button[data-build]').forEach(b => b.onclick = () => send({ cmd: 'build-screen', spec: { screenId: 'D3-builder-demo', level: 'D3', title: { vi: 'Màn hình tạo bởi builder', en: 'Builder demo' }, tiles: [
+    { tag: 'GEN_MW_01', label: 'Công suất', unit: 'MW' },
+    { tag: 'BLR_STEAM_FLOW_01', label: 'Hơi chính', unit: 't/h' },
+    { tag: 'BLR_DRUM_LEVEL_01', label: 'Mức bao hơi', unit: 'mm', alarms: [{ when: 'gt', value: 250, sev: 1 }, { when: 'lt', value: -250, sev: 1 }] },
+    { tag: 'BLR_FLUE_O2_01', label: 'O₂ khói', unit: '%' } ] } }));
 
   let replayMode = false, seeking = false, blockedTimer = null;
   function setMode(mode){
