@@ -327,7 +327,7 @@
     S.coal = Math.max(0, S.steam*0.1407 + nz(0.6));
     // áp & nhiệt (CCS giữ; sập khi trip/không hơi)
     const lf = clamp(S.steam/BMCR,0,1.1);
-    let pT = tripped ? 2 : 17.5*(0.6+0.4*lf) + 0.4;   // ~17.5 vận hành
+    let pT = tripped ? 2 : 17.5 - 2.2*(1-clamp(lf,0,1))*(1-clamp(lf,0,1)); // lò giữ ~17.5, trượt nhẹ non tải
     S.press += (pT-S.press)*clamp(dt/6,0,1) + nz(0.02);
     let sT = (S.steam<80)?260:541;
     S.shT += (sT-S.shT)*clamp(dt/10,0,1) + nz(0.4);
@@ -418,7 +418,7 @@
       ['Bầu ướt','wetbulb','°C',0], ['CW cấp','ctSupply','°C',0], ['Bốc hơi','evap','t/h',0], ['Nước bổ sung','makeup','t/h',0] ]},
     {t:'Điện · Xuất lưới', c:'var(--f-power)', r:[
       ['Công suất net','net','MW',0], ['Tự dùng','aux','MW',0], ['Xuất lưới','grid','MW',0],
-      ['Biểu kiến','mva','MVA',0], ['Hệ số công suất','pf','',2,{lo:0.85,hi:1.0}], ['Tải GSU','gsuLoad','%',0,{hi:100}] ]},
+      ['Biểu kiến','mva','MVA',0], ['Hệ số công suất','pf','',2,{lo:0.80,hi:1.0}], ['Tải GSU','gsuLoad','%',0,{hi:100}] ]},
     {t:'Đường khói · Hiệu suất', c:'var(--f-flue)', r:[
       ['Hiệu suất lò','boilerEff','%',1,{lo:82}], ['Gió thừa','excess','%',0,{hi:40}], ['Lưu lượng khói','fgFlow','t/h',0], ['Nhiệt ống khói','stackT','°C',0,{hi:150}] ]},
     {t:'Phát thải (CEMS)', c:'var(--f-flue)', r:[
