@@ -347,4 +347,35 @@ describe('thermal-runtime server', () => {
     ws.close();
     await app.close();
   });
+
+  it('RE-SIM what-if: lệnh resim trả quỹ đạo nhánh (read-only)', async () => {
+    interface Msg {
+      type?: string;
+      label?: string;
+      result?: { trajectory?: { tags?: Record<string, number> }[] };
+    }
+    const app = startServer(0, { stepMs: 12 });
+    const port = await app.ready;
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`);
+    const msgs: Msg[] = [];
+    ws.on('message', (d) => msgs.push(JSON.parse(d.toString()) as Msg));
+    const until = async (fn: () => boolean): Promise<boolean> => {
+      const t0 = Date.now();
+      while (Date.now() - t0 < 2000) {
+        if (fn()) return true;
+        await sleep(20);
+      }
+      return false;
+    };
+    await new Promise<void>((r) => ws.on('open', () => r()));
+    await sleep(200); // để sim tích luỹ trạng thái
+
+    ws.send(JSON.stringify({ cmd: 'resim', malf: 'loss-of-vacuum' }));
+    expect(await until(() => msgs.some((m) => m.type === 'resim' && (m.result?.trajectory ?? []).length > 0))).toBe(true);
+    const r = msgs.filter((m) => m.type === 'resim').pop();
+    expect(r?.label).toBe('loss-of-vacuum');
+
+    ws.close();
+    await app.close();
+  });
 });

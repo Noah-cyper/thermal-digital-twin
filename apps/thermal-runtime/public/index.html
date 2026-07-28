@@ -177,6 +177,8 @@
         <button class="warn" data-vacuum="30">Loss of vacuum</button>
         <button data-vacuum="0">Clear vacuum</button>
         <button data-rstart="1">▶ Replay lịch sử</button>
+        <button data-resim="loss-of-vacuum">🟠 What-if: mất chân không</button>
+        <button data-resim="load:600">🟠 What-if: tải 600 MW</button>
         <button data-ots="freeze" id="otsFreeze">Freeze (OTS)</button>
         <button data-ots="snapshot">Snapshot</button>
         <button data-ots="restore" id="otsRestore" disabled>Restore</button>
@@ -199,6 +201,16 @@
     <div class="alist" id="alist"><div class="arow"><span class="cs">Không có alarm đang hoạt động</span></div></div>
     <button class="ackbtn" id="adviseBtn" disabled title="AI Advisor (rule-based, chỉ đọc) — giải thích alarm mới nhất">💡 Giải thích</button>
     <button class="ackbtn" id="ackBtn" disabled>ACK alarm mới nhất</button>
+  </div>
+  <div id="resimPanel" hidden style="position:fixed;left:50%;top:11%;transform:translateX(-50%);z-index:60;width:min(520px,92vw);
+    background:var(--panel,#141a20);border:1px solid #d98c2a;border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,.5);overflow:hidden">
+    <div style="background:#E8952A;color:#1a1206;font-weight:700;padding:8px 14px;display:flex;justify-content:space-between;align-items:center">
+      <span>🟠 RE-SIMULATION (what-if) — nhà máy thật KHÔNG đổi</span><span id="resimX" style="cursor:pointer">✕</span></div>
+    <div style="padding:12px 16px 14px">
+      <div id="resimLabel" style="font-size:13px;opacity:.8;margin-bottom:8px"></div>
+      <canvas id="resimCanvas" width="480" height="180" style="width:100%;height:auto;background:rgba(127,127,127,.08);border-radius:4px"></canvas>
+      <div style="font-size:11px;opacity:.6;margin-top:8px">Đường: công suất MW của nhánh giả định theo thời gian (500 bước, độc lập với sim live).</div>
+    </div>
   </div>
   <div id="advicePanel" hidden style="position:fixed;right:16px;bottom:16px;max-width:380px;z-index:50;
     background:var(--panel,#141a20);color:var(--text,#e7edf2);border:1px solid var(--line,#2a343d);
@@ -352,6 +364,25 @@
       if (t.length){ const b = document.createElement('button'); b.textContent = 'Reset'; b.onclick = () => send({ cmd: 'ce-reset', matrixId: mx.matrixId }); bar.appendChild(b); }
     }
   }
+  function onResim(m){
+    const r = m.result; if (!r || !r.trajectory) return;
+    $('resimLabel').textContent = 'Kịch bản giả định: ' + m.label + ' · ' + r.trajectory.length + ' điểm quỹ đạo';
+    const cv = $('resimCanvas'), ctx = cv.getContext('2d'), W = cv.width, H = cv.height, pad = 26;
+    ctx.clearRect(0, 0, W, H);
+    const pts = r.trajectory.map(p => (p.tags && p.tags['GEN_MW_01']) || 0);
+    ctx.strokeStyle = 'rgba(127,127,127,.4)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(pad, 6); ctx.lineTo(pad, H - pad); ctx.lineTo(W - 6, H - pad); ctx.stroke();
+    if (pts.length){
+      const mn = Math.min(...pts, 0), mx = Math.max(...pts, 600), span = (mx - mn) || 1;
+      ctx.strokeStyle = '#E8952A'; ctx.lineWidth = 2; ctx.beginPath();
+      pts.forEach((v, i) => { const x = pad + (W - pad - 6) * (i / (pts.length - 1 || 1)); const y = (H - pad) - ((v - mn) / span) * (H - pad - 6); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(127,127,127,.9)'; ctx.font = '10px monospace';
+      ctx.fillText(mx.toFixed(0) + ' MW', pad + 3, 12); ctx.fillText(mn.toFixed(0) + ' MW', pad + 3, H - pad - 3);
+    }
+    $('resimPanel').hidden = false;
+    const x = $('resimX'); if (x) x.onclick = () => { $('resimPanel').hidden = true; };
+  }
   function onAdvice(a){
     const p = $('advicePanel');
     if (!a){ p.hidden = true; return; }
@@ -393,6 +424,7 @@
       else if (m.type === 'seq-live'){ onSeqLive(m.active || []); }
       else if (m.type === 'ce'){ onCe(m.matrices || []); }
       else if (m.type === 'advice'){ onAdvice(m.advice); }
+      else if (m.type === 'resim'){ onResim(m); }
     } catch {} };
   }
   const KPI_LABEL = { 'heat-rate': 'Heat rate', 'efficiency': 'Hiệu suất', 'steam-rate': 'Steam rate' };
@@ -503,6 +535,7 @@
   });
   document.querySelectorAll('.controls button[data-vacuum]').forEach(b => b.onclick = () => send({ cmd: 'vacuum', value: Number(b.dataset.vacuum) }));
   document.querySelectorAll('.controls button[data-wo]').forEach(b => b.onclick = () => send({ cmd: 'create-wo', assetId: 'UNIT1', woType: 'CM', reason: 'thao tác thủ công' }));
+  document.querySelectorAll('.controls button[data-resim]').forEach(b => b.onclick = () => { const d = b.dataset.resim; if (d.indexOf('load:') === 0) send({ cmd: 'resim', value: Number(d.slice(5)) }); else send({ cmd: 'resim', malf: d }); });
 
   let replayMode = false, seeking = false, blockedTimer = null;
   function setMode(mode){
