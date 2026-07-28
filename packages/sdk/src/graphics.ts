@@ -43,3 +43,21 @@ export interface ScreenDef {
   readonly title?: { vi: string; en: string };
   readonly elements: ReadonlyArray<ScreenElement>;
 }
+
+/* ── Screen Builder (L5 Engineering, doc 05-02) — spec ĐƠN GIẢN cho người KHÔNG code: chỉ liệt kê
+ *    tag + nhãn; engine tự dàn lưới + sinh binding → ScreenDef hợp lệ (kernel render). ── */
+export interface ScreenTileSpec {
+  readonly tag: TagId;
+  readonly label?: string;
+  readonly unit?: string;
+  readonly kind?: 'value' | 'bar'; // mặc định 'value'
+  readonly barScale?: number; // bar: đưa PV về thang 0–100 (mặc định 1)
+  readonly alarms?: ReadonlyArray<{ when: 'gt' | 'lt'; value: number; sev: 1 | 2 | 3 }>;
+}
+export interface ScreenBuildSpec {
+  readonly screenId: string;
+  readonly level: ScreenLevel;
+  readonly title?: { vi: string; en: string };
+  readonly tiles: ReadonlyArray<ScreenTileSpec>;
+  readonly cols?: number; // số cột lưới (mặc định 4)
+}

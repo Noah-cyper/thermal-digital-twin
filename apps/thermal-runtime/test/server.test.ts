@@ -378,4 +378,42 @@ describe('thermal-runtime server', () => {
     ws.close();
     await app.close();
   });
+
+  it('Screen Builder (L5): Engineer dựng màn hình từ spec → built-screen + phục vụ /screen; Operator bị từ chối', async () => {
+    interface Msg {
+      type?: string;
+      def?: { screenId?: string; elements?: unknown[] };
+    }
+    const app = startServer(0, { stepMs: 15 });
+    const port = await app.ready;
+    const ws = new WebSocket(`ws://127.0.0.1:${port}`);
+    const msgs: Msg[] = [];
+    ws.on('message', (d) => msgs.push(JSON.parse(d.toString()) as Msg));
+    const until = async (fn: () => boolean): Promise<boolean> => {
+      const t0 = Date.now();
+      while (Date.now() - t0 < 2000) {
+        if (fn()) return true;
+        await sleep(20);
+      }
+      return false;
+    };
+    await new Promise<void>((r) => ws.on('open', () => r()));
+    const spec = { screenId: 'D3-test-build', level: 'D3', title: { vi: 't', en: 't' }, tiles: [{ tag: 'GEN_MW_01', label: 'MW' }] };
+
+    // Operator (mặc định) → dựng bị từ chối (action engineer)
+    ws.send(JSON.stringify({ cmd: 'build-screen', spec }));
+    expect(await until(() => msgs.some((m) => m.type === 'denied'))).toBe(true);
+
+    // Engineer → dựng được → built-screen + /screen phục vụ
+    ws.send(JSON.stringify({ cmd: 'login', user: 'engineer' }));
+    await sleep(120);
+    const mark = msgs.length;
+    ws.send(JSON.stringify({ cmd: 'build-screen', spec }));
+    expect(await until(() => msgs.slice(mark).some((m) => m.type === 'built-screen' && m.def?.screenId === 'D3-test-build'))).toBe(true);
+    const scr = (await (await fetch(`http://127.0.0.1:${port}/screen/D3-test-build`)).json()) as { screenId: string };
+    expect(scr.screenId).toBe('D3-test-build');
+
+    ws.close();
+    await app.close();
+  });
 });
