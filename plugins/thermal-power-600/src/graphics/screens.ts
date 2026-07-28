@@ -166,6 +166,22 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       valueTile('cwrise', 'COND_CW_RISE_01', 'Độ tăng nhiệt CW', '°C', 2, 1),
     ],
   },
+  {
+    screenId: 'D3-fluegas-air',
+    level: 'D3',
+    title: { vi: 'Đường khói & Hiệu suất lò', en: 'Flue Gas & Boiler Efficiency' },
+    elements: [
+      // Đường khói + gió cháy + hiệu suất lò (v1.21): khép kín cân bằng năng lượng phía nhiên liệu.
+      valueTile('beff', 'BLR_EFF_01', 'Hiệu suất lò', '%', 0, 0, [{ when: 'lt', value: 82, sev: 2 }]),
+      valueTile('exair', 'FG_EXCESS_AIR_01', 'Gió thừa', '%', 1, 0, [{ when: 'gt', value: 40, sev: 2 }]),
+      valueTile('lambda', 'FG_LAMBDA_01', 'Tỷ số gió λ', '', 2, 0),
+      valueTile('fgflow', 'FG_FLOW_01', 'Lưu lượng khói', 't/h', 3, 0),
+      valueTile('ahgas', 'FG_AH_GAS_IN_TEMP_01', 'Khói vào air heater', '°C', 0, 1),
+      valueTile('stack', 'FG_STACK_TEMP_01', 'Nhiệt ống khói', '°C', 1, 1, [{ when: 'gt', value: 150, sev: 3 }]),
+      valueTile('airout', 'AH_AIR_OUT_TEMP_01', 'Gió cháy sau AH', '°C', 2, 1),
+      valueTile('dgloss', 'FG_DRYGAS_LOSS_01', 'Tổn thất khói khô', '%', 3, 1),
+    ],
+  },
 ];
 
 /** Tất cả tag mà một screen tham chiếu (để subscribe theo màn hình — Tag/Realtime). */
