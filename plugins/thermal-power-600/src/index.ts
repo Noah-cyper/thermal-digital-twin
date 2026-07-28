@@ -2,6 +2,7 @@
 // BoilerIslandModel = mô hình Boiler Island đầy đủ (Pha B). DrumModel = mô hình drum tối giản
 // dùng cho walking-skeleton Pha A (giữ lại làm tham chiếu).
 export { BoilerIslandModel } from './sim/boiler-island';
+export { TurbineGeneratorModel } from './sim/turbine-generator';
 export { DrumModel } from './sim/drum';
 export { boilerControlLoops, boilerLoopSeeds } from './control/loops';
 export { boilerScreens, screenTags } from './graphics/screens';
