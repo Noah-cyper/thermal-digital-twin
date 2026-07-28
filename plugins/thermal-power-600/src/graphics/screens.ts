@@ -151,6 +151,21 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       valueTile('hr', 'PLANT_CYCLE_HR_01', 'Heat rate chu trình', 'kJ/kWh', 1, 1, [{ when: 'gt', value: 9500, sev: 2 }]),
     ],
   },
+  {
+    screenId: 'D3-condenser-cw',
+    level: 'D3',
+    title: { vi: 'Bình ngưng & Nước tuần hoàn', en: 'Condenser & Circulating Water' },
+    elements: [
+      // Bình ngưng + CW (v1.20): cân bằng năng lượng — nhiệt thải, phía nước tuần hoàn 64.000 m³/h.
+      valueTile('cduty', 'COND_DUTY_01', 'Nhiệt thải bình ngưng', 'MWth', 0, 0),
+      valueTile('csat', 'COND_SAT_TEMP_01', 'Nhiệt bão hoà', '°C', 1, 0, [{ when: 'gt', value: 45, sev: 2 }]),
+      valueTile('cttd', 'COND_TTD_01', 'TTD', '°C', 2, 0),
+      valueTile('cwflow', 'COND_CW_FLOW_01', 'Lưu lượng CW', 't/h', 3, 0),
+      valueTile('cwin', 'COND_CW_IN_TEMP_01', 'CW vào', '°C', 0, 1),
+      valueTile('cwout', 'COND_CW_OUT_TEMP_01', 'CW ra', '°C', 1, 1, [{ when: 'gt', value: 42, sev: 3 }]),
+      valueTile('cwrise', 'COND_CW_RISE_01', 'Độ tăng nhiệt CW', '°C', 2, 1),
+    ],
+  },
 ];
 
 /** Tất cả tag mà một screen tham chiếu (để subscribe theo màn hình — Tag/Realtime). */

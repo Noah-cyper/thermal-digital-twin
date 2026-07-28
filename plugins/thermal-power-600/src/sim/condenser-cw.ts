@@ -1,0 +1,101 @@
+// Plugin thermal-power-600 — CondenserCWModel (ISimModel, doc 10 §6 — bình ngưng + nước tuần hoàn CW).
+// CHỈ import @idtp/sdk. CHIỀU SÂU vật lý bổ sung (v1.20), chạy CẠNH boiler/turbine/reheat/feedwater:
+// đọc công suất/heat rate chu trình/chân không tươi → CÂN BẰNG NĂNG LƯỢNG bình ngưng (nhiệt thải =
+// nhiệt cấp − công suất) → sinh tag phía CW (lưu lượng, nhiệt vào/ra, độ tăng nhiệt, TTD, sat temp).
+// ADDITIVE — KHÔNG ghi đè TRB_COND_VACUUM_01 (boiler sở hữu); chỉ ĐỌC để suy nhiệt bão hoà. Tất định.
+//
+// Neo Design Basis (Phụ lục A): nước tuần hoàn CW 64.000 m³/h · chân không 5,4 kPa(a) → sat ~34 °C ·
+// tháp làm mát natural draft · 600 MW. Nhiệt thải suy từ heat rate chu trình đã dựng (v1.19). TTD, cp,
+// tương quan sat-temp, τ CW = [GIẢ ĐỊNH] (GĐ-67). Lưu ý: 5,4 kPa ⇒ CW vào ~19 °C (ôn hoà) — vận hành
+// nhiệt đới (CW vào cao hơn) sẽ đẩy back-pressure lên; là cảnh báo hiệu năng thật, nêu rõ.
+import type { ISimModel, ISimModelContext, ISimSnapshot, ISimStepResult, IMalfunction, TagId } from '@idtp/sdk';
+
+/* ── Design Basis (Phụ lục A) ── */
+const CW_FLOW_TPH = 64000; // 64.000 m³/h ≈ 64.000 t/h nước
+const VACUUM_NOM_KPA = 5.4;
+
+/* ── [GIẢ ĐỊNH] hiệu chỉnh (GĐ-67) ── */
+const TTD_NOM_C = 2.8; // terminal temperature difference bình ngưng
+const CP_CW_KJKGK = 4.18; // nhiệt dung riêng nước làm mát
+const TAU_CW_S = 20; // quán tính nhiệt vòng CW
+
+const CW_KGS = (CW_FLOW_TPH * 1000) / 3600; // ~17.778 kg/s
+
+function clamp(x: number, lo: number, hi: number): number {
+  return Math.min(hi, Math.max(lo, x));
+}
+// Nhiệt bão hoà hơi ở áp thấp (kPa) — tương quan neo 5,4 kPa→34 °C, 10 kPa→45,8 °C [GIẢ ĐỊNH].
+function satTempC(kpa: number): number {
+  return clamp(1.8 + 19.1 * Math.log(Math.max(0.5, kpa)), 10, 100);
+}
+
+export class CondenserCWModel implements ISimModel {
+  readonly id = 'thermal-condenser-cw';
+  readonly tagsProvided: ReadonlyArray<TagId> = [
+    'COND_DUTY_01', // MWth — nhiệt thải ra bình ngưng (cân bằng năng lượng)
+    'COND_SAT_TEMP_01', // °C — nhiệt bão hoà ứng chân không
+    'COND_TTD_01', // °C — terminal temperature difference
+    'COND_CW_FLOW_01', // t/h — lưu lượng nước tuần hoàn
+    'COND_CW_IN_TEMP_01', // °C — CW vào (từ tháp làm mát)
+    'COND_CW_OUT_TEMP_01', // °C — CW ra (về tháp làm mát)
+    'COND_CW_RISE_01', // °C — độ tăng nhiệt CW qua bình ngưng
+  ];
+
+  private tCwOut = 31;
+  private tCwIn = 19;
+
+  init(_ctx?: ISimModelContext, _config?: unknown): void {
+    this.tCwOut = 31;
+    this.tCwIn = 19;
+  }
+
+  step(ctx: ISimModelContext): ISimStepResult {
+    const dt = ctx.dtMs / 1000;
+    const mw = Math.max(0, ctx.getTag('GEN_MW_01')); // MW gross
+    const hr = Math.max(0, ctx.getTag('PLANT_CYCLE_HR_01')); // kJ/kWh — heat rate chu trình (v1.19)
+    const vacuum = Math.max(0, ctx.getTag('TRB_COND_VACUUM_01')); // kPa(a) — CHỈ đọc
+
+    // Cân bằng năng lượng bình ngưng: nhiệt CẤP cho chu trình = HR·gross; nhiệt THẢI = cấp − công suất.
+    const qInMw = (hr * mw) / 3600; // MWth (= HR[kJ/kWh]·mw[MW]·1000/3600/1000)
+    const qRejMw = Math.max(0, qInMw - mw);
+
+    // Độ tăng nhiệt CW từ nhiệt thải và lưu lượng CW Design Basis: ΔT = Q/(ṁ·cp).
+    const rise = qRejMw > 0 ? (qRejMw * 1000) / (CW_KGS * CP_CW_KJKGK) : 0;
+
+    // Nhiệt bão hoà ứng chân không hiện tại; CW ra = sat − TTD; CW vào = ra − ΔT.
+    const tSat = satTempC(vacuum > 0 ? vacuum : VACUUM_NOM_KPA);
+    const outTarget = tSat - TTD_NOM_C;
+    const inTarget = outTarget - rise;
+    this.tCwOut += (outTarget - this.tCwOut) * (dt / TAU_CW_S);
+    this.tCwIn += (inTarget - this.tCwIn) * (dt / TAU_CW_S);
+
+    return {
+      outputs: [
+        { tagId: 'COND_DUTY_01', value: qRejMw, quality: 'Good' },
+        { tagId: 'COND_SAT_TEMP_01', value: tSat, quality: 'Good' },
+        { tagId: 'COND_TTD_01', value: TTD_NOM_C, quality: 'Good' },
+        { tagId: 'COND_CW_FLOW_01', value: CW_FLOW_TPH, quality: 'Good' },
+        { tagId: 'COND_CW_IN_TEMP_01', value: this.tCwIn, quality: 'Good' },
+        { tagId: 'COND_CW_OUT_TEMP_01', value: this.tCwOut, quality: 'Good' },
+        { tagId: 'COND_CW_RISE_01', value: rise, quality: 'Good' },
+      ],
+    };
+  }
+
+  snapshot(): ISimSnapshot {
+    return { state: { tCwOut: this.tCwOut, tCwIn: this.tCwIn } };
+  }
+  restore(snapshot: ISimSnapshot): void {
+    this.tCwOut = snapshot.state.tCwOut ?? 31;
+    this.tCwIn = snapshot.state.tCwIn ?? 19;
+  }
+  injectMalfunction(_m: IMalfunction): void {
+    // model không có malfunction riêng ở v1.20
+  }
+  clearMalfunction(_id: string): void {
+    // không giữ trạng thái malfunction
+  }
+  dispose(): void {
+    // không giữ tài nguyên ngoài
+  }
+}
