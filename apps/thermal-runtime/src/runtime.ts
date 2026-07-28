@@ -7,6 +7,7 @@ import type { AlarmKpi, FaceplateResolvers, FaceplateOverview, FaceplateAlarmRow
 import { TimeService } from '@idtp/kernel';
 import {
   BoilerIslandModel,
+  TurbineGeneratorModel,
   boilerControlLoops,
   boilerLoopSeeds,
   boilerAlarms,
@@ -182,6 +183,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   });
   const model = new BoilerIslandModel();
   host.register(model, { warmStart: { coalFlow: 211, steamGen: 1500, pressure: 17.5, o2: 3.2, shTemp: 541 } });
+  // Chiều sâu vật lý (v1.12): turbine/generator chạy CẠNH boiler — đăng ký SAU để đọc hơi/áp/MW tươi
+  // mỗi bước. Additive: sinh thêm tag turbine/generator, không đổi GEN_MW_01.
+  const turbine = new TurbineGeneratorModel();
+  host.register(turbine);
 
   const loops = new ControlLoopEngine(boilerControlLoops);
   const ingestOut = (): void => {
@@ -208,7 +213,7 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
 
   // Historian (adapter memory): ghi tag hiển thị + tag alarm để truy vấn lịch sử + DATA REPLAY.
   const historian = new MemoryHistorian({ formatTs: (ms) => time.formatEpoch(ms) });
-  const recordedTags = [...new Set([...boilerScreens.flatMap((s) => screenTags(s)), ...alarmTags])];
+  const recordedTags = [...new Set([...boilerScreens.flatMap((s) => screenTags(s)), ...alarmTags, ...turbine.tagsProvided])];
   const record = (): void => {
     if (stepCount % REC_EVERY === 0) {
       const ts = nowIso();
