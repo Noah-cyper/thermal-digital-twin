@@ -68,7 +68,14 @@ export interface RunningServer {
 
 export function startServer(port = 8080, opts: { stepMs?: number } = {}): RunningServer {
   const stepMs = opts.stepMs ?? 100;
-  const rt = createThermalRuntime();
+  const rt = createThermalRuntime({ breadthLive: true }); // demo: cả §10 catalog "sống"
+  // Đăng ký màn hình catalog §10 (87 màn) để phục vụ qua /screen — mở bằng id thấy dữ liệu breadth live.
+  for (const s of rt.catalogScreens()) {
+    if (!screensById.has(s.screenId)) {
+      screensById.set(s.screenId, s);
+      registry.push({ screenId: s.screenId, level: s.level, title: s.title });
+    }
+  }
   const subs = new Map<WebSocket, Sub>();
 
   // Security/RBAC — enforcement ở tầng API gateway (server). Clock thực (auth không phải sim data).
