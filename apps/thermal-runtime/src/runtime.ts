@@ -2,8 +2,8 @@
 // khép kín với ĐỒNG HỒ SIM tiến theo dt (Time Service, không Date.now trong vòng process).
 // Sim→control→alarm→tag không dùng Math.random. App tổ hợp import engines/kernel/plugin; plugin
 // runtime vẫn chỉ import @idtp/sdk.
-import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian, KpiEngine, historianKpiInput, MaintenanceEngine, FaceplateEngine, NavigationEngine, generateRegistry, generateScreens, generateControlLoops, SequenceEngine, executeScenario, CauseEffectEngine, AiAdvisor, PredictiveMaintenance, RegistrySimModel, ReportEngine } from '@idtp/engines';
-import type { AlarmKpi, FaceplateResolvers, FaceplateOverview, FaceplateAlarmRow, FaceplateDetail, Advice, Report } from '@idtp/engines';
+import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian, KpiEngine, historianKpiInput, MaintenanceEngine, FaceplateEngine, NavigationEngine, generateRegistry, generateScreens, generateControlLoops, SequenceEngine, executeScenario, CauseEffectEngine, AiAdvisor, PredictiveMaintenance, RegistrySimModel, ReportEngine, EventJournal } from '@idtp/engines';
+import type { AlarmKpi, FaceplateResolvers, FaceplateOverview, FaceplateAlarmRow, FaceplateDetail, Advice, Report, JournalEntry, JournalQuery, JournalSummary, JournalCategory, JournalSeverity } from '@idtp/engines';
 import { TimeService } from '@idtp/kernel';
 import {
   BoilerIslandModel,
@@ -120,6 +120,9 @@ export interface ThermalRuntime {
   reSimulate(opts?: ReSimOptions): ReSimResult;
   computeKpis(): Promise<IKpiResult[]>;
   generateReport(hours?: number): Promise<Report>;
+  eventLog(opts?: JournalQuery): ReadonlyArray<JournalEntry>;
+  eventSummary(): JournalSummary;
+  logEvent(category: JournalCategory, severity: JournalSeverity, message: string, actor?: string, source?: string): JournalEntry;
   maintenanceRuntime(): ReadonlyArray<EquipmentRuntime>;
   maintenanceMtbf(assetId: string): number;
   evaluatePredictive(): PredictiveAdvisory[];
@@ -228,10 +231,28 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
     if (stepCount % SNAPSHOT_EVERY === 0) void historian.snapshot(nowIso());
   };
 
+  // Event Journal / SOE (doc 15/18, màn hình hệ thống "Event Log" — ISA-101 S-class): nguồn nhật ký
+  // HỢP NHẤT ghi lại sự kiện đã xảy ra (alarm/trip/lệnh/chuỗi/bảo mật/hệ thống). READ-ONLY với process —
+  // chỉ quan sát & ghi, không đụng tag/setpoint. `logEvent` gắn dấu thời gian đồng hồ sim.
+  const journal = new EventJournal();
+  const logEvent = (category: JournalCategory, severity: JournalSeverity, message: string, actor?: string, source?: string): JournalEntry =>
+    journal.record({ at: nowIso(), category, severity, message, actor, source });
+  const alarmSev = (p: AlarmEvent['priority']): JournalSeverity => (p === 'P1' ? 'critical' : p === 'P2' ? 'warn' : 'info');
+  const activeAlarmSet = new Set<string>(); // dedupe raised/cleared theo alarmId
+
   // Maintenance: tích giờ chạy từ run-tag; MTBF lấy alarm P1 làm event hỏng của UNIT1.
   const maintenance = new MaintenanceEngine(thermalMaintenance, { formatTs: (ms) => time.formatEpoch(ms) });
   alarms.onTransition((e) => {
     if (e.state === 'UnackAlarm' && e.priority === 'P1') maintenance.recordFailure('UNIT1', nowMs());
+    // Nhật ký sự kiện: alarm mới (UnackAlarm) và trở về bình thường (Normal) — dedupe theo alarmId.
+    if (e.state === 'UnackAlarm') {
+      if (!activeAlarmSet.has(e.alarmId)) {
+        activeAlarmSet.add(e.alarmId);
+        logEvent('alarm', alarmSev(e.priority), `Alarm [${e.priority}] ${e.alarmId}${e.value !== undefined ? ` = ${Number(e.value).toFixed(1)}` : ''}`, undefined, e.alarmId);
+      }
+    } else if (e.state === 'Normal' && activeAlarmSet.delete(e.alarmId)) {
+      logEvent('alarm', 'info', `Alarm hết: ${e.alarmId} trở lại bình thường`, undefined, e.alarmId);
+    }
   });
 
   // Faceplate: ráp 4 tab từ Tag/Loop/Alarm/Maintenance; Trend từ Historian.
@@ -294,8 +315,27 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
     (m) => new CauseEffectEngine(m, { command: (cmd) => put(cmd.tagId, typeof cmd.value === 'number' ? cmd.value : cmd.value ? 1 : 0) }),
   );
   const ceById = new Map(ceEngines.map((e) => [e.matrixId, e] as const));
+  const loggedTrips = new Map<string, Set<string>>(); // matrixId → effect tags đã ghi nhật ký (dedupe)
   const evalCe = (): void => {
-    for (const e of ceEngines) e.evaluate((id) => num(id));
+    for (const e of ceEngines) {
+      e.evaluate((id) => num(id));
+      const tripped = e.state().trippedEffects;
+      let seen = loggedTrips.get(e.matrixId);
+      if (seen === undefined) {
+        seen = new Set<string>();
+        loggedTrips.set(e.matrixId, seen);
+      }
+      if (tripped.length === 0) {
+        seen.clear(); // matrix đã reset → cho phép ghi lại nếu trip lần sau
+        continue;
+      }
+      for (const eff of tripped) {
+        if (!seen.has(eff)) {
+          seen.add(eff);
+          logEvent('trip', 'critical', `TRIP [${e.matrixId}] hệ quả chốt: ${eff}`, undefined, e.matrixId);
+        }
+      }
+    }
   };
 
   // AI Advisor v1 (rule-based, READ-ONLY): giải thích alarm từ tri thức plugin + ma trận C&E. Không
@@ -324,7 +364,11 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   const tickLiveSeqs = (): void => {
     for (const [id, eng] of liveSeqs) {
       eng.tick();
-      if (eng.state().status !== 'running') liveSeqs.delete(id);
+      const st = eng.state();
+      if (st.status !== 'running') {
+        liveSeqs.delete(id);
+        logEvent('sequence', st.status === 'done' ? 'info' : 'warn', `SFC '${id}' kết thúc: ${st.status}${st.message ? ` — ${st.message}` : ''}`, undefined, id);
+      }
     }
   };
 
@@ -381,6 +425,7 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
     freeze: (on) => {
       frozen = on;
       host.freeze(on);
+      logEvent('system', 'warn', on ? 'OTS: FREEZE — đóng băng mô phỏng' : 'OTS: UNFREEZE — chạy tiếp');
     },
     isFrozen: () => frozen,
     snapshot: () => {
@@ -432,11 +477,27 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
       }
       return { steps, trajectory };
     },
-    setLoadDemand: (mw) => put('BLR_MW_DEMAND', mw),
-    injectMalfunction: (m) => host.inject(model.id, m),
-    clearMalfunction: (id) => host.clear(model.id, id),
-    setLoopMode: (loopId, mode) => loops.setMode(loopId, mode),
-    ackAlarm: (alarmId, user) => alarms.ack(alarmId, user, nowMs()),
+    setLoadDemand: (mw) => {
+      put('BLR_MW_DEMAND', mw);
+      logEvent('command', 'info', `Đặt tải: BLR_MW_DEMAND = ${mw} MW`, undefined, 'BLR_MW_DEMAND');
+    },
+    injectMalfunction: (m) => {
+      host.inject(model.id, m);
+      logEvent('system', 'warn', `Tiêm malfunction (OTS): ${m.id}`, undefined, m.id);
+    },
+    clearMalfunction: (id) => {
+      host.clear(model.id, id);
+      logEvent('system', 'info', `Gỡ malfunction (OTS): ${id}`, undefined, id);
+    },
+    setLoopMode: (loopId, mode) => {
+      loops.setMode(loopId, mode);
+      logEvent('command', 'info', `Đổi mode loop '${loopId}' → ${mode}`, undefined, loopId);
+    },
+    ackAlarm: (alarmId, user) => {
+      const ev = alarms.ack(alarmId, user, nowMs());
+      logEvent('command', 'info', `ACK alarm ${alarmId}`, user, alarmId);
+      return ev;
+    },
     activeAlarms: () => alarms.getActive(),
     alarmKpi: () => alarms.kpi(nowMs()),
     computeKpis: () => {
@@ -460,6 +521,9 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
       };
       return reportEngine.generate(ctx, title);
     },
+    eventLog: (opts) => journal.query(opts),
+    eventSummary: () => journal.summary(),
+    logEvent: (category, severity, message, actor, source) => logEvent(category, severity, message, actor, source),
     maintenanceRuntime: () => maintenance.allRuntime(),
     maintenanceMtbf: (assetId) => maintenance.mtbf(assetId),
     evaluatePredictive: () => {
@@ -472,8 +536,16 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
     },
     predictiveAdvisories: () => lastPredictive,
     workOrders: () => maintenance.workOrders(),
-    createWorkOrder: (assetId, type, reason, user) => maintenance.createWorkOrder({ assetId, type, reason }, user, nowMs()),
-    updateWorkOrder: (woId, status, user) => maintenance.updateWorkOrder(woId, status, user, nowMs()),
+    createWorkOrder: (assetId, type, reason, user) => {
+      const wo = maintenance.createWorkOrder({ assetId, type, reason }, user, nowMs());
+      logEvent('command', 'info', `Tạo lệnh công việc ${type} cho ${assetId}: ${reason}`, user, assetId);
+      return wo;
+    },
+    updateWorkOrder: (woId, status, user) => {
+      const r = maintenance.updateWorkOrder(woId, status, user, nowMs());
+      if (!('error' in r)) logEvent('command', 'info', `Cập nhật WO ${woId} → ${status}`, user, woId);
+      return r;
+    },
     faceplateList: () => faceplateEngine.list().map((d) => ({ faceplateId: d.faceplateId, assetId: d.assetId, title: d.title, pvTag: d.pvTag })),
     faceplateData: (assetId) => {
       const def = faceplateEngine.open(assetId);
@@ -526,6 +598,7 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
       if (!def) return { status: 'failed', stepIndex: -1, stepId: null, message: `không có chuỗi '${sequenceId}'` };
       const eng = new SequenceEngine(def, liveSeqIo);
       eng.start();
+      logEvent('sequence', 'info', `Khởi động SFC '${sequenceId}' (live)`, undefined, sequenceId);
       if (eng.state().status === 'running') liveSeqs.set(sequenceId, eng);
       return eng.state();
     },
@@ -542,6 +615,7 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
       // Xoá luôn flag hiệu ứng đã ghi → sim thấy trip hết → nhà máy phục hồi (OTS: trip → reset → restart).
       const m = thermalCauseEffect.find((x) => x.matrixId === matrixId);
       for (const e of m?.effects ?? []) put(e.tag, 0);
+      logEvent('command', 'warn', `RESET Cause&Effect '${matrixId}'`, undefined, matrixId);
       return true;
     },
     scenarioList: () => thermalScenarios.map((s) => ({ scenarioId: s.scenarioId, title: s.title, phases: s.phases.length })),
