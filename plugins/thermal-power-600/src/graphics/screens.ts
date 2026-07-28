@@ -213,6 +213,21 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       valueTile('uat', 'ELEC_AUX_LOADING_01', 'Tải UAT', '%', 3, 1, [{ when: 'gt', value: 100, sev: 2 }]),
     ],
   },
+  {
+    screenId: 'D3-cooling-tower',
+    level: 'D3',
+    title: { vi: 'Tháp làm mát', en: 'Cooling Tower' },
+    elements: [
+      // Tháp làm mát natural draft (v1.24): khép vòng CW — bầu ướt + approach + bốc hơi + nước bổ sung.
+      valueTile('reject', 'CT_HEAT_REJECT_01', 'Nhiệt thải khí quyển', 'MWth', 0, 0),
+      valueTile('wb', 'CT_WETBULB_01', 'Bầu ướt', '°C', 1, 0),
+      valueTile('supply', 'CT_CW_SUPPLY_01', 'CW cấp (lạnh)', '°C', 2, 0),
+      valueTile('approach', 'CT_APPROACH_01', 'Approach', '°C', 3, 0),
+      valueTile('range', 'CT_RANGE_01', 'Range', '°C', 0, 1),
+      valueTile('evap', 'CT_EVAP_LOSS_01', 'Bốc hơi', 't/h', 1, 1),
+      valueTile('makeup', 'CT_MAKEUP_01', 'Nước bổ sung', 't/h', 2, 1),
+    ],
+  },
 ];
 
 /** Tất cả tag mà một screen tham chiếu (để subscribe theo màn hình — Tag/Realtime). */
