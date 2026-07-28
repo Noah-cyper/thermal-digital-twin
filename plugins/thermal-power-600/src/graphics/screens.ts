@@ -228,6 +228,21 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       valueTile('makeup', 'CT_MAKEUP_01', 'Nước bổ sung', 't/h', 2, 1),
     ],
   },
+  {
+    screenId: 'D3-coal-handling',
+    level: 'D3',
+    title: { vi: 'Cung cấp than', en: 'Coal Handling' },
+    elements: [
+      // Cung cấp than (v1.25): bunker → feeder → mill; băng tải cấp; dự trữ yard.
+      valueTile('cons', 'COAL_CONSUMPTION_01', 'Tiêu thụ than', 't/h', 0, 0),
+      valueTile('bunker', 'COAL_BUNKER_LEVEL_01', 'Mức bunker', '%', 1, 0, [{ when: 'lt', value: 30, sev: 2 }]),
+      valueTile('conv', 'COAL_CONVEYOR_FEED_01', 'Băng tải cấp', 't/h', 2, 0),
+      valueTile('mills', 'COAL_MILLS_RUNNING_01', 'Máy nghiền chạy', '', 3, 0),
+      valueTile('mload', 'COAL_MILL_LOADING_01', 'Tải máy nghiền', '%', 0, 1, [{ when: 'gt', value: 100, sev: 2 }]),
+      valueTile('feeder', 'COAL_FEEDER_RATE_01', 'Suất feeder', 't/h', 1, 1),
+      valueTile('yard', 'COAL_YARD_DAYS_01', 'Dự trữ yard', 'ngày', 2, 1, [{ when: 'lt', value: 7, sev: 2 }]),
+    ],
+  },
 ];
 
 /** Tất cả tag mà một screen tham chiếu (để subscribe theo màn hình — Tag/Realtime). */

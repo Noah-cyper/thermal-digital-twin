@@ -15,6 +15,7 @@ import {
   EmissionsModel,
   ElectricalModel,
   CoolingTowerModel,
+  CoalHandlingModel,
   boilerControlLoops,
   boilerLoopSeeds,
   boilerAlarms,
@@ -242,6 +243,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   // (bầu ướt + approach + bốc hơi + nước bổ sung). Additive — không đổi tag condenser.
   const coolingTower = new CoolingTowerModel();
   host.register(coolingTower);
+  // Cung cấp than (v1.25): đăng ký để đọc lưu lượng than tiêu thụ → bunker/feeder/mill/yard. Additive
+  // — không đổi BLR_COAL_FLOW_01. Có trạng thái mức bunker (nằm trong snapshot host cho OTS).
+  const coalHandling = new CoalHandlingModel();
+  host.register(coalHandling);
 
   const loops = new ControlLoopEngine(boilerControlLoops);
   const ingestOut = (): void => {
@@ -268,7 +273,7 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
 
   // Historian (adapter memory): ghi tag hiển thị + tag alarm để truy vấn lịch sử + DATA REPLAY.
   const historian = new MemoryHistorian({ formatTs: (ms) => time.formatEpoch(ms) });
-  const recordedTags = [...new Set([...boilerScreens.flatMap((s) => screenTags(s)), ...alarmTags, ...turbine.tagsProvided, ...reheat.tagsProvided, ...feedwater.tagsProvided, ...condenser.tagsProvided, ...fluegas.tagsProvided, ...emissions.tagsProvided, ...electrical.tagsProvided, ...coolingTower.tagsProvided])];
+  const recordedTags = [...new Set([...boilerScreens.flatMap((s) => screenTags(s)), ...alarmTags, ...turbine.tagsProvided, ...reheat.tagsProvided, ...feedwater.tagsProvided, ...condenser.tagsProvided, ...fluegas.tagsProvided, ...emissions.tagsProvided, ...electrical.tagsProvided, ...coolingTower.tagsProvided, ...coalHandling.tagsProvided])];
   const record = (): void => {
     if (stepCount % REC_EVERY === 0) {
       const ts = nowIso();
