@@ -182,6 +182,21 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       valueTile('dgloss', 'FG_DRYGAS_LOSS_01', 'Tổn thất khói khô', '%', 3, 1),
     ],
   },
+  {
+    screenId: 'D3-emissions-cems',
+    level: 'D3',
+    title: { vi: 'Phát thải (CEMS)', en: 'Emissions (CEMS)' },
+    elements: [
+      // Phát thải CEMS (v1.22): sau ESP + FGD, quy về nồng độ mg/Nm³ + tải CO₂.
+      valueTile('dust', 'EMI_DUST_STACK_01', 'Bụi ra ống khói', 'mg/Nm³', 0, 0, [{ when: 'gt', value: 30, sev: 2 }]),
+      valueTile('so2', 'EMI_SO2_STACK_01', 'SO₂ ra ống khói', 'mg/Nm³', 1, 0, [{ when: 'gt', value: 200, sev: 2 }]),
+      valueTile('nox', 'EMI_NOX_STACK_01', 'NOₓ ra ống khói', 'mg/Nm³', 2, 0, [{ when: 'gt', value: 500, sev: 2 }]),
+      valueTile('co2', 'EMI_CO2_RATE_01', 'Phát thải CO₂', 't/h', 3, 0),
+      valueTile('fgvol', 'EMI_FG_VOLUME_01', 'Lưu lượng khói', 'Nm³/h', 0, 1),
+      valueTile('esp', 'EMI_ESP_EFF_01', 'Độ khử bụi ESP', '%', 1, 1),
+      valueTile('fgd', 'EMI_FGD_EFF_01', 'Độ khử SO₂ FGD', '%', 2, 1),
+    ],
+  },
 ];
 
 /** Tất cả tag mà một screen tham chiếu (để subscribe theo màn hình — Tag/Realtime). */
