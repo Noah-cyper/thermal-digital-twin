@@ -16,6 +16,7 @@ provides:
   navigation: dist/nav/tree.js
   kpi: dist/kpi/calculators.js
   maintenance: dist/maintenance/items.js
+  predictive: dist/maintenance/predictive.js
   seed: dist/seed/spec.js
   sequences: dist/sequences/defs.js
   scenarios: dist/scenarios/defs.js

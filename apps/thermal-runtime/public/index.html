@@ -438,7 +438,9 @@
   function renderMaint(m){
     const rt = (m.runtime || []).map(r =>
       '<span>' + r.assetId + ' <b>' + Number(r.runningHours).toFixed(2) + '</b> h · ' + r.startCount + ' start' + (r.running ? '' : ' (dừng)') + '</span>').join('');
-    $('maint').innerHTML = rt + '<span>WO <b>' + (m.workOrders || []).length + '</b> · MTBF UNIT1 <b>' + Number(m.mtbf || 0).toFixed(1) + '</b> h</span>';
+    const pr = (m.predictive || []).map(p =>
+      '<span style="color:' + (p.severity === 'alert' ? 'var(--alarm-1)' : 'var(--alarm-2)') + '" title="Bảo trì dự đoán (rule-based)">🔮 ' + p.message + '</span>').join('');
+    $('maint').innerHTML = rt + '<span>WO <b>' + (m.workOrders || []).length + '</b> · MTBF UNIT1 <b>' + Number(m.mtbf || 0).toFixed(1) + '</b> h</span>' + pr;
   }
   const send = (o) => ws && ws.readyState === 1 && ws.send(JSON.stringify(o));
 

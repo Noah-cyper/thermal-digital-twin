@@ -175,7 +175,7 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
   };
 
   const maintMsg = (): string =>
-    JSON.stringify({ type: 'maint', runtime: rt.maintenanceRuntime(), workOrders: rt.workOrders(), mtbf: rt.maintenanceMtbf('UNIT1') });
+    JSON.stringify({ type: 'maint', runtime: rt.maintenanceRuntime(), workOrders: rt.workOrders(), mtbf: rt.maintenanceMtbf('UNIT1'), predictive: rt.predictiveAdvisories() });
   const navMsg = (): string => JSON.stringify({ type: 'nav', tree: rt.navTree(), alarmIndex: rt.navAlarmIndex(), home: rt.navHome() });
   const registryMsg = (): string => JSON.stringify({ type: 'registry', summary: rt.registrySummary() });
   const seqListMsg = (): string => JSON.stringify({ type: 'seq-list', items: rt.sequenceList() });
@@ -467,6 +467,7 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
       broadcastSeqCe();
       if (++kpiTick % 50 === 0) {
         void rt.computeKpis().then((results) => broadcast(JSON.stringify({ type: 'kpi', results })));
+        rt.evaluatePredictive(); // cập nhật cảnh báo bảo trì dự đoán trước khi broadcast
         broadcast(maintMsg());
       }
     }

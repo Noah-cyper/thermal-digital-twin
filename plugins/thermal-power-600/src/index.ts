@@ -8,6 +8,7 @@ export { boilerScreens, screenTags } from './graphics/screens';
 export { boilerAlarms } from './alarms/boiler-alarms';
 export { thermalKpis } from './kpi/calculators';
 export { thermalMaintenance } from './maintenance/items';
+export { thermalPredictiveRules } from './maintenance/predictive';
 export { thermalFaceplates } from './faceplates/defs';
 export { thermalNav } from './nav/tree';
 export { thermalTagTemplates } from './seed/templates';
