@@ -111,6 +111,23 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       barTile('o2bar', 'BLR_FLUE_O2_01', 'O₂ (0–21%)', 3, 1, 100 / 21),
     ],
   },
+  {
+    screenId: 'D3-turbine-generator',
+    level: 'D3',
+    title: { vi: 'Turbine & Máy phát', en: 'Turbine & Generator' },
+    elements: [
+      valueTile('mw', 'GEN_MW_01', 'Công suất', 'MW', 0, 0),
+      valueTile('speed', 'TRB_SPEED_01', 'Tốc độ turbine', 'rpm', 1, 0, [{ when: 'gt', value: 3120, sev: 1 }]),
+      valueTile('freq', 'GEN_FREQ_01', 'Tần số', 'Hz', 2, 0, [
+        { when: 'gt', value: 50.5, sev: 2 },
+        { when: 'lt', value: 49.5, sev: 2 },
+      ]),
+      valueTile('mvar', 'GEN_MVAR_01', 'Công suất phản kháng', 'MVAr', 3, 0),
+      valueTile('stodola', 'TRB_STODOLA_FLOW', 'Lưu lượng Stodola', 't/h', 0, 1),
+      valueTile('stator', 'GEN_STATOR_TEMP_01', 'Nhiệt cuộn stator', '°C', 1, 1, [{ when: 'gt', value: 120, sev: 2 }]),
+      valueTile('vac', 'TRB_COND_VACUUM_01', 'Chân không bình ngưng', 'kPa', 2, 1, [{ when: 'gt', value: 12, sev: 2 }]),
+    ],
+  },
 ];
 
 /** Tất cả tag mà một screen tham chiếu (để subscribe theo màn hình — Tag/Realtime). */
