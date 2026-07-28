@@ -20,6 +20,9 @@ describe('thermal-runtime server', () => {
     expect(reg.some((s) => s.screenId === 'D1-plant-overview')).toBe(true);
     const scr = (await (await fetch(`http://127.0.0.1:${port}/screen/D1-plant-overview`)).json()) as { screenId: string };
     expect(scr.screenId).toBe('D1-plant-overview');
+    // màn hình catalog §10 (breadth) cũng được phục vụ
+    const cat = (await (await fetch(`http://127.0.0.1:${port}/screen/D2-boiler`)).json()) as { screenId: string };
+    expect(cat.screenId).toBe('D2-boiler');
     expect((await fetch(`http://127.0.0.1:${port}/screen/nope`)).status).toBe(404);
     expect(await (await fetch(`http://127.0.0.1:${port}/`)).text()).toContain('CCS runtime');
 

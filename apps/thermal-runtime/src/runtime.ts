@@ -2,7 +2,7 @@
 // khép kín với ĐỒNG HỒ SIM tiến theo dt (Time Service, không Date.now trong vòng process).
 // Sim→control→alarm→tag không dùng Math.random. App tổ hợp import engines/kernel/plugin; plugin
 // runtime vẫn chỉ import @idtp/sdk.
-import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian, KpiEngine, historianKpiInput, MaintenanceEngine, FaceplateEngine, NavigationEngine, generateRegistry, generateScreens, generateControlLoops, SequenceEngine, executeScenario, CauseEffectEngine, AiAdvisor, PredictiveMaintenance } from '@idtp/engines';
+import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian, KpiEngine, historianKpiInput, MaintenanceEngine, FaceplateEngine, NavigationEngine, generateRegistry, generateScreens, generateControlLoops, SequenceEngine, executeScenario, CauseEffectEngine, AiAdvisor, PredictiveMaintenance, RegistrySimModel } from '@idtp/engines';
 import type { AlarmKpi, FaceplateResolvers, FaceplateOverview, FaceplateAlarmRow, FaceplateDetail, Advice } from '@idtp/engines';
 import { TimeService } from '@idtp/kernel';
 import {
@@ -43,6 +43,7 @@ import type {
   CauseEffectMatrix,
   CeState,
   PredictiveAdvisory,
+  ScreenDef,
 } from '@idtp/sdk';
 
 /** Tuỳ chọn & kết quả RE-SIMULATION what-if (doc 05-05 §4) — nhánh mô phỏng độc lập từ snapshot live. */
@@ -98,6 +99,7 @@ const START_EPOCH_MS = Date.parse('2026-07-24T03:00:00.000Z'); // = 10:00:00 +07
 export interface ThermalRuntimeOptions {
   loadMw?: number;
   warmupSteps?: number;
+  breadthLive?: boolean; // sinh giá trị placeholder cho toàn bộ §10 catalog → cả nhà máy "sống"
 }
 
 export interface ThermalRuntime {
@@ -131,6 +133,7 @@ export interface ThermalRuntime {
   navBreadcrumb(screenId: string): ReadonlyArray<NavNode>;
   registrySummary(): RegistrySummary;
   registryTag(name: string): TagRecord | undefined;
+  catalogScreens(): ReadonlyArray<ScreenDef>;
   sequenceList(): ReadonlyArray<{ sequenceId: string; title: { vi: string; en: string }; steps: number }>;
   runSequenceToCompletion(sequenceId: string): SeqRunState;
   startLiveSequence(sequenceId: string): SeqRunState;
@@ -333,6 +336,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   for (let i = 0; i < warmupSteps; i++) advance();
   for (const loopId of Object.keys(boilerLoopSeeds)) loops.setMode(loopId, 'AUTO');
 
+  // Breadth "sống": sau warmup, đăng ký RegistrySimModel sinh giá trị placeholder cho toàn §10 catalog
+  // (tách biệt tag sim thật của boiler/turbine) → mọi màn hình/tag breadth có dữ liệu. Opt-in (mặc định tắt).
+  if (opts.breadthLive) host.register(new RegistrySimModel(registry.tags));
+
   // OTS: freeze (dừng toàn bộ vòng) + snapshot/restore (SimulationHost + tag chính).
   let frozen = false;
   const captureTags = [
@@ -488,6 +495,7 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
       byScanClass: registry.byScanClass,
     }),
     registryTag: (name) => registryByName.get(name),
+    catalogScreens: () => catalogScreens,
     sequenceList: () => thermalSequences.map((s) => ({ sequenceId: s.sequenceId, title: s.title, steps: s.steps.length })),
     runSequenceToCompletion: (sequenceId) => runSeqState(sequenceId),
     startLiveSequence: (sequenceId) => {
