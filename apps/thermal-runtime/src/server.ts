@@ -179,6 +179,7 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
   const navMsg = (): string => JSON.stringify({ type: 'nav', tree: rt.navTree(), alarmIndex: rt.navAlarmIndex(), home: rt.navHome() });
   const registryMsg = (): string => JSON.stringify({ type: 'registry', summary: rt.registrySummary() });
   const seqListMsg = (): string => JSON.stringify({ type: 'seq-list', items: rt.sequenceList() });
+  const tagsMsg = (): string => JSON.stringify({ type: 'tags', items: rt.recordedTags() }); // nguồn tag cho Screen Builder
   const ceStates = (): Array<{ matrixId: string; title: { vi: string; en: string }; state: unknown }> =>
     rt.causeEffectMatrices().map((mx) => ({ matrixId: mx.matrixId, title: mx.title, state: rt.causeEffectState(mx.matrixId) }));
   const ceMsg = (): string => JSON.stringify({ type: 'ce', matrices: ceStates() });
@@ -322,6 +323,7 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
     ws.send(registryMsg());
     ws.send(seqListMsg());
     ws.send(ceMsg());
+    ws.send(tagsMsg());
 
     ws.on('message', (data) => {
       let m: Command;

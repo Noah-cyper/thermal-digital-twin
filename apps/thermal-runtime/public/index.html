@@ -179,7 +179,8 @@
         <button data-rstart="1">▶ Replay lịch sử</button>
         <button data-resim="loss-of-vacuum">🟠 What-if: mất chân không</button>
         <button data-resim="load:600">🟠 What-if: tải 600 MW</button>
-        <button data-build="1" title="Screen Builder (L5): dựng màn hình từ danh sách tag, không gõ toạ độ">🧩 Tạo màn hình demo</button>
+        <button data-build="1" title="Dựng nhanh một màn hình demo mẫu">🧩 Màn hình demo</button>
+        <button id="openBuilder" title="Screen Builder (L5): chọn tag, kéo-thả sắp xếp, tạo màn hình — không code">🧩 Screen Builder…</button>
         <button data-ots="freeze" id="otsFreeze">Freeze (OTS)</button>
         <button data-ots="snapshot">Snapshot</button>
         <button data-ots="restore" id="otsRestore" disabled>Restore</button>
@@ -211,6 +212,28 @@
       <div id="resimLabel" style="font-size:13px;opacity:.8;margin-bottom:8px"></div>
       <canvas id="resimCanvas" width="480" height="180" style="width:100%;height:auto;background:rgba(127,127,127,.08);border-radius:4px"></canvas>
       <div style="font-size:11px;opacity:.6;margin-top:8px">Đường: công suất MW của nhánh giả định theo thời gian (500 bước, độc lập với sim live).</div>
+    </div>
+  </div>
+  <div id="builderModal" hidden style="position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center">
+    <div style="background:var(--panel,#141a20);color:var(--text,#e7edf2);border:1px solid var(--line,#2a343d);border-radius:8px;width:min(580px,95vw);max-height:88vh;overflow:auto;padding:16px 18px;font-size:13px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <b>🧩 Screen Builder (L5) — tạo màn hình không cần code</b>
+        <span id="builderX" style="cursor:pointer;opacity:.6;font-size:16px">✕</span></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+        <input id="bScreenId" placeholder="Mã màn hình (vd D3-cua-toi)" value="D3-cua-toi" style="flex:2;min-width:150px;background:var(--panel2,#0e1318);color:inherit;border:1px solid var(--line,#2a343d);border-radius:4px;padding:6px 8px">
+        <input id="bTitle" placeholder="Tiêu đề" value="Màn hình của tôi" style="flex:2;min-width:130px;background:var(--panel2,#0e1318);color:inherit;border:1px solid var(--line,#2a343d);border-radius:4px;padding:6px 8px">
+        <input id="bCols" type="number" min="1" max="6" value="4" title="Số cột" style="width:64px;background:var(--panel2,#0e1318);color:inherit;border:1px solid var(--line,#2a343d);border-radius:4px;padding:6px 8px">
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <input id="bTagPick" list="bTagList" placeholder="Gõ/chọn tag rồi + Thêm ô" style="flex:1;background:var(--panel2,#0e1318);color:inherit;border:1px solid var(--line,#2a343d);border-radius:4px;padding:6px 8px">
+        <datalist id="bTagList"></datalist>
+        <button id="bAddTile">+ Thêm ô</button>
+      </div>
+      <div id="bTiles" style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span id="bCount" style="font-size:12px;opacity:.7">0 ô</span>
+        <button id="bBuild" class="ackbtn">Tạo &amp; mở màn hình</button></div>
+      <div style="font-size:11px;opacity:.55;margin-top:10px">Kéo-thả các ô để đổi thứ tự. Cần vai <b>Engineer</b>. Màn hình sinh ra là JSON khai báo — kernel render (không hardcode).</div>
     </div>
   </div>
   <div id="advicePanel" hidden style="position:fixed;right:16px;bottom:16px;max-width:380px;z-index:50;
@@ -365,6 +388,34 @@
       if (t.length){ const b = document.createElement('button'); b.textContent = 'Reset'; b.onclick = () => send({ cmd: 'ce-reset', matrixId: mx.matrixId }); bar.appendChild(b); }
     }
   }
+  let builderTags = [];
+  let bTiles = [];
+  function openBuilder(){
+    $('bTagList').innerHTML = builderTags.map(t => '<option value="' + t + '"></option>').join('');
+    renderBTiles();
+    $('builderModal').hidden = false;
+  }
+  function renderBTiles(){
+    const c = $('bTiles'); c.innerHTML = '';
+    const inS = 'background:transparent;color:inherit;border:1px solid var(--line,#2a343d);border-radius:3px;padding:3px 5px;font-size:12px';
+    bTiles.forEach((t, i) => {
+      const row = document.createElement('div');
+      row.draggable = true;
+      row.style.cssText = 'display:flex;gap:6px;align-items:center;border:1px solid var(--line,#2a343d);border-radius:4px;padding:5px 7px;background:var(--panel2,#0e1318);cursor:grab';
+      const grip = document.createElement('span'); grip.textContent = '⋮⋮'; grip.style.opacity = '.5';
+      const nm = document.createElement('span'); nm.textContent = t.tag; nm.style.cssText = 'font-family:monospace;font-size:11px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+      const lbl = document.createElement('input'); lbl.placeholder = 'nhãn'; lbl.value = t.label; lbl.style.cssText = 'width:92px;' + inS; lbl.oninput = () => { t.label = lbl.value; };
+      const unit = document.createElement('input'); unit.placeholder = 'đv'; unit.value = t.unit; unit.style.cssText = 'width:48px;' + inS; unit.oninput = () => { t.unit = unit.value; };
+      const kind = document.createElement('select'); kind.style.cssText = inS; kind.innerHTML = '<option value="value">số</option><option value="bar">bar</option>'; kind.value = t.kind; kind.onchange = () => { t.kind = kind.value; };
+      const rm = document.createElement('span'); rm.textContent = '✕'; rm.style.cssText = 'cursor:pointer;opacity:.6'; rm.onclick = () => { bTiles.splice(i, 1); renderBTiles(); };
+      row.append(grip, nm, lbl, unit, kind, rm);
+      row.ondragstart = (e) => e.dataTransfer.setData('text/plain', String(i));
+      row.ondragover = (e) => e.preventDefault();
+      row.ondrop = (e) => { e.preventDefault(); const from = Number(e.dataTransfer.getData('text/plain')); if (from !== i){ const [mv] = bTiles.splice(from, 1); bTiles.splice(i, 0, mv); renderBTiles(); } };
+      c.appendChild(row);
+    });
+    $('bCount').textContent = bTiles.length + ' ô';
+  }
   function onResim(m){
     const r = m.result; if (!r || !r.trajectory) return;
     $('resimLabel').textContent = 'Kịch bản giả định: ' + m.label + ' · ' + r.trajectory.length + ' điểm quỹ đạo';
@@ -427,6 +478,7 @@
       else if (m.type === 'advice'){ onAdvice(m.advice); }
       else if (m.type === 'resim'){ onResim(m); }
       else if (m.type === 'built-screen'){ if (m.def){ openScreen(m.def.screenId); showToast('🧩 Đã tạo & mở màn hình: ' + m.def.screenId, true); } }
+      else if (m.type === 'tags'){ builderTags = m.items || []; }
     } catch {} };
   }
   const KPI_LABEL = { 'heat-rate': 'Heat rate', 'efficiency': 'Hiệu suất', 'steam-rate': 'Steam rate' };
@@ -545,6 +597,18 @@
     { tag: 'BLR_STEAM_FLOW_01', label: 'Hơi chính', unit: 't/h' },
     { tag: 'BLR_DRUM_LEVEL_01', label: 'Mức bao hơi', unit: 'mm', alarms: [{ when: 'gt', value: 250, sev: 1 }, { when: 'lt', value: -250, sev: 1 }] },
     { tag: 'BLR_FLUE_O2_01', label: 'O₂ khói', unit: '%' } ] } }));
+  $('openBuilder').onclick = openBuilder;
+  $('builderX').onclick = () => { $('builderModal').hidden = true; };
+  $('bAddTile').onclick = () => { const t = $('bTagPick').value.trim(); if (t){ bTiles.push({ tag: t, label: '', unit: '', kind: 'value' }); $('bTagPick').value = ''; renderBTiles(); } };
+  $('bBuild').onclick = () => {
+    const id = $('bScreenId').value.trim();
+    if (!id || !bTiles.length){ showToast('Cần mã màn hình + ít nhất 1 ô', false); return; }
+    const title = $('bTitle').value || id;
+    const spec = { screenId: id, level: 'D3', title: { vi: title, en: title }, cols: Number($('bCols').value) || 4,
+      tiles: bTiles.map(t => ({ tag: t.tag, label: t.label || undefined, unit: t.unit || undefined, kind: t.kind })) };
+    send({ cmd: 'build-screen', spec });
+    $('builderModal').hidden = true;
+  };
 
   let replayMode = false, seeking = false, blockedTimer = null;
   function setMode(mode){
