@@ -243,6 +243,22 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       valueTile('yard', 'COAL_YARD_DAYS_01', 'Dự trữ yard', 'ngày', 2, 1, [{ when: 'lt', value: 7, sev: 2 }]),
     ],
   },
+  {
+    screenId: 'D2-plant-balance',
+    level: 'D2',
+    title: { vi: 'Cân bằng năng lượng nhà máy', en: 'Plant Energy Balance' },
+    elements: [
+      // CAPSTONE (v1.26): kiểm chứng chéo bảo toàn năng lượng + KPI toàn nhà máy.
+      valueTile('ein', 'PLANT_ENERGY_IN_01', 'Nhiệt nhiên liệu', 'MWth', 0, 0),
+      valueTile('reject', 'PLANT_HEAT_REJECT_01', 'Nhiệt thải bình ngưng', 'MWth', 1, 0),
+      valueTile('bloss', 'PLANT_BOILER_LOSS_01', 'Tổn thất lò', 'MWth', 2, 0),
+      valueTile('clo', 'PLANT_ENERGY_CLOSURE_01', 'Khép cân bằng NL', '%', 3, 0, [{ when: 'lt', value: 97, sev: 2 }, { when: 'gt', value: 103, sev: 2 }]),
+      valueTile('neff', 'PLANT_NET_EFF_01', 'Hiệu suất net', '%', 0, 1),
+      valueTile('uhr', 'PLANT_UNIT_HR_NET_01', 'Heat rate đơn vị (net)', 'kJ/kWh', 1, 1),
+      valueTile('co2i', 'PLANT_CO2_INTENSITY_01', 'Cường độ CO₂', 'g/kWh', 2, 1),
+      valueTile('air', 'PLANT_AIR_FLOW_01', 'Gió cháy', 't/h', 3, 1),
+    ],
+  },
 ];
 
 /** Tất cả tag mà một screen tham chiếu (để subscribe theo màn hình — Tag/Realtime). */
