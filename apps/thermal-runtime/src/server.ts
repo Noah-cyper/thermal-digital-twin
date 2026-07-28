@@ -340,11 +340,16 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
         return;
       }
       if (m.cmd === 'login') {
-        const r = sec.authenticate(m.user ?? 'operator', 'p', clientIp);
+        const who = m.user ?? 'operator';
+        const r = sec.authenticate(who, 'p', clientIp);
         if ('access' in r) {
           tokens.set(ws, r.access);
           ws.send(authMsg(ws));
-        } else ws.send(JSON.stringify({ type: 'auth', ok: false, error: r.error }));
+          rt.logEvent('security', 'info', `Đăng nhập: ${who}`, who, clientIp);
+        } else {
+          ws.send(JSON.stringify({ type: 'auth', ok: false, error: r.error }));
+          rt.logEvent('security', 'warn', `Đăng nhập thất bại: ${who}`, who, clientIp);
+        }
         return;
       }
       if (m.cmd === 'audit-query') {
@@ -404,6 +409,10 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
         // Báo cáo ca/ngày READ-ONLY: chỉ cần đăng nhập.
         if (tokens.get(ws) === undefined) ws.send(JSON.stringify({ type: 'denied', reason: 'chưa đăng nhập' }));
         else void rt.generateReport(m.hours ?? 8).then((report) => ws.send(JSON.stringify({ type: 'report', report })));
+      } else if (m.cmd === 'journal') {
+        // Event Log / SOE READ-ONLY: chỉ cần đăng nhập; trả nhật ký + tổng hợp (không đụng thiết bị).
+        if (tokens.get(ws) === undefined) ws.send(JSON.stringify({ type: 'denied', reason: 'chưa đăng nhập' }));
+        else ws.send(JSON.stringify({ type: 'journal', entries: rt.eventLog({ limit: 150 }), summary: rt.eventSummary() }));
       } else if (m.cmd === 'replay-start') {
         const range = rt.historian.dataRange();
         if (range) {

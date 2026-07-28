@@ -182,6 +182,7 @@
         <button data-build="1" title="Dựng nhanh một màn hình demo mẫu">🧩 Màn hình demo</button>
         <button id="openBuilder" title="Screen Builder (L5): chọn tag, kéo-thả sắp xếp, tạo màn hình — không code">🧩 Screen Builder…</button>
         <button id="openReport" title="Báo cáo ca/ngày (doc 21): tổng hợp số liệu từ Historian">📋 Báo cáo ca</button>
+        <button id="openJournal" title="Event Log / SOE (màn hình hệ thống): nhật ký sự kiện alarm/trip/lệnh/chuỗi/bảo mật">📓 Nhật ký sự kiện</button>
         <button data-ots="freeze" id="otsFreeze">Freeze (OTS)</button>
         <button data-ots="snapshot">Snapshot</button>
         <button data-ots="restore" id="otsRestore" disabled>Restore</button>
@@ -221,6 +222,16 @@
         <b id="reportTitle">📋 Báo cáo vận hành</b>
         <span id="reportX" style="cursor:pointer;opacity:.6;font-size:16px">✕</span></div>
       <div id="reportBody"></div>
+    </div>
+  </div>
+  <div id="journalModal" hidden style="position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center">
+    <div style="background:var(--panel,#141a20);color:var(--text,#e7edf2);border:1px solid var(--line,#2a343d);border-radius:8px;width:min(720px,95vw);max-height:88vh;overflow:auto;padding:16px 18px;font-size:13px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <b>📓 Event Log / SOE — nhật ký sự kiện</b>
+        <span id="journalX" style="cursor:pointer;opacity:.6;font-size:16px">✕</span></div>
+      <div id="journalSummary" style="font-size:11px;opacity:.75;margin-bottom:8px"></div>
+      <div id="journalBody"></div>
+      <div class="note" style="margin-top:8px;font-size:11px;opacity:.6">Chỉ đọc (SOE) — ghi lại sự kiện đã xảy ra: alarm, trip, lệnh, chuỗi SFC, bảo mật, hệ thống. Không tác động thiết bị.</div>
     </div>
   </div>
   <div id="builderModal" hidden style="position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center">
@@ -418,6 +429,31 @@
     $('reportBody').innerHTML = html || '<p style="opacity:.6">Chưa đủ dữ liệu lịch sử.</p>';
     $('reportModal').hidden = false;
   }
+  function onJournal(m){
+    const esc = (s) => String(s == null ? '' : s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    const catColor = { alarm:'#E8952A', trip:'var(--alarm-1,#d9534f)', command:'#4a90d9', sequence:'#57a773', security:'#c9a227', system:'#8a94a0' };
+    const s = m.summary || { byCategory:{}, bySeverity:{}, total:0 };
+    const bc = s.byCategory || {}, bs = s.bySeverity || {};
+    $('journalSummary').innerHTML = 'Tổng: <b>' + (s.total||0) + '</b> · '
+      + Object.keys(bc).filter(k=>bc[k]).map(k=>'<span style="color:'+(catColor[k]||'inherit')+'">'+k+' '+bc[k]+'</span>').join(' · ')
+      + (bs.critical ? ' · <b style="color:var(--alarm-1,#d9534f)">critical '+bs.critical+'</b>' : '');
+    const rows = (m.entries || []).map(e => {
+      const t = e.at ? e.at.slice(11,19) : '';
+      const cc = catColor[e.category] || 'inherit';
+      const sc = e.severity === 'critical' ? 'var(--alarm-1,#d9534f)' : e.severity === 'warn' ? '#E8952A' : 'inherit';
+      const so = e.severity === 'info' ? 'opacity:.85' : 'font-weight:600';
+      return '<tr><td style="padding:3px 6px;font-family:monospace;opacity:.7;white-space:nowrap">' + esc(t) + '</td>'
+        + '<td style="padding:3px 6px"><span style="color:'+cc+';font-weight:600">'+esc(e.category)+'</span></td>'
+        + '<td style="padding:3px 6px;color:'+sc+';'+so+'">' + esc(e.message) + '</td>'
+        + '<td style="padding:3px 6px;opacity:.6;white-space:nowrap">' + esc(e.actor||'') + '</td></tr>';
+    }).join('');
+    $('journalBody').innerHTML = rows
+      ? '<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>'
+        + ['Giờ','Loại','Sự kiện','Người'].map(h=>'<th style="text-align:left;border-bottom:1px solid var(--line,#2a343d);padding:4px 6px;opacity:.6">'+h+'</th>').join('')
+        + '</tr></thead><tbody>' + rows + '</tbody></table>'
+      : '<p style="opacity:.6">Chưa có sự kiện nào.</p>';
+    $('journalModal').hidden = false;
+  }
   let builderTags = [];
   let bTiles = [];
   function openBuilder(){
@@ -510,6 +546,7 @@
       else if (m.type === 'built-screen'){ if (m.def){ openScreen(m.def.screenId); showToast('🧩 Đã tạo & mở màn hình: ' + m.def.screenId, true); } }
       else if (m.type === 'tags'){ builderTags = m.items || []; }
       else if (m.type === 'report'){ onReport(m.report); }
+      else if (m.type === 'journal'){ onJournal(m); }
     } catch {} };
   }
   const KPI_LABEL = { 'heat-rate': 'Heat rate', 'efficiency': 'Hiệu suất', 'steam-rate': 'Steam rate' };
@@ -630,6 +667,8 @@
     { tag: 'BLR_FLUE_O2_01', label: 'O₂ khói', unit: '%' } ] } }));
   $('openReport').onclick = () => send({ cmd: 'report', hours: 8 });
   $('reportX').onclick = () => { $('reportModal').hidden = true; };
+  $('openJournal').onclick = () => send({ cmd: 'journal' });
+  $('journalX').onclick = () => { $('journalModal').hidden = true; };
   $('openBuilder').onclick = openBuilder;
   $('builderX').onclick = () => { $('builderModal').hidden = true; };
   $('bAddTile').onclick = () => { const t = $('bTagPick').value.trim(); if (t){ bTiles.push({ tag: t, label: '', unit: '', kind: 'value' }); $('bTagPick').value = ''; renderBTiles(); } };
