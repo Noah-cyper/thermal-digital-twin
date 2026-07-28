@@ -1,0 +1,533 @@
+<title>IDTP · Thermal Power 600 MW — Digital Twin</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --bg: #0e141b; --panel: #161e27; --panel2: #1b2530; --line: #27323d;
+    --text: #e7edf2; --muted: #8a97a4; --dim: #5c6b78;
+    --accent: #38bdf8; --accent-dim: #0e7490;
+    --good: #3fb950; --warn: #e8952a; --crit: #e5484d;
+    --f-steam:#d9463a; --f-reheat:#e8791e; --f-fw:#2e6fd9; --f-cond:#29a38a;
+    --f-cw:#1fa5d6; --f-flue:#8b7355; --f-coal:#9a7b52; --f-power:#f0b429;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+    --sans: ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --r: 8px; --shadow: 0 1px 0 rgba(255,255,255,.03), 0 8px 24px rgba(0,0,0,.35);
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg:#eef1f4; --panel:#ffffff; --panel2:#f6f8fa; --line:#dde3e9;
+      --text:#18222c; --muted:#5c6b78; --dim:#8a97a4;
+      --accent:#0284c7; --accent-dim:#7dd3fc; --shadow:0 1px 2px rgba(16,32,48,.06), 0 8px 24px rgba(16,32,48,.08);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:#0e141b; --panel:#161e27; --panel2:#1b2530; --line:#27323d;
+    --text:#e7edf2; --muted:#8a97a4; --dim:#5c6b78; --accent:#38bdf8; --accent-dim:#0e7490;
+    --shadow:0 1px 0 rgba(255,255,255,.03), 0 8px 24px rgba(0,0,0,.35);
+  }
+  :root[data-theme="light"] {
+    --bg:#eef1f4; --panel:#ffffff; --panel2:#f6f8fa; --line:#dde3e9;
+    --text:#18222c; --muted:#5c6b78; --dim:#8a97a4; --accent:#0284c7; --accent-dim:#7dd3fc;
+    --shadow:0 1px 2px rgba(16,32,48,.06), 0 8px 24px rgba(16,32,48,.08);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans);
+    font-size: 13px; line-height: 1.45; -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1360px; margin: 0 auto; padding: 14px 16px 40px; }
+  h1,h2,h3 { margin: 0; font-weight: 600; text-wrap: balance; }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .lbl { font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+
+  /* ---- top bar ---- */
+  .topbar {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 14px 22px;
+    background: linear-gradient(180deg, var(--panel), var(--panel2));
+    border: 1px solid var(--line); border-radius: var(--r); padding: 12px 16px; box-shadow: var(--shadow);
+  }
+  .brand { display: flex; flex-direction: column; gap: 2px; margin-right: auto; }
+  .brand .t { font-size: 15px; font-weight: 700; letter-spacing: .01em; }
+  .brand .s { font-size: 11px; color: var(--muted); }
+  .mode { display: inline-flex; align-items: center; gap: 7px; font-weight: 700; font-size: 12px;
+    padding: 4px 11px; border-radius: 999px; letter-spacing: .05em; }
+  .mode .dot { width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 20%, transparent); }
+  .mode.live { color: var(--good); background: color-mix(in srgb, var(--good) 12%, transparent); }
+  .mode.frozen { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+  .mode.trip { color: var(--crit); background: color-mix(in srgb, var(--crit) 14%, transparent); }
+  .clock { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+  .kpis { display: flex; gap: 10px; flex-wrap: wrap; }
+  .kpi { min-width: 118px; background: var(--panel2); border: 1px solid var(--line); border-radius: 7px; padding: 8px 12px; }
+  .kpi .lbl { margin-bottom: 3px; }
+  .kpi .v { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 22px; font-weight: 600; line-height: 1.05; }
+  .kpi .u { font-size: 11px; color: var(--muted); font-weight: 500; }
+
+  section { margin-top: 14px; }
+  .sect-h { display: flex; align-items: baseline; gap: 10px; margin: 0 2px 9px; }
+  .sect-h h2 { font-size: 12.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--text); }
+  .sect-h .hint { font-size: 11px; color: var(--dim); }
+
+  /* ---- mimic ---- */
+  .mimic { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 6px; box-shadow: var(--shadow); overflow-x: auto; }
+  .mimic svg { display: block; width: 100%; height: auto; min-width: 860px; }
+  .eq { fill: var(--panel2); stroke: var(--line); stroke-width: 1.2; }
+  .eq.hot { stroke: color-mix(in srgb, var(--f-steam) 55%, var(--line)); }
+  .eqlbl { fill: var(--muted); font: 600 10px var(--sans); letter-spacing: .04em; text-transform: uppercase; }
+  .eqval { fill: var(--text); font: 600 12px var(--mono); }
+  .equ { fill: var(--muted); font: 10px var(--mono); }
+  .flow { fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-dasharray: 3 7; }
+  .flow.anim { animation: dash 1s linear infinite; }
+  @keyframes dash { to { stroke-dashoffset: -20; } }
+  @media (prefers-reduced-motion: reduce) { .flow.anim { animation: none; } }
+  .pin { fill: var(--dim); }
+
+  /* ---- subsystem grid ---- */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(248px, 1fr)); gap: 12px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 13px 13px; box-shadow: var(--shadow); }
+  .card h3 { font-size: 12px; letter-spacing: .03em; text-transform: uppercase; color: var(--text); display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .card h3 .tag { width: 8px; height: 8px; border-radius: 2px; }
+  .rows { display: grid; grid-template-columns: 1fr auto auto; gap: 5px 8px; align-items: baseline; }
+  .rows .k { color: var(--muted); font-size: 12px; }
+  .rows .val { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 14px; text-align: right; font-weight: 600; }
+  .rows .u { color: var(--dim); font-size: 10.5px; min-width: 42px; }
+  .val.warn { color: var(--warn); }
+  .val.crit { color: var(--crit); }
+  .val.good { color: var(--good); }
+
+  /* ---- energy balance ---- */
+  .two { display: grid; grid-template-columns: 1.35fr 1fr; gap: 12px; }
+  @media (max-width: 820px){ .two { grid-template-columns: 1fr; } }
+  .ebar { height: 30px; border-radius: 6px; overflow: hidden; display: flex; border: 1px solid var(--line); background: var(--panel2); }
+  .ebar > span { display: flex; align-items: center; justify-content: center; font: 600 11px var(--mono); color: #0c1116; white-space: nowrap; overflow: hidden; transition: flex-basis .4s ease; }
+  .seg-power { background: var(--f-power); }
+  .seg-reject { background: var(--f-cw); }
+  .seg-loss { background: var(--f-flue); color: #f0eadf; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 9px; font-size: 11px; color: var(--muted); }
+  .legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; margin-right: 5px; vertical-align: -1px; }
+
+  /* ---- alarms ---- */
+  .alarms { display: flex; flex-direction: column; gap: 6px; max-height: 210px; overflow-y: auto; }
+  .arow { display: flex; align-items: center; gap: 9px; padding: 6px 9px; background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; font-size: 12px; }
+  .prio { font: 700 10px var(--mono); padding: 2px 6px; border-radius: 4px; letter-spacing: .03em; }
+  .p1 { background: color-mix(in srgb, var(--crit) 18%, transparent); color: var(--crit); }
+  .p2 { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
+  .arow .at { margin-left: auto; color: var(--dim); font-family: var(--mono); font-size: 11px; }
+  .noalm { color: var(--good); font-size: 12px; padding: 8px 4px; }
+
+  /* ---- controls ---- */
+  .dock { position: sticky; bottom: 0; margin-top: 16px; background: color-mix(in srgb, var(--panel) 92%, transparent);
+    backdrop-filter: blur(8px); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; box-shadow: var(--shadow);
+    display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; }
+  .ctl { display: flex; align-items: center; gap: 10px; }
+  .ctl label { font-size: 11px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+  input[type=range] { width: 190px; accent-color: var(--accent); }
+  .load-read { font: 700 15px var(--mono); min-width: 92px; }
+  .btns { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+  button { font-family: var(--sans); font-size: 12px; font-weight: 600; color: var(--text); background: var(--panel2);
+    border: 1px solid var(--line); border-radius: 6px; padding: 7px 12px; cursor: pointer; transition: .12s; }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button.malf { border-color: color-mix(in srgb, var(--warn) 45%, var(--line)); }
+  button.malf:hover { color: var(--warn); border-color: var(--warn); }
+  button.on { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); border-color: var(--accent); }
+  .foot { margin-top: 14px; font-size: 11px; color: var(--dim); line-height: 1.6; }
+  .foot b { color: var(--muted); font-weight: 600; }
+</style>
+
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand">
+      <span class="t">Nhiệt điện than 600 MW — Digital Twin</span>
+      <span class="s">IDTP · plugin thermal-power-600 · subcritical drum-type reheat · 1×600 MW · lưới 500 kV</span>
+    </div>
+    <span id="mode" class="mode live"><span class="dot" style="background:currentColor"></span><span id="modeTxt">LIVE</span></span>
+    <span class="clock" id="clock">--:--:--</span>
+    <div class="kpis">
+      <div class="kpi"><div class="lbl">Công suất net</div><div><span class="v" id="k_net">—</span> <span class="u">MW</span></div></div>
+      <div class="kpi"><div class="lbl">Công suất gộp</div><div><span class="v" id="k_gross">—</span> <span class="u">MW</span></div></div>
+      <div class="kpi"><div class="lbl">Hiệu suất net</div><div><span class="v" id="k_eff">—</span> <span class="u">%</span></div></div>
+      <div class="kpi"><div class="lbl">Khép cân bằng NL</div><div><span class="v" id="k_clo">—</span> <span class="u">%</span></div></div>
+    </div>
+  </div>
+
+  <section>
+    <div class="sect-h"><h2>Sơ đồ công nghệ</h2><span class="hint">than → lò → turbine → máy phát → lưới · vòng nước tuần hoàn · đường khói</span></div>
+    <div class="mimic">
+      <svg viewBox="0 0 1000 430" role="img" aria-label="Sơ đồ nhà máy">
+        <!-- flows (drawn first, under boxes) -->
+        <polyline class="flow anim" style="stroke:var(--f-coal)" points="92,86 150,86"/>
+        <polyline class="flow anim" style="stroke:var(--f-steam)" points="250,70 250,44 470,44"/>
+        <polyline class="flow anim" style="stroke:var(--f-reheat)" points="560,58 560,92 250,92 250,74"/>
+        <polyline class="flow anim" style="stroke:var(--f-power)" points="690,44 760,44"/>
+        <polyline class="flow anim" style="stroke:var(--f-power)" points="850,58 850,86 918,86"/>
+        <polyline class="flow anim" style="stroke:var(--f-cond)" points="560,120 560,300 250,300 250,120"/>
+        <polyline class="flow anim" style="stroke:var(--f-cw)" points="560,330 700,330"/>
+        <polyline class="flow anim" style="stroke:var(--f-cw)" points="820,318 820,300"/>
+        <polyline class="flow anim" style="stroke:var(--f-cw)" points="700,360 560,360"/>
+        <polyline class="flow anim" style="stroke:var(--f-fw)" points="250,330 150,330 150,120"/>
+        <polyline class="flow anim" style="stroke:var(--f-flue)" points="150,120 150,210 250,210"/>
+        <polyline class="flow anim" style="stroke:var(--f-flue)" points="350,210 470,210"/>
+        <polyline class="flow anim" style="stroke:var(--f-flue)" points="590,210 700,210"/>
+        <polyline class="flow anim" style="stroke:var(--f-flue)" points="820,196 820,120"/>
+
+        <!-- COAL -->
+        <rect class="eq" x="24" y="60" width="68" height="52" rx="5"/>
+        <text class="eqlbl" x="58" y="76" text-anchor="middle">Than</text>
+        <text class="eqval" x="58" y="93" text-anchor="middle" id="m_coal">—</text>
+        <text class="equ" x="58" y="105" text-anchor="middle">t/h</text>
+
+        <!-- BOILER -->
+        <rect class="eq hot" x="150" y="60" width="100" height="120" rx="6"/>
+        <text class="eqlbl" x="200" y="78" text-anchor="middle">Lò hơi</text>
+        <text class="eqval" x="200" y="98" text-anchor="middle" id="m_steam">—</text>
+        <text class="equ" x="200" y="110" text-anchor="middle">t/h hơi</text>
+        <text class="eqval" x="200" y="132" text-anchor="middle" id="m_press">—</text>
+        <text class="equ" x="200" y="144" text-anchor="middle">MPa · SH °C</text>
+        <text class="eqval" x="200" y="166" text-anchor="middle" id="m_shT">—</text>
+
+        <!-- HP/IP/LP TURBINE -->
+        <rect class="eq hot" x="470" y="24" width="120" height="86" rx="6"/>
+        <text class="eqlbl" x="530" y="42" text-anchor="middle">Turbine HP·IP·LP</text>
+        <text class="eqval" x="530" y="66" text-anchor="middle" id="m_hplp">—</text>
+        <text class="equ" x="530" y="78" text-anchor="middle">MW theo tầng</text>
+        <text class="eqval" x="530" y="98" text-anchor="middle" id="m_rhT">—</text>
+
+        <!-- GENERATOR -->
+        <rect class="eq" x="760" y="24" width="90" height="56" rx="28"/>
+        <text class="eqlbl" x="805" y="42" text-anchor="middle">Máy phát</text>
+        <text class="eqval" x="805" y="62" text-anchor="middle" id="m_mw">—</text>
+        <text class="equ" x="805" y="74" text-anchor="middle">MW gộp</text>
+
+        <!-- GSU / GRID -->
+        <rect class="eq" x="918" y="60" width="58" height="52" rx="5"/>
+        <text class="eqlbl" x="947" y="76" text-anchor="middle">Lưới</text>
+        <text class="eqval" x="947" y="93" text-anchor="middle" id="m_grid">—</text>
+        <text class="equ" x="947" y="105" text-anchor="middle">MW · 500kV</text>
+
+        <!-- CONDENSER -->
+        <rect class="eq" x="470" y="270" width="120" height="66" rx="6"/>
+        <text class="eqlbl" x="530" y="288" text-anchor="middle">Bình ngưng</text>
+        <text class="eqval" x="530" y="308" text-anchor="middle" id="m_vac">—</text>
+        <text class="equ" x="530" y="320" text-anchor="middle">kPa · thải MWth</text>
+        <text class="eqval" x="530" y="332" text-anchor="middle" id="m_creject">—</text>
+
+        <!-- COOLING TOWER -->
+        <path class="eq" d="M700,372 L716,318 L784,318 L800,372 Z"/>
+        <text class="eqlbl" x="750" y="336" text-anchor="middle">Tháp làm mát</text>
+        <text class="eqval" x="750" y="356" text-anchor="middle" id="m_ct">—</text>
+        <text class="equ" x="750" y="368" text-anchor="middle">CW cấp °C</text>
+
+        <!-- FEEDWATER -->
+        <rect class="eq" x="470" y="270" width="0" height="0"/>
+        <text class="eqlbl" x="150" y="250" text-anchor="middle">Nước cấp → econ</text>
+        <text class="eqval" x="150" y="268" text-anchor="middle" id="m_fw">—</text>
+        <text class="equ" x="150" y="280" text-anchor="middle">°C</text>
+
+        <!-- AIR HEATER -->
+        <rect class="eq" x="250" y="184" width="100" height="52" rx="5"/>
+        <text class="eqlbl" x="300" y="202" text-anchor="middle">Air heater</text>
+        <text class="eqval" x="300" y="221" text-anchor="middle" id="m_beff">—</text>
+        <text class="equ" x="300" y="232" text-anchor="middle">% η lò</text>
+
+        <!-- ESP/FGD -->
+        <rect class="eq" x="470" y="184" width="120" height="52" rx="5"/>
+        <text class="eqlbl" x="530" y="202" text-anchor="middle">ESP · FGD</text>
+        <text class="eqval" x="530" y="221" text-anchor="middle" id="m_dust">—</text>
+        <text class="equ" x="530" y="232" text-anchor="middle">bụi mg/Nm³</text>
+
+        <!-- STACK -->
+        <rect class="eq" x="700" y="184" width="60" height="52" rx="5"/>
+        <text class="eqlbl" x="730" y="202" text-anchor="middle">Ống khói</text>
+        <text class="eqval" x="730" y="221" text-anchor="middle" id="m_co2">—</text>
+        <text class="equ" x="730" y="232" text-anchor="middle">CO₂ t/h</text>
+      </svg>
+    </div>
+  </section>
+
+  <section>
+    <div class="sect-h"><h2>Hệ thống</h2><span class="hint">giá trị trung tính · chỉ đổi màu khi bất thường (ISA-101)</span></div>
+    <div class="grid" id="cards"></div>
+  </section>
+
+  <section class="two">
+    <div>
+      <div class="sect-h"><h2>Cân bằng năng lượng</h2><span class="hint">nhiên liệu = công suất gộp + nhiệt thải + tổn thất lò</span></div>
+      <div class="card">
+        <div class="ebar" id="ebar">
+          <span class="seg-power" id="seg_power"></span>
+          <span class="seg-reject" id="seg_reject"></span>
+          <span class="seg-loss" id="seg_loss"></span>
+        </div>
+        <div class="legend">
+          <span><i style="background:var(--f-power)"></i>Công suất gộp <b class="num" id="l_power">—</b></span>
+          <span><i style="background:var(--f-cw)"></i>Nhiệt thải <b class="num" id="l_reject">—</b></span>
+          <span><i style="background:var(--f-flue)"></i>Tổn thất lò <b class="num" id="l_loss">—</b></span>
+          <span style="margin-left:auto">Nhiên liệu <b class="num" id="l_fuel">—</b> MWth · khép <b class="num" id="l_clo">—</b>%</span>
+        </div>
+        <div class="rows" style="margin-top:12px;grid-template-columns:1fr auto 1fr auto">
+          <span class="k">Heat rate đơn vị (net)</span><span class="val" id="pb_hr">—</span>
+          <span class="k">Cường độ CO₂</span><span class="val" id="pb_co2i">—</span>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="sect-h"><h2>Alarm đang hoạt động</h2><span class="hint" id="almcnt">0</span></div>
+      <div class="card"><div class="alarms" id="alarms"><div class="noalm">✓ Không có alarm — vận hành bình thường</div></div></div>
+    </div>
+  </section>
+
+  <div class="dock">
+    <div class="ctl">
+      <label for="load">Đặt tải</label>
+      <input type="range" id="load" min="150" max="600" step="2" value="448" />
+      <span class="load-read"><span id="loadRead">448</span> MW</span>
+    </div>
+    <div class="btns">
+      <button class="malf" id="b_leak">Rò ống lò</button>
+      <button class="malf" id="b_vac">Mất chân không</button>
+      <button class="malf" id="b_mill">Trip mill</button>
+      <button id="b_clear">Xoá sự cố</button>
+      <button id="b_freeze">Freeze</button>
+      <button id="b_theme" title="Đổi sáng/tối">◐</button>
+    </div>
+  </div>
+
+  <div class="foot">
+    <b>Mô phỏng chạy trong trình duyệt</b> — cùng cơ sở Design Basis (Phụ lục A) và cân bằng năng lượng như 12 mô hình sim của runtime; nhiễu analog LCG có seed (không <code>Math.random</code>). Số ngoài Design Basis là <b>[GIẢ ĐỊNH]</b> (registry doc 25).
+    <b>Lưu ý hiệu suất:</b> hiệu suất net ~33% &lt; 39% thiết kế do enthalpy chu trình [GIẢ ĐỊNH] bảo thủ — cân bằng năng lượng vẫn khép ~100% (nhất quán nội bộ), chênh với thiết kế là hạng mục calibrate M-06 (heat balance nhà chế tạo). Đây là bản <b>tự chứa để giám sát</b>; runtime thật phục vụ qua WebSocket + Historian + RBAC.
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  // ---------- Design Basis (Phụ lục A §3) ----------
+  const BMCR=2008, MW_GROSS=600, LHV=21500, MW_PER_TPH=MW_GROSS/BMCR; // 0.2988
+  const START = Date.parse('2026-07-24T03:00:00Z'); // 10:00 +07:00
+  // ---------- seeded LCG noise (không Math.random) ----------
+  let seed=1234567; function rnd(){ seed=(seed*1664525+1013904223)>>>0; return seed/4294967296; }
+  const nz=a=>(rnd()-0.5)*a;
+  const clamp=(x,a,b)=>Math.min(b,Math.max(a,x));
+  // ---------- state ----------
+  const S={ steam:1500, coal:211, press:17.5, shT:541, drum:0, o2:3.2, vac:5.4, mw:448,
+    speed:3000, tEcon:255, tDea:170, tCw:5, ferozen:false };
+  let loadSP=448, frozen=false, tripped=false;
+  const malf={ leak:0, vac:0, mill:0 }; // leak rate, vac target, mill runback
+  let simMs=0;
+
+  function step(dt){
+    // load / steam demand
+    let cap = 1 - malf.mill*0.25;                    // mill trip → giảm công suất ~25%
+    let dem = clamp(loadSP, 0, MW_GROSS) / MW_PER_TPH; // hơi yêu cầu (t/h)
+    dem = Math.min(dem, BMCR*cap);
+    if(tripped) dem = 0;
+    S.steam += (dem - S.steam) * clamp(dt/8,0,1);     // FOPTD ~8s
+    S.steam = Math.max(0, S.steam + nz(3));
+    // coal theo hơi (η lò ~88%): 211 t/h ↔ 1500 t/h
+    S.coal = Math.max(0, S.steam*0.1407 + nz(0.6));
+    // áp & nhiệt (CCS giữ; sập khi trip/không hơi)
+    const lf = clamp(S.steam/BMCR,0,1.1);
+    let pT = tripped ? 2 : 17.5*(0.6+0.4*lf) + 0.4;   // ~17.5 vận hành
+    S.press += (pT-S.press)*clamp(dt/6,0,1) + nz(0.02);
+    let sT = (S.steam<80)?260:541;
+    S.shT += (sT-S.shT)*clamp(dt/10,0,1) + nz(0.4);
+    // drum level: rò ống → tụt; CCS bù tới ~600 t/h
+    const leakNet = malf.leak - Math.min(malf.leak,600);
+    S.drum += (-leakNet*dt*0.28) + (-(S.drum))*clamp(dt/12,0,1) + nz(1.2);
+    // MFT nếu drum < -250
+    if(S.drum < -250) tripped=true;
+    // vacuum: malf đẩy lên; hồi phục 5.4
+    let vT = malf.vac>0 ? malf.vac : 5.4;
+    S.vac += (vT-S.vac)*clamp(dt/6,0,1) + nz(0.03);
+    if(S.vac > 20) tripped=true;                       // turbine trip chân không
+    S.o2 = clamp(3.2 + nz(0.12) + (1-lf)*0.6, 1.5, 8);
+    // MW = min(lệnh, hơi sinh) × hệ số chân không
+    const vacF = clamp(1-(S.vac-5.4)/40,0.5,1);
+    let mwT = tripped ? 0 : Math.min(loadSP, S.steam*MW_PER_TPH) * vacF;
+    S.mw += (mwT-S.mw)*clamp(dt/5,0,1); S.mw=Math.max(0,S.mw);
+    S.speed += ((tripped?0:3000) - S.speed + nz(4))*clamp(dt/5,0,1); if(tripped) S.speed*= (1-dt*0.03);
+    // feedwater temps theo tải (regen)
+    const reg=clamp(0.5+0.5*lf,0,1);
+    S.tEcon += ((34+(283-34)*reg)-S.tEcon)*clamp(dt/8,0,1);
+    S.tDea  += ((34+(178-34)*reg)-S.tDea)*clamp(dt/8,0,1);
+    simMs += dt*1000;
+  }
+
+  // ---------- derived (đọc từ state, đúng các model) ----------
+  function derive(){
+    const g=S.mw, steam=S.steam, coal=S.coal, vac=S.vac, o2=S.o2, lf=clamp(steam/BMCR,0,1.1);
+    // reheat
+    const crhP=S.press*0.24, hrhP=Math.max(0,crhP-0.4), crhT=Math.max(200,S.shT-211);
+    const hrhT=(steam>80)?Math.min(541,S.shT)-60*(1-clamp(lf,0,1)):200;
+    const hp=g*0.28, ip=g*0.30, lp=g*0.42, reheatDuty=(steam>80)?(steam/3.6)*0.526:0;
+    // feedwater / cycle heat rate
+    const cycleHR = g>1 ? ((steam/3.6*2145 + reheatDuty*1000)*3600)/(g*1000) : 0;
+    // condenser
+    const qIn = cycleHR*g/3600, qCond=Math.max(0,qIn-g);
+    const cwRise = qCond>0 ? (qCond*1000)/(17777.8*4.18) : 0;
+    const satT = clamp(1.8+19.1*Math.log(Math.max(0.5,vac)),10,100);
+    const cwOut=satT-2.8, cwIn=cwOut-cwRise;
+    // cooling tower
+    const evap=qCond>0?qCond*1.5:0, makeup=evap*1.5, wetbulb=27, ctSupply=31;
+    // electrical
+    const mvar=0.62*g, mva=Math.sqrt(g*g+mvar*mvar), pf=mva>1?g/mva:1;
+    const aux=g>1?12+30*(g/600):0, net=g-aux, grid=net>0?net*0.996:0, gsuLoad=mva/720*100;
+    // fluegas / boiler eff
+    const lambda=21/Math.max(1e-3,21-o2), excess=o2/Math.max(1e-3,21-o2)*100;
+    const fgFlow=coal>5?coal*(1+10*lambda):0;
+    const qFuel=coal/3.6*LHV/1000; // MWth
+    const boilerEff=qFuel>1?clamp((cycleHR*g/3.6)/(coal/3.6*LHV)*100,0,100):0;
+    const stackT=coal>5?30+(130-30)*(0.6+0.4*clamp(lf,0,1)):30;
+    // emissions
+    const vFg=fgFlow>0?fgFlow*1000/1.3:0;
+    const dust=vFg>1?(coal*1000*0.15*0.85*(1-0.9977)*1e6)/vFg:0;
+    const so2=vFg>1?(coal*1000*0.006*2*0.05*1e6)/vFg:0;
+    const nox=coal>5?320*clamp(1+(excess-18)/120,0.7,1.4):0;
+    const co2=coal*1000*0.62*3.6667/1000;
+    // coal handling
+    const mills=coal>1?clamp(Math.ceil(coal/60),1,6):0;
+    const millLoad=mills>0?coal/mills/60*100:0, feeder=mills>0?coal/mills:0;
+    const yardDays=coal>1?180000/(coal*24):0;
+    // plant balance
+    const boilerLoss=qFuel*(1-boilerEff/100), energyOut=g+qCond+boilerLoss;
+    const closure=qFuel>1?energyOut/qFuel*100:0, netEff=qFuel>1?net/qFuel*100:0;
+    const unitHR=net>1?qFuel*3600/net:0, co2Int=net>1?co2*1000/net:0;
+    return {g,steam,coal,press:S.press,shT:S.shT,drum:S.drum,o2,vac,speed:S.speed,freq:S.speed/60,
+      crhT,hrhT,hp,ip,lp,reheatDuty,cycleHR,tEcon:S.tEcon,tDea:S.tDea,
+      qCond,cwRise,satT,cwOut,cwIn,evap,makeup,wetbulb,ctSupply,
+      mva,pf,aux,net,grid,gsuLoad,boilerEff,excess,fgFlow,stackT,
+      dust,so2,nox,co2,mills,millLoad,feeder,yardDays,
+      qFuel,boilerLoss,closure,netEff,unitHR,co2Int};
+  }
+
+  // ---------- cards (data-driven) ----------
+  const CARDS=[
+    {t:'Lò hơi', c:'var(--f-steam)', r:[
+      ['Lưu lượng hơi','steam','t/h',0], ['Áp hơi chính','press','MPa',1], ['Nhiệt hơi chính','shT','°C',0,{lo:531,hi:551,w:5}],
+      ['Mức bao hơi','drum','mm',0,{lo:-150,hi:150,c:250}], ['O₂ khói','o2','%',1,{lo:2.5,hi:5}], ['Lưu lượng than','coal','t/h',0] ]},
+    {t:'Turbine · Tái nhiệt', c:'var(--f-reheat)', r:[
+      ['Tốc độ','speed','rpm',0,{lo:2850,hi:3120}], ['Tần số','freq','Hz',2,{lo:49.5,hi:50.5}], ['Hot reheat','hrhT','°C',0,{lo:500,hi:560}],
+      ['Công suất HP','hp','MW',0], ['Công suất IP','ip','MW',0], ['Công suất LP','lp','MW',0] ]},
+    {t:'Nước cấp · Heat rate', c:'var(--f-fw)', r:[
+      ['Nước cấp → econ','tEcon','°C',0], ['Deaerator','tDea','°C',0], ['Reheat duty','reheatDuty','MWth',0],
+      ['Heat rate chu trình','cycleHR','kJ/kWh',0] ]},
+    {t:'Bình ngưng · CW', c:'var(--f-cw)', r:[
+      ['Chân không','vac','kPa',1,{lo:3,hi:12}], ['Nhiệt thải','qCond','MWth',0], ['Nhiệt bão hoà','satT','°C',0],
+      ['CW vào','cwIn','°C',0], ['CW ra','cwOut','°C',0], ['Độ tăng nhiệt CW','cwRise','°C',1] ]},
+    {t:'Tháp làm mát', c:'var(--f-cw)', r:[
+      ['Bầu ướt','wetbulb','°C',0], ['CW cấp','ctSupply','°C',0], ['Bốc hơi','evap','t/h',0], ['Nước bổ sung','makeup','t/h',0] ]},
+    {t:'Điện · Xuất lưới', c:'var(--f-power)', r:[
+      ['Công suất net','net','MW',0], ['Tự dùng','aux','MW',0], ['Xuất lưới','grid','MW',0],
+      ['Biểu kiến','mva','MVA',0], ['Hệ số công suất','pf','',2,{lo:0.85,hi:1.0}], ['Tải GSU','gsuLoad','%',0,{hi:100}] ]},
+    {t:'Đường khói · Hiệu suất', c:'var(--f-flue)', r:[
+      ['Hiệu suất lò','boilerEff','%',1,{lo:82}], ['Gió thừa','excess','%',0,{hi:40}], ['Lưu lượng khói','fgFlow','t/h',0], ['Nhiệt ống khói','stackT','°C',0,{hi:150}] ]},
+    {t:'Phát thải (CEMS)', c:'var(--f-flue)', r:[
+      ['Bụi ra','dust','mg/Nm³',1,{hi:30}], ['SO₂','so2','mg/Nm³',0,{hi:200}], ['NOₓ','nox','mg/Nm³',0,{hi:500}], ['CO₂','co2','t/h',0] ]},
+    {t:'Cung cấp than', c:'var(--f-coal)', r:[
+      ['Máy nghiền chạy','mills','',0], ['Tải máy nghiền','millLoad','%',0,{hi:100}], ['Suất feeder','feeder','t/h',1], ['Dự trữ yard','yardDays','ngày',0,{lo:7}] ]},
+  ];
+  const cardsEl=document.getElementById('cards'); const valEls={};
+  CARDS.forEach((c,ci)=>{
+    const card=document.createElement('div'); card.className='card';
+    let h='<h3><span class="tag" style="background:'+c.c+'"></span>'+c.t+'</h3><div class="rows">';
+    c.r.forEach((row,ri)=>{ const id='v'+ci+'_'+ri;
+      h+='<span class="k">'+row[0]+'</span><span class="val" id="'+id+'">—</span><span class="u">'+row[2]+'</span>'; });
+    h+='</div>'; card.innerHTML=h; cardsEl.appendChild(card);
+    c.r.forEach((row,ri)=>{ valEls['v'+ci+'_'+ri]={key:row[1],dec:row[3],lim:row[4]}; });
+  });
+
+  function fmt(v,d){ if(v===undefined||v===null||isNaN(v)) return '—'; return v.toFixed(d); }
+  function limClass(v,lim){ if(!lim) return '';
+    if(lim.c!==undefined && Math.abs(v)>=lim.c) return 'crit';
+    if(lim.lo!==undefined && v<lim.lo) return (lim.w&&v<lim.lo-lim.w)?'crit':'warn';
+    if(lim.hi!==undefined && v>lim.hi) return (lim.w&&v>lim.hi+lim.w)?'crit':'warn';
+    return ''; }
+
+  // ---------- alarms ----------
+  function alarms(D){
+    const A=[];
+    if(D.drum>250||D.drum<-250) A.push(['P1','Mức bao hơi tới hạn (MFT)']);
+    else if(D.drum>150||D.drum<-150) A.push(['P2','Lệch mức bao hơi']);
+    if(D.vac>20) A.push(['P1','Chân không thấp — turbine trip']);
+    else if(D.vac>12) A.push(['P2','Chân không suy giảm']);
+    if(tripped) A.push(['P1','Tổ máy TRIP (MFT / turbine trip)']);
+    if(D.shT>551) A.push(['P2','Nhiệt hơi chính cao']);
+    if(D.o2<2.5) A.push(['P1','O₂ khói thấp — cháy thiếu gió']);
+    if(D.dust>30) A.push(['P2','Bụi ra vượt 30 mg/Nm³']);
+    if(D.hrhT<500&&D.steam>200) A.push(['P2','Nhiệt hot reheat thấp']);
+    if(D.gsuLoad>100) A.push(['P2','Quá tải máy biến áp GSU']);
+    if(malf.mill>0) A.push(['P2','Mill trip — runback']);
+    return A;
+  }
+
+  // ---------- render ----------
+  function render(){
+    const D=derive();
+    // KPIs
+    document.getElementById('k_net').textContent=fmt(D.net,0);
+    document.getElementById('k_gross').textContent=fmt(D.g,0);
+    document.getElementById('k_eff').textContent=fmt(D.netEff,1);
+    const kc=document.getElementById('k_clo'); kc.textContent=fmt(D.closure,0);
+    kc.className='v '+((D.closure>97&&D.closure<103)?'':'');
+    // mimic
+    const set=(id,v)=>{const e=document.getElementById(id); if(e) e.textContent=v;};
+    set('m_coal',fmt(D.coal,0)); set('m_steam',fmt(D.steam,0)); set('m_press',fmt(D.press,1)); set('m_shT',fmt(D.shT,0)+'°C');
+    set('m_hplp',fmt(D.hp,0)+' / '+fmt(D.ip,0)+' / '+fmt(D.lp,0)); set('m_rhT',fmt(D.hrhT,0)+'°C RH');
+    set('m_mw',fmt(D.g,0)); set('m_grid',fmt(D.grid,0)); set('m_vac',fmt(D.vac,1)); set('m_creject',fmt(D.qCond,0)+' MWth');
+    set('m_ct',fmt(D.ctSupply,0)); set('m_fw',fmt(D.tEcon,0)); set('m_beff',fmt(D.boilerEff,0));
+    set('m_dust',fmt(D.dust,1)); set('m_co2',fmt(D.co2,0));
+    // cards
+    for(const id in valEls){ const cfg=valEls[id], el=document.getElementById(id);
+      const v=D[cfg.key]; el.textContent=fmt(v,cfg.dec);
+      el.className='val '+limClass(v,cfg.lim); }
+    // energy bar
+    const tot=Math.max(1,D.qFuel);
+    document.getElementById('seg_power').style.flexBasis=(D.g/tot*100)+'%';
+    document.getElementById('seg_reject').style.flexBasis=(D.qCond/tot*100)+'%';
+    document.getElementById('seg_loss').style.flexBasis=(D.boilerLoss/tot*100)+'%';
+    document.getElementById('seg_power').textContent=D.g>60?fmt(D.g,0):'';
+    document.getElementById('seg_reject').textContent=D.qCond>60?fmt(D.qCond,0):'';
+    document.getElementById('seg_loss').textContent=D.boilerLoss>50?fmt(D.boilerLoss,0):'';
+    document.getElementById('l_power').textContent=fmt(D.g,0);
+    document.getElementById('l_reject').textContent=fmt(D.qCond,0);
+    document.getElementById('l_loss').textContent=fmt(D.boilerLoss,0);
+    document.getElementById('l_fuel').textContent=fmt(D.qFuel,0);
+    document.getElementById('l_clo').textContent=fmt(D.closure,0);
+    document.getElementById('pb_hr').textContent=fmt(D.unitHR,0)+' kJ/kWh';
+    document.getElementById('pb_co2i').textContent=fmt(D.co2Int,0)+' g/kWh';
+    // alarms
+    const A=alarms(D), box=document.getElementById('alarms');
+    document.getElementById('almcnt').textContent=A.length+' active';
+    if(A.length===0){ box.innerHTML='<div class="noalm">✓ Không có alarm — vận hành bình thường</div>'; }
+    else { box.innerHTML=A.map(a=>'<div class="arow"><span class="prio '+(a[0]==='P1'?'p1':'p2')+'">'+a[0]+'</span>'+a[1]+'<span class="at">'+clk()+'</span></div>').join(''); }
+    // mode
+    const md=document.getElementById('mode'), mt=document.getElementById('modeTxt');
+    if(tripped){ md.className='mode trip'; mt.textContent='TRIP'; }
+    else if(frozen){ md.className='mode frozen'; mt.textContent='FROZEN'; }
+    else { md.className='mode live'; mt.textContent='LIVE'; }
+    document.getElementById('clock').textContent=clk();
+  }
+  function clk(){ const d=new Date(START+simMs); return d.toISOString().slice(11,19); }
+
+  // ---------- loop ----------
+  function tick(){ if(!frozen){ for(let i=0;i<3;i++) step(0.34); } render(); }
+  setInterval(tick, 260);
+  render();
+
+  // ---------- controls ----------
+  const load=document.getElementById('load');
+  load.addEventListener('input',()=>{ loadSP=+load.value; document.getElementById('loadRead').textContent=load.value; });
+  document.getElementById('b_leak').onclick=e=>{ malf.leak=malf.leak?0:800; e.target.classList.toggle('on',!!malf.leak); };
+  document.getElementById('b_vac').onclick=e=>{ malf.vac=malf.vac?0:30; e.target.classList.toggle('on',!!malf.vac); };
+  document.getElementById('b_mill').onclick=e=>{ malf.mill=malf.mill?0:1; e.target.classList.toggle('on',!!malf.mill); };
+  document.getElementById('b_clear').onclick=()=>{ malf.leak=0;malf.vac=0;malf.mill=0; tripped=false; S.drum=0;S.vac=5.4;
+    ['b_leak','b_vac','b_mill'].forEach(id=>document.getElementById(id).classList.remove('on')); };
+  document.getElementById('b_freeze').onclick=e=>{ frozen=!frozen; e.target.classList.toggle('on',frozen); e.target.textContent=frozen?'Run':'Freeze'; };
+  // theme toggle
+  const root=document.documentElement;
+  document.getElementById('b_theme').onclick=()=>{
+    const cur=root.getAttribute('data-theme')|| (matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+    root.setAttribute('data-theme', cur==='dark'?'light':'dark');
+  };
+})();
+</script>
