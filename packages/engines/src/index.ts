@@ -24,3 +24,4 @@ export * from './ai-advisor';
 export * from './screen-builder';
 export * from './predictive-maintenance';
 export * from './registry-sim';
+export * from './report-engine';
