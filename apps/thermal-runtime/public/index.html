@@ -183,6 +183,7 @@
         <button id="openBuilder" title="Screen Builder (L5): chọn tag, kéo-thả sắp xếp, tạo màn hình — không code">🧩 Screen Builder…</button>
         <button id="openReport" title="Báo cáo ca/ngày (doc 21): tổng hợp số liệu từ Historian">📋 Báo cáo ca</button>
         <button id="openJournal" title="Event Log / SOE (màn hình hệ thống): nhật ký sự kiện alarm/trip/lệnh/chuỗi/bảo mật">📓 Nhật ký sự kiện</button>
+        <button id="openDiag" title="System Diagnostic (màn hình hệ thống): tự soi trạng thái sim/tag/loop/historian/alarm/journal">🩺 Chẩn đoán hệ thống</button>
         <button data-ots="freeze" id="otsFreeze">Freeze (OTS)</button>
         <button data-ots="snapshot">Snapshot</button>
         <button data-ots="restore" id="otsRestore" disabled>Restore</button>
@@ -232,6 +233,15 @@
       <div id="journalSummary" style="font-size:11px;opacity:.75;margin-bottom:8px"></div>
       <div id="journalBody"></div>
       <div class="note" style="margin-top:8px;font-size:11px;opacity:.6">Chỉ đọc (SOE) — ghi lại sự kiện đã xảy ra: alarm, trip, lệnh, chuỗi SFC, bảo mật, hệ thống. Không tác động thiết bị.</div>
+    </div>
+  </div>
+  <div id="diagModal" hidden style="position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center">
+    <div style="background:var(--panel,#141a20);color:var(--text,#e7edf2);border:1px solid var(--line,#2a343d);border-radius:8px;width:min(560px,95vw);max-height:88vh;overflow:auto;padding:16px 18px;font-size:13px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <b>🩺 System Diagnostic — tự soi trạng thái nền tảng</b>
+        <span id="diagX" style="cursor:pointer;opacity:.6;font-size:16px">✕</span></div>
+      <div id="diagBody"></div>
+      <div class="note" style="margin-top:8px;font-size:11px;opacity:.6">Chỉ đọc — số liệu lấy từ nguồn thật của runtime (sim/tag/loop/historian/alarm/journal). Không tác động thiết bị.</div>
     </div>
   </div>
   <div id="builderModal" hidden style="position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center">
@@ -454,6 +464,23 @@
       : '<p style="opacity:.6">Chưa có sự kiện nào.</p>';
     $('journalModal').hidden = false;
   }
+  function onDiag(d){
+    if (!d) return;
+    const esc = (s) => String(s == null ? '' : s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    const row = (k, v) => '<tr><td style="padding:4px 8px;opacity:.6;white-space:nowrap;vertical-align:top">'+k+'</td><td style="padding:4px 8px;font-family:monospace">'+v+'</td></tr>';
+    const bp = d.alarms.byPriority || {};
+    const clk = d.sim.clock ? esc(d.sim.clock.slice(0,19).replace('T',' ')) : '—';
+    let html = '<table style="width:100%;border-collapse:collapse;font-size:12px">';
+    html += row('Mô phỏng', 'bước ' + d.sim.steps + ' · ' + (d.sim.frozen ? '<span style="color:#E8952A">FROZEN</span>' : '<span style="color:#57a773">chạy</span>') + ' · ' + clk);
+    html += row('Tag (live)', d.tags.recorded + ' ghi · <span style="color:#57a773">'+d.tags.good+' Good</span>' + (d.tags.other?' · <span style="color:#E8952A">'+d.tags.other+' khác</span>':'') + ' · catalog §10: ' + d.tags.catalog);
+    html += row('Control loop', d.loops.total + ' · AUTO '+d.loops.auto+' · MAN '+d.loops.man+' · CAS '+d.loops.cascade);
+    html += row('Historian', d.historian.points + ' điểm · ' + (d.historian.from ? esc(d.historian.from.slice(11,19))+'→'+esc((d.historian.to||'').slice(11,19)) : 'trống'));
+    html += row('Alarm đang hoạt động', d.alarms.active + ' · P1 '+(bp.P1||0)+' · P2 '+(bp.P2||0)+' · P3 '+(bp.P3||0)+' · P4 '+(bp.P4||0));
+    html += row('Nhật ký sự kiện', d.journal.total + ' bản ghi · seq ' + d.journal.lastSeq);
+    html += '</table>';
+    $('diagBody').innerHTML = html;
+    $('diagModal').hidden = false;
+  }
   let builderTags = [];
   let bTiles = [];
   function openBuilder(){
@@ -547,6 +574,7 @@
       else if (m.type === 'tags'){ builderTags = m.items || []; }
       else if (m.type === 'report'){ onReport(m.report); }
       else if (m.type === 'journal'){ onJournal(m); }
+      else if (m.type === 'diag'){ onDiag(m.diag); }
     } catch {} };
   }
   const KPI_LABEL = { 'heat-rate': 'Heat rate', 'efficiency': 'Hiệu suất', 'steam-rate': 'Steam rate' };
@@ -669,6 +697,8 @@
   $('reportX').onclick = () => { $('reportModal').hidden = true; };
   $('openJournal').onclick = () => send({ cmd: 'journal' });
   $('journalX').onclick = () => { $('journalModal').hidden = true; };
+  $('openDiag').onclick = () => send({ cmd: 'diag' });
+  $('diagX').onclick = () => { $('diagModal').hidden = true; };
   $('openBuilder').onclick = openBuilder;
   $('builderX').onclick = () => { $('builderModal').hidden = true; };
   $('bAddTile').onclick = () => { const t = $('bTagPick').value.trim(); if (t){ bTiles.push({ tag: t, label: '', unit: '', kind: 'value' }); $('bTagPick').value = ''; renderBTiles(); } };
