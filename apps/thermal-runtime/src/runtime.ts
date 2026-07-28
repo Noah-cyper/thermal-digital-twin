@@ -2,7 +2,7 @@
 // khép kín với ĐỒNG HỒ SIM tiến theo dt (Time Service, không Date.now trong vòng process).
 // Sim→control→alarm→tag không dùng Math.random. App tổ hợp import engines/kernel/plugin; plugin
 // runtime vẫn chỉ import @idtp/sdk.
-import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian, KpiEngine, historianKpiInput, MaintenanceEngine, FaceplateEngine, NavigationEngine, generateRegistry, generateScreens, generateControlLoops, SequenceEngine, executeScenario, CauseEffectEngine, AiAdvisor } from '@idtp/engines';
+import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian, KpiEngine, historianKpiInput, MaintenanceEngine, FaceplateEngine, NavigationEngine, generateRegistry, generateScreens, generateControlLoops, SequenceEngine, executeScenario, CauseEffectEngine, AiAdvisor, PredictiveMaintenance } from '@idtp/engines';
 import type { AlarmKpi, FaceplateResolvers, FaceplateOverview, FaceplateAlarmRow, FaceplateDetail, Advice } from '@idtp/engines';
 import { TimeService } from '@idtp/kernel';
 import {
@@ -21,6 +21,7 @@ import {
   thermalScenarios,
   thermalCauseEffect,
   thermalKnowledge,
+  thermalPredictiveRules,
 } from '@idtp/plugin-thermal-power-600';
 import type {
   IMalfunction,
@@ -40,6 +41,7 @@ import type {
   ScenarioPhaseResult,
   CauseEffectMatrix,
   CeState,
+  PredictiveAdvisory,
 } from '@idtp/sdk';
 
 /** Tuỳ chọn & kết quả RE-SIMULATION what-if (doc 05-05 §4) — nhánh mô phỏng độc lập từ snapshot live. */
@@ -114,6 +116,8 @@ export interface ThermalRuntime {
   computeKpis(): Promise<IKpiResult[]>;
   maintenanceRuntime(): ReadonlyArray<EquipmentRuntime>;
   maintenanceMtbf(assetId: string): number;
+  evaluatePredictive(): PredictiveAdvisory[];
+  predictiveAdvisories(): ReadonlyArray<PredictiveAdvisory>;
   workOrders(): ReadonlyArray<WorkOrder>;
   createWorkOrder(assetId: string, type: 'PM' | 'CM', reason: string, user: string): WorkOrder;
   updateWorkOrder(woId: string, status: WorkOrderStatus, user: string): WorkOrder | { error: string };
@@ -287,6 +291,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   // ghi tag/setpoint/ACK — chỉ đọc để trích dẫn (chống bịa).
   const advisor = new AiAdvisor({ alarms: boilerAlarms, matrices: thermalCauseEffect, knowledge: thermalKnowledge });
 
+  // Predictive Maintenance v1 (rule-based, READ-ONLY): cảnh báo sớm từ ngưỡng/xu hướng/giờ chạy.
+  const predictive = new PredictiveMaintenance(thermalPredictiveRules);
+  let lastPredictive: PredictiveAdvisory[] = [];
+
   // Chuỗi SFC chạy "live" — tick theo nhịp sim (đồng hồ THẬT), ghi tag lệnh mà sim đọc mỗi bước →
   // SFC tác động PHYSICS qua thời gian (khác runSequenceToCompletion chạy đồng hồ ảo, không bước sim).
   const liveSeqs = new Map<string, SequenceEngine>();
@@ -419,6 +427,15 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
     },
     maintenanceRuntime: () => maintenance.allRuntime(),
     maintenanceMtbf: (assetId) => maintenance.mtbf(assetId),
+    evaluatePredictive: () => {
+      lastPredictive = predictive.evaluate({
+        nowMs: nowMs(),
+        getTag: (id) => num(id),
+        runningHours: (a) => maintenance.allRuntime().find((x) => x.assetId === a)?.runningHours ?? 0,
+      });
+      return lastPredictive;
+    },
+    predictiveAdvisories: () => lastPredictive,
     workOrders: () => maintenance.workOrders(),
     createWorkOrder: (assetId, type, reason, user) => maintenance.createWorkOrder({ assetId, type, reason }, user, nowMs()),
     updateWorkOrder: (woId, status, user) => maintenance.updateWorkOrder(woId, status, user, nowMs()),
