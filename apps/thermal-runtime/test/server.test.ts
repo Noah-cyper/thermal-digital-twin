@@ -383,6 +383,7 @@ describe('thermal-runtime server', () => {
     interface Msg {
       type?: string;
       def?: { screenId?: string; elements?: unknown[] };
+      items?: string[];
     }
     const app = startServer(0, { stepMs: 15 });
     const port = await app.ready;
@@ -398,6 +399,8 @@ describe('thermal-runtime server', () => {
       return false;
     };
     await new Promise<void>((r) => ws.on('open', () => r()));
+    // Builder nhận danh sách tag khi kết nối (nguồn cho picker)
+    expect(await until(() => msgs.some((m) => m.type === 'tags' && (m.items ?? []).length > 0))).toBe(true);
     const spec = { screenId: 'D3-test-build', level: 'D3', title: { vi: 't', en: 't' }, tiles: [{ tag: 'GEN_MW_01', label: 'MW' }] };
 
     // Operator (mặc định) → dựng bị từ chối (action engineer)
