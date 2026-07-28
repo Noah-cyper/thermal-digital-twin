@@ -52,6 +52,7 @@ interface Command {
   hours?: number;
   sequenceId?: string;
   matrixId?: string;
+  malf?: string;
 }
 
 const LIVE_CMDS = new Set(['load', 'leak', 'mill-trip', 'vacuum', 'ack', 'set-mode', 'seq-live-start', 'ce-reset']); // lệnh ra thiết bị — chặn khi replay
@@ -350,6 +351,15 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
         // AI Advisor READ-ONLY: chỉ cần đăng nhập, không đổi thiết bị → không chặn khi replay.
         if (tokens.get(ws) === undefined) ws.send(JSON.stringify({ type: 'denied', reason: 'chưa đăng nhập' }));
         else ws.send(JSON.stringify({ type: 'advice', advice: rt.explainAlarm(m.alarmId) ?? null }));
+      } else if (m.cmd === 'resim') {
+        // RE-SIMULATION what-if READ-ONLY: nhánh độc lập từ snapshot, sim live KHÔNG bị đụng.
+        if (tokens.get(ws) === undefined) {
+          ws.send(JSON.stringify({ type: 'denied', reason: 'chưa đăng nhập' }));
+        } else {
+          const opts = m.malf ? { malfunction: m.malf } : typeof m.value === 'number' ? { overrides: { BLR_MW_DEMAND: m.value } } : {};
+          const result = rt.reSimulate({ ...opts, steps: 500, sampleTags: ['GEN_MW_01', 'BLR_STEAM_FLOW_01', 'BLR_MSTM_SH_PRESS_01'], everyN: 25 });
+          ws.send(JSON.stringify({ type: 'resim', label: m.malf ?? (m.value !== undefined ? `tải ${m.value} MW` : 'cơ sở'), result }));
+        }
       } else if (m.cmd === 'replay-start') {
         const range = rt.historian.dataRange();
         if (range) {
