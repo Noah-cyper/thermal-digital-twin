@@ -82,7 +82,9 @@
 
 ## 2. Vấn đề mở
 > ✔ M‑05 (bài test generic): thêm `water-treatment-demo` chỉ chạm `plugins/water-treatment-demo/*` + `pnpm-lock.yaml` — **0 dòng sửa `packages/*` & `apps/*`** (kiểm bằng `git status`). Luận điểm "mọi nhà máy chỉ là plugin" đứng vững.
-> ✔ Doc 06 (process-analysis-thermal): **45 hệ thống × 13 mục** + 4 mục chuyên sâu (MFT/turbine-trip C&E · purge NFPA 85 · generator protection ANSI) — đạt §10 ≥ 40 hệ. Tag/alarm/màn hình/model ánh xạ hiện thực đã dựng; hệ BoP "(breadth)" có tag danh mục sống, physics riêng = pha sau. **Lưu ý: doc 05 (engine-specs) vẫn CHƯA viết** (file vắng dù overview grid đánh dấu done) — hạng mục còn lại.
+> ✔ Doc 06 (process-analysis-thermal): **45 hệ thống × 13 mục** + 4 mục chuyên sâu (MFT/turbine-trip C&E · purge NFPA 85 · generator protection ANSI) — đạt §10 ≥ 40 hệ. Tag/alarm/màn hình/model ánh xạ hiện thực đã dựng; hệ BoP "(breadth)" có tag danh mục sống, physics riêng = pha sau.
+> ✔ Doc 05 (engine-specs): **21 engine L1/L2 × 10 mục §8** (Mục đích/ranh giới · Interface TS · Mô hình dữ liệu · Luồng Mermaid · Cấu hình · Phi chức năng · Chế độ lỗi · Plugin mở rộng · Kiểm thử · Quyết định thiết kế). Chữ ký interface ánh xạ mã đã hiện thực; Trend/Animation (L4 client) không lập chương riêng. → **Bộ tài liệu 00–25 nay đã đủ file** (nợ doc 05/06 đã trả).
+> ✔ CI (doc 23): `.github/workflows/ci.yml` — build + test toàn workspace trên mỗi push/PR (matrix Node 20/22, pnpm 9.7.0, frozen lockfile). Cổng kiểm tra hồi quy tự động (232 test).
 > ✔ Seed §10 (doc 07 §5): `SeedGenerator` (engine generic) + `thermalSeedSpec` (dữ liệu plugin) → **3.522 tag / 651 alarm**, đạt ngưỡng nghiệm thu §10 (≥ 3.000 / ≥ 600). Bề rộng = thêm DỮ LIỆU khai báo, engine/kernel không đổi (GĐ‑42).
 | # | Vấn đề | Cần |
 |---|---|---|
