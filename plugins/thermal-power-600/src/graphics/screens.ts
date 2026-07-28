@@ -137,6 +137,20 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       valueTile('hrht', 'TRB_HRH_TEMP_01', 'Nhiệt hot reheat', '°C', 3, 3, [{ when: 'lt', value: 500, sev: 2 }]),
     ],
   },
+  {
+    screenId: 'D3-feedwater-heatrate',
+    level: 'D3',
+    title: { vi: 'Nước cấp & Heat Rate', en: 'Feed Water & Heat Rate' },
+    elements: [
+      // Đoàn gia nhiệt hồi nhiệt (v1.19): condensate → 4 LP heater → deaerator → BFP → 3 HP heater → econ.
+      valueTile('fwflow', 'FW_FLOW_01', 'Lưu lượng nước cấp', 't/h', 0, 0),
+      valueTile('cond', 'FW_CONDENSATE_TEMP_01', 'Nhiệt condensate', '°C', 1, 0),
+      valueTile('dea', 'FW_DEAERATOR_TEMP_01', 'Nhiệt deaerator', '°C', 2, 0),
+      valueTile('econ', 'FW_ECON_INLET_TEMP_01', 'Nước cấp vào economizer', '°C', 3, 0, [{ when: 'lt', value: 200, sev: 3 }]),
+      valueTile('regen', 'FW_REGEN_DUTY_01', 'Nhiệt hồi nhiệt', 'MWth', 0, 1),
+      valueTile('hr', 'PLANT_CYCLE_HR_01', 'Heat rate chu trình', 'kJ/kWh', 1, 1, [{ when: 'gt', value: 9500, sev: 2 }]),
+    ],
+  },
 ];
 
 /** Tất cả tag mà một screen tham chiếu (để subscribe theo màn hình — Tag/Realtime). */

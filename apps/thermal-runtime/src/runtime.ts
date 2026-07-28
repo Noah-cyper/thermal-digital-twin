@@ -9,6 +9,7 @@ import {
   BoilerIslandModel,
   TurbineGeneratorModel,
   ReheatCycleModel,
+  FeedwaterTrainModel,
   boilerControlLoops,
   boilerLoopSeeds,
   boilerAlarms,
@@ -212,6 +213,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   // Additive — sinh thêm tag đường reheat + tách công suất HP/IP/LP, không đổi GEN_MW_01.
   const reheat = new ReheatCycleModel();
   host.register(reheat);
+  // Đoàn gia nhiệt nước cấp hồi nhiệt + heat rate chu trình (v1.19): đăng ký SAU reheat để đọc nhiệt
+  // reheater tươi. Additive — sinh thêm tag nước cấp/heat rate, không đổi tag boiler/turbine.
+  const feedwater = new FeedwaterTrainModel();
+  host.register(feedwater);
 
   const loops = new ControlLoopEngine(boilerControlLoops);
   const ingestOut = (): void => {
@@ -238,7 +243,7 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
 
   // Historian (adapter memory): ghi tag hiển thị + tag alarm để truy vấn lịch sử + DATA REPLAY.
   const historian = new MemoryHistorian({ formatTs: (ms) => time.formatEpoch(ms) });
-  const recordedTags = [...new Set([...boilerScreens.flatMap((s) => screenTags(s)), ...alarmTags, ...turbine.tagsProvided, ...reheat.tagsProvided])];
+  const recordedTags = [...new Set([...boilerScreens.flatMap((s) => screenTags(s)), ...alarmTags, ...turbine.tagsProvided, ...reheat.tagsProvided, ...feedwater.tagsProvided])];
   const record = (): void => {
     if (stepCount % REC_EVERY === 0) {
       const ts = nowIso();
