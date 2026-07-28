@@ -413,6 +413,10 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
         // Event Log / SOE READ-ONLY: chỉ cần đăng nhập; trả nhật ký + tổng hợp (không đụng thiết bị).
         if (tokens.get(ws) === undefined) ws.send(JSON.stringify({ type: 'denied', reason: 'chưa đăng nhập' }));
         else ws.send(JSON.stringify({ type: 'journal', entries: rt.eventLog({ limit: 150 }), summary: rt.eventSummary() }));
+      } else if (m.cmd === 'diag') {
+        // System Diagnostic READ-ONLY: tự soi trạng thái runtime (sim/tag/loop/historian/alarm/journal).
+        if (tokens.get(ws) === undefined) ws.send(JSON.stringify({ type: 'denied', reason: 'chưa đăng nhập' }));
+        else ws.send(JSON.stringify({ type: 'diag', diag: rt.systemDiagnostics() }));
       } else if (m.cmd === 'replay-start') {
         const range = rt.historian.dataRange();
         if (range) {

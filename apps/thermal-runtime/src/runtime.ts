@@ -104,6 +104,16 @@ export interface ThermalRuntimeOptions {
   breadthLive?: boolean; // sinh giá trị placeholder cho toàn bộ §10 catalog → cả nhà máy "sống"
 }
 
+/** Ảnh chẩn đoán hệ thống (màn hình hệ thống "System Diagnostic", ISA-101 S-class) — READ-ONLY, tự soi. */
+export interface SystemDiagnostics {
+  sim: { steps: number; frozen: boolean; clock: string };
+  tags: { recorded: number; good: number; other: number; catalog: number };
+  loops: { total: number; auto: number; man: number; cascade: number };
+  historian: { points: number; from: string | null; to: string | null };
+  alarms: { active: number; byPriority: Record<string, number> };
+  journal: { total: number; lastSeq: number };
+}
+
 export interface ThermalRuntime {
   step(): void;
   setLoadDemand(mw: number): void;
@@ -123,6 +133,7 @@ export interface ThermalRuntime {
   eventLog(opts?: JournalQuery): ReadonlyArray<JournalEntry>;
   eventSummary(): JournalSummary;
   logEvent(category: JournalCategory, severity: JournalSeverity, message: string, actor?: string, source?: string): JournalEntry;
+  systemDiagnostics(): SystemDiagnostics;
   maintenanceRuntime(): ReadonlyArray<EquipmentRuntime>;
   maintenanceMtbf(assetId: string): number;
   evaluatePredictive(): PredictiveAdvisory[];
@@ -524,6 +535,38 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
     eventLog: (opts) => journal.query(opts),
     eventSummary: () => journal.summary(),
     logEvent: (category, severity, message, actor, source) => logEvent(category, severity, message, actor, source),
+    systemDiagnostics: () => {
+      // Chẩn đoán tự soi READ-ONLY: mọi số lấy từ nguồn thật của runtime (không bịa).
+      let good = 0;
+      let other = 0;
+      for (const t of recordedTags) {
+        const v = tag.getCurrent(t);
+        if (v && v.quality === 'Good' && typeof v.value === 'number') good += 1;
+        else other += 1;
+      }
+      let auto = 0;
+      let man = 0;
+      let cascade = 0;
+      const loopIds = Object.keys(boilerLoopSeeds);
+      for (const id of loopIds) {
+        const mode = loops.getMode(id);
+        if (mode === 'AUTO') auto += 1;
+        else if (mode === 'CASCADE') cascade += 1;
+        else man += 1;
+      }
+      const byPriority: Record<string, number> = { P1: 0, P2: 0, P3: 0, P4: 0 };
+      const active = alarms.getActive();
+      for (const a of active) byPriority[a.priority] = (byPriority[a.priority] ?? 0) + 1;
+      const range = historian.dataRange();
+      return {
+        sim: { steps: stepCount, frozen, clock: nowIso() },
+        tags: { recorded: recordedTags.length, good, other, catalog: registry.tags.length },
+        loops: { total: loopIds.length, auto, man, cascade },
+        historian: { points: historian.size(), from: range?.from ?? null, to: range?.to ?? null },
+        alarms: { active: active.length, byPriority },
+        journal: { total: journal.summary().total, lastSeq: journal.lastSeq },
+      };
+    },
     maintenanceRuntime: () => maintenance.allRuntime(),
     maintenanceMtbf: (assetId) => maintenance.mtbf(assetId),
     evaluatePredictive: () => {
