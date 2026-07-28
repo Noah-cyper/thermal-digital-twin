@@ -513,7 +513,8 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
 
 // chạy trực tiếp: node dist/server.js
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  const app = startServer(8080, { stepMs: 100 });
+  const port = Number(process.env.PORT) || 8080;
+  const app = startServer(port, { stepMs: 100 });
   void app.ready.then((p) => {
     // eslint-disable-next-line no-console
     console.log(`IDTP thermal-runtime: http://localhost:${p}`);
