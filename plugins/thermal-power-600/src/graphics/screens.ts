@@ -197,6 +197,22 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       valueTile('fgd', 'EMI_FGD_EFF_01', 'Độ khử SO₂ FGD', '%', 2, 1),
     ],
   },
+  {
+    screenId: 'D3-electrical',
+    level: 'D3',
+    title: { vi: 'Điện & Xuất lưới', en: 'Electrical & Grid Export' },
+    elements: [
+      // Phía điện (v1.23): máy phát 667 MVA/20 kV → GSU 20/500 kV → lưới 500 kV; tự dùng qua UAT.
+      valueTile('net', 'ELEC_NET_MW_01', 'Công suất tinh (net)', 'MW', 0, 0),
+      valueTile('aux', 'ELEC_AUX_POWER_01', 'Tự dùng', 'MW', 1, 0),
+      valueTile('grid', 'ELEC_GRID_MW_01', 'Xuất lưới 500 kV', 'MW', 2, 0),
+      valueTile('mva', 'ELEC_GEN_MVA_01', 'Công suất biểu kiến', 'MVA', 3, 0),
+      valueTile('pf', 'ELEC_PF_01', 'Hệ số công suất', '', 0, 1, [{ when: 'lt', value: 0.85, sev: 3 }]),
+      valueTile('cur', 'ELEC_GEN_CURRENT_01', 'Dòng stator', 'kA', 1, 1),
+      valueTile('gsu', 'ELEC_GSU_LOADING_01', 'Tải GSU', '%', 2, 1, [{ when: 'gt', value: 100, sev: 2 }]),
+      valueTile('uat', 'ELEC_AUX_LOADING_01', 'Tải UAT', '%', 3, 1, [{ when: 'gt', value: 100, sev: 2 }]),
+    ],
+  },
 ];
 
 /** Tất cả tag mà một screen tham chiếu (để subscribe theo màn hình — Tag/Realtime). */

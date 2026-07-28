@@ -13,6 +13,7 @@ import {
   CondenserCWModel,
   FlueGasAirModel,
   EmissionsModel,
+  ElectricalModel,
   boilerControlLoops,
   boilerLoopSeeds,
   boilerAlarms,
@@ -232,6 +233,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   // sau ESP/FGD. Additive — chỉ đọc than/khói, không đổi tag khác.
   const emissions = new EmissionsModel();
   host.register(emissions);
+  // Phía điện (v1.23): đăng ký SAU turbine để đọc công suất gộp/phản kháng tươi → tự dùng + net + GSU +
+  // lưới. Additive — không đổi GEN_MW_01/GEN_MVAR_01.
+  const electrical = new ElectricalModel();
+  host.register(electrical);
 
   const loops = new ControlLoopEngine(boilerControlLoops);
   const ingestOut = (): void => {
@@ -258,7 +263,7 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
 
   // Historian (adapter memory): ghi tag hiển thị + tag alarm để truy vấn lịch sử + DATA REPLAY.
   const historian = new MemoryHistorian({ formatTs: (ms) => time.formatEpoch(ms) });
-  const recordedTags = [...new Set([...boilerScreens.flatMap((s) => screenTags(s)), ...alarmTags, ...turbine.tagsProvided, ...reheat.tagsProvided, ...feedwater.tagsProvided, ...condenser.tagsProvided, ...fluegas.tagsProvided, ...emissions.tagsProvided])];
+  const recordedTags = [...new Set([...boilerScreens.flatMap((s) => screenTags(s)), ...alarmTags, ...turbine.tagsProvided, ...reheat.tagsProvided, ...feedwater.tagsProvided, ...condenser.tagsProvided, ...fluegas.tagsProvided, ...emissions.tagsProvided, ...electrical.tagsProvided])];
   const record = (): void => {
     if (stepCount % REC_EVERY === 0) {
       const ts = nowIso();

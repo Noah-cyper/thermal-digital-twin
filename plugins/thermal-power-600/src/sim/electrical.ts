@@ -1,0 +1,95 @@
+// Plugin thermal-power-600 — ElectricalModel (ISimModel, doc 10 §7 — máy phát → GSU → lưới + tự dùng).
+// CHỈ import @idtp/sdk. CHIỀU SÂU vật lý bổ sung (v1.23), chạy CẠNH …/turbine: đọc công suất gộp/phản
+// kháng tươi → phía ĐIỆN: tự dùng (house load), công suất TINH (net = gộp − tự dùng), công suất biểu
+// kiến, hệ số công suất, dòng stator, tải GSU/UAT, xuất lưới. ADDITIVE — không đổi GEN_MW_01/GEN_MVAR_01
+// (0 hồi quy). Tất định (không Math.random).
+//
+// Neo Design Basis (Phụ lục A §3.3): gộp/tinh 600/558 MW (tự dùng ~7 %) · lưới 500 kV/50 Hz · máy phát
+// 667 MVA, 20 kV, cosφ 0,9 · GSU 20/500 kV, 720 MVA, YNd11 · UAT 20/6,6 kV, 2×50 MVA. Phân bổ tự dùng
+// nền/biến thiên, tổn thất GSU = [GIẢ ĐỊNH] (GĐ-70) — số thử nghiệm thật thay khi có.
+import type { ISimModel, ISimModelContext, ISimSnapshot, ISimStepResult, IMalfunction, TagId } from '@idtp/sdk';
+
+/* ── Design Basis (Phụ lục A §3.3) ── */
+const MW_GROSS = 600;
+const GEN_MVA_RATED = 667;
+const GEN_KV = 20;
+const GSU_MVA_RATED = 720;
+const UAT_MVA_RATED = 100; // 2 × 50 MVA
+
+/* ── [GIẢ ĐỊNH] hiệu chỉnh (GĐ-70) — tổng tự dùng đầy tải = 42 MW (=7 % → net 558) ── */
+const AUX_BASE_MW = 12; // tự dùng nền (điều khiển, chiếu sáng, bơm phụ)
+const AUX_VAR_MW = 30; // tự dùng biến thiên theo tải (mill, quạt, BFP, bơm CW)
+const AUX_PF = 0.9; // hệ số công suất tải tự dùng
+const GSU_LOSS_FRAC = 0.004; // tổn thất máy biến áp chính ~0,4 %
+
+function clamp(x: number, lo: number, hi: number): number {
+  return Math.min(hi, Math.max(lo, x));
+}
+
+export class ElectricalModel implements ISimModel {
+  readonly id = 'thermal-electrical';
+  readonly tagsProvided: ReadonlyArray<TagId> = [
+    'ELEC_AUX_POWER_01', // MW — tự dùng (house load)
+    'ELEC_NET_MW_01', // MW — công suất tinh (net = gộp − tự dùng)
+    'ELEC_GRID_MW_01', // MW — xuất lưới (sau tổn thất GSU)
+    'ELEC_GEN_MVA_01', // MVA — công suất biểu kiến máy phát
+    'ELEC_PF_01', // — hệ số công suất
+    'ELEC_GEN_CURRENT_01', // kA — dòng stator ở 20 kV
+    'ELEC_GSU_LOADING_01', // % — tải máy biến áp chính
+    'ELEC_AUX_LOADING_01', // % — tải biến áp tự dùng UAT
+  ];
+
+  init(_ctx?: ISimModelContext, _config?: unknown): void {
+    // model không giữ trạng thái (điện tức thời theo công suất; đầu vào đã có quán tính)
+  }
+
+  step(ctx: ISimModelContext): ISimStepResult {
+    const mw = Math.max(0, ctx.getTag('GEN_MW_01')); // MW gộp
+    const mvar = Math.max(0, ctx.getTag('GEN_MVAR_01')); // MVAr
+    const online = mw > 1; // máy phát mang tải
+    const loadFrac = clamp(mw / MW_GROSS, 0, 1.1);
+
+    // Tự dùng: nền + biến thiên theo tải → công suất TINH = gộp − tự dùng.
+    const aux = online ? AUX_BASE_MW + AUX_VAR_MW * loadFrac : 0; // ngừng máy → không tự dùng qua UAT tổ máy
+    const netMw = mw - aux;
+
+    // Công suất biểu kiến & hệ số công suất từ P/Q; dòng stator ở 20 kV (3 pha).
+    const mva = Math.sqrt(mw * mw + mvar * mvar);
+    const pf = mva > 1e-3 ? clamp(mw / mva, 0, 1) : 1;
+    const current = online ? (mva * 1e6) / (Math.sqrt(3) * GEN_KV * 1000) / 1000 : 0; // kA
+
+    // Xuất lưới sau tổn thất GSU; tải các máy biến áp.
+    const gridMw = netMw > 0 ? netMw * (1 - GSU_LOSS_FRAC) : 0;
+    const gsuLoading = (mva / GSU_MVA_RATED) * 100;
+    const auxLoading = online ? (aux / AUX_PF / UAT_MVA_RATED) * 100 : 0;
+
+    return {
+      outputs: [
+        { tagId: 'ELEC_AUX_POWER_01', value: aux, quality: 'Good' },
+        { tagId: 'ELEC_NET_MW_01', value: netMw, quality: 'Good' },
+        { tagId: 'ELEC_GRID_MW_01', value: gridMw, quality: 'Good' },
+        { tagId: 'ELEC_GEN_MVA_01', value: mva, quality: 'Good' },
+        { tagId: 'ELEC_PF_01', value: pf, quality: 'Good' },
+        { tagId: 'ELEC_GEN_CURRENT_01', value: current, quality: 'Good' },
+        { tagId: 'ELEC_GSU_LOADING_01', value: gsuLoading, quality: 'Good' },
+        { tagId: 'ELEC_AUX_LOADING_01', value: auxLoading, quality: 'Good' },
+      ],
+    };
+  }
+
+  snapshot(): ISimSnapshot {
+    return { state: {} };
+  }
+  restore(_snapshot: ISimSnapshot): void {
+    // không giữ trạng thái
+  }
+  injectMalfunction(_m: IMalfunction): void {
+    // model không có malfunction riêng ở v1.23
+  }
+  clearMalfunction(_id: string): void {
+    // không giữ trạng thái malfunction
+  }
+  dispose(): void {
+    // không giữ tài nguyên ngoài
+  }
+}
