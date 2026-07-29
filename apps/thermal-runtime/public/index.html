@@ -712,7 +712,7 @@
   let fpOpen = null, fpTab = 'Overview', fpData = null, fpTrend = null, fpHours = 1;
   function openFaceplateForTag(tag){
     const asset = fpByTag[tag];
-    if (!asset) return;
+    if (!asset){ showToast('Tag ' + tag + ' chưa gắn faceplate — chỉ hiển thị số.', false); return; }
     fpOpen = asset; fpTab = 'Overview'; fpData = null; fpTrend = null;
     document.querySelectorAll('#fpTabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === 'Overview'));
     $('fpMask').classList.add('on');
