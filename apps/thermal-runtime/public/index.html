@@ -41,11 +41,14 @@
   .process{position:relative;flex:1;padding:12px 14px;overflow:auto}
   .process h1{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);margin:2px 0 8px}
   .canvas{position:relative;width:720px;height:280px}
-  .tile{position:absolute;background:var(--bg-panel);border:1px solid var(--border);border-radius:2px;padding:8px 10px;display:flex;flex-direction:column;justify-content:space-between}
+  .tile{position:absolute;background:var(--bg-panel);border:1px solid var(--border);border-radius:2px;padding:8px 10px;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden}
   .tile .lab{font-family:var(--mono);font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--text-dim)}
   .tile .val{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:26px;color:var(--pv);line-height:1}
   .tile .val .u{font-size:12px;color:var(--text-dim);margin-left:5px}
   .bar{height:10px;background:var(--bg-canvas);border:1px solid var(--border);border-radius:2px;overflow:hidden;margin-top:4px}
+  /* Sparkline xu hướng-động: lớp nền của mỗi ô giá trị, chữ số nằm trên (z-index). */
+  .tile canvas.spark{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+  .tile .lab,.tile .val,.tile .bar{position:relative;z-index:1}
   .bar > i{display:block;height:100%;background:var(--equip-line)}
   .controls{margin-top:16px;display:flex;gap:8px;flex-wrap:wrap}
   .controls button{font-family:var(--mono);font-size:12px;background:var(--bg-canvas);color:var(--text);
@@ -309,6 +312,12 @@
       root.className = 'tile';
       root.style.left = el.x + 'px'; root.style.top = el.y + 'px';
       root.style.width = (el.w || 150) + 'px'; root.style.height = (el.h || 78) + 'px';
+      let spark = null;
+      if (el.symbol !== 'bar'){
+        spark = document.createElement('canvas'); spark.className = 'spark';
+        spark.width = (el.w || 150); spark.height = (el.h || 78);
+        root.appendChild(spark);
+      }
       const lab = document.createElement('div'); lab.className = 'lab'; lab.textContent = el.label || el.id;
       root.appendChild(lab);
       let valEl = null, barEl = null;
@@ -324,9 +333,38 @@
       }
       root.onclick = () => openFaceplateForTag(primaryTag(el));
       canvas.appendChild(root);
-      nodes.set(el.id, { root, valEl, barEl, el });
+      nodes.set(el.id, { root, valEl, barEl, spark, buf: [], el });
     }
     refresh();
+  }
+
+  const _cvar = {};
+  function cvar(name){ if (_cvar[name] == null){ const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim(); _cvar[name] = v || '#8A939C'; } return _cvar[name]; }
+  function sparkColor(fill){
+    if (!fill) return cvar('--equip-line');
+    const s = String(fill).trim(); const m = s.match(/^var\((--[a-z0-9-]+)\)/i);
+    return m ? cvar(m[1]) : s;
+  }
+  function drawSpark(n, fill){
+    const cv = n.spark; if (!cv) return;
+    const buf = n.buf, W = cv.width, H = cv.height, ctx = cv.getContext('2d');
+    ctx.clearRect(0, 0, W, H);
+    if (buf.length < 2) return;
+    const color = sparkColor(fill);
+    let mn = Infinity, mx = -Infinity; for (const v of buf){ if (v < mn) mn = v; if (v > mx) mx = v; }
+    // Deadband tương đối: nhiễu nhỏ quanh giá trị ổn định vẽ gần phẳng, chỉ biến thiên thật mới nổi rõ (tránh giả tín hiệu bất ổn kiểu ISA-101).
+    const ref = Math.max(Math.abs(mn), Math.abs(mx), 1e-6);
+    const span = Math.max(mx - mn, ref * 0.008) || 1;
+    const pad = 4, top = pad, bot = H - pad;
+    const xOf = (i) => (buf.length === 1 ? 0 : (i / (buf.length - 1)) * W);
+    const yOf = (v) => bot - ((v - mn) / span) * (bot - top);
+    ctx.beginPath(); ctx.moveTo(xOf(0), yOf(buf[0]));
+    for (let i = 1; i < buf.length; i++) ctx.lineTo(xOf(i), yOf(buf[i]));
+    ctx.lineTo(W, bot); ctx.lineTo(0, bot); ctx.closePath();
+    ctx.globalAlpha = 0.13; ctx.fillStyle = color; ctx.fill(); ctx.globalAlpha = 1;
+    ctx.beginPath(); ctx.moveTo(xOf(0), yOf(buf[0]));
+    for (let i = 1; i < buf.length; i++) ctx.lineTo(xOf(i), yOf(buf[i]));
+    ctx.strokeStyle = color; ctx.lineWidth = 1.4; ctx.stroke();
   }
 
   function refresh(){
@@ -345,6 +383,10 @@
         n.valEl.innerHTML = (num == null ? '—' : num.toFixed(el.unit === 'MPa' || el.unit === '%' ? 2 : num >= 100 ? 0 : 1))
           + '<span class="u">' + (el.unit || '') + '</span>';
         n.valEl.style.color = fill || 'var(--pv)';
+      }
+      if (n.spark && num != null){
+        n.buf.push(num); if (n.buf.length > 60) n.buf.shift();
+        drawSpark(n, fill);
       }
     }
     $('kMw').textContent = (state.GEN_MW_01 ?? 0).toFixed(0);
