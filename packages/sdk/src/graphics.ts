@@ -27,7 +27,7 @@ export interface Binding {
 
 export interface ScreenElement {
   readonly id: string;
-  readonly symbol: string; // kiểu symbol client render: value · bar · pipe · label · state
+  readonly symbol: string; // kiểu symbol client render: value · bar · pipe · equipment · label · state
   readonly x: number;
   readonly y: number;
   readonly w?: number;
@@ -35,6 +35,11 @@ export interface ScreenElement {
   readonly label?: string; // nhãn hiển thị (metadata, engine bỏ qua)
   readonly unit?: string; // đơn vị EU (metadata)
   readonly bindings: ReadonlyArray<Binding>;
+  // ── Mimic đồ hoạ (symbol 'equipment' | 'pipe'), TÙY CHỌN — additive; màn value/bar bỏ qua ──
+  readonly shape?: string; // equipment: drum·furnace·superheater·turbine·generator·condenser·pump·stack·grid·box
+  readonly nav?: string; // equipment: screenId để drill vào khi click (kernel điều hướng)
+  readonly points?: ReadonlyArray<{ readonly x: number; readonly y: number }>; // pipe: polyline nối thiết bị
+  readonly medium?: string; // pipe: steam·water·flue·air·elec — kernel tô màu môi chất
 }
 
 export interface ScreenDef {

@@ -52,6 +52,33 @@ function barTile(id: string, tag: string, label: string, col: number, row: numbe
   };
 }
 
+/** Thiết bị trên sơ đồ mimic: hình khối (shape) + giá trị sống + click drill vào màn hệ thống (nav). */
+function equip(
+  id: string,
+  shape: string,
+  label: string,
+  tag: string,
+  unit: string,
+  nav: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  alarms: AlarmCond[] = [],
+): ScreenElement {
+  const bindings: Binding[] = [{ property: 'text', tag, transform: { kind: 'linear', scale: 1 } }];
+  for (const a of alarms) {
+    bindings.push({ property: 'fill', tag, condition: { when: a.when, value: a.value, then: { fill: `var(--alarm-${a.sev})` } } });
+  }
+  bindings.push({ property: 'fill', tag, condition: { when: 'bad', then: { fill: 'var(--bad-quality)' } } });
+  return { id, symbol: 'equipment', shape, nav, x, y, w, h, label, unit, bindings };
+}
+
+/** Đường ống nối thiết bị trên mimic: polyline theo môi chất (steam·water·flue·elec·shaft). */
+function pipe(id: string, medium: string, points: ReadonlyArray<{ x: number; y: number }>): ScreenElement {
+  return { id, symbol: 'pipe', medium, points, x: points[0]?.x ?? 0, y: points[0]?.y ?? 0, bindings: [] };
+}
+
 export const boilerScreens: ReadonlyArray<ScreenDef> = [
   {
     screenId: 'D1-plant-overview',
@@ -74,6 +101,46 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       valueTile('furnace', 'BLR_FURN_PRESS_01', 'Áp buồng lửa', 'Pa', 3, 1, [
         { when: 'gt', value: 200, sev: 1 },
         { when: 'lt', value: -200, sev: 1 },
+      ]),
+    ],
+  },
+  {
+    // Sơ đồ mimic sống (process graphic) — dòng hơi-nước + khói + điện; click thiết bị → drill D3.
+    screenId: 'D1-plant-mimic',
+    level: 'D1',
+    title: { vi: 'Sơ đồ nhà máy (live)', en: 'Plant Mimic (live)' },
+    elements: [
+      // Đường ống (vẽ nền trước)
+      pipe('p-riser', 'water', [{ x: 120, y: 250 }, { x: 120, y: 170 }]),
+      pipe('p-drum-sh', 'steam', [{ x: 176, y: 144 }, { x: 236, y: 144 }]),
+      pipe('p-sh-trb', 'steam', [{ x: 348, y: 144 }, { x: 420, y: 150 }]),
+      pipe('p-trb-gen', 'shaft', [{ x: 560, y: 164 }, { x: 610, y: 165 }]),
+      pipe('p-gen-grid', 'elec', [{ x: 696, y: 165 }, { x: 772, y: 165 }]),
+      pipe('p-trb-cond', 'steam', [{ x: 490, y: 212 }, { x: 490, y: 318 }]),
+      pipe('p-cond-bfp', 'water', [{ x: 420, y: 351 }, { x: 316, y: 361 }]),
+      pipe('p-bfp-fur', 'water', [{ x: 250, y: 361 }, { x: 210, y: 361 }, { x: 210, y: 325 }, { x: 180, y: 325 }]),
+      pipe('p-fur-stack', 'flue', [{ x: 160, y: 250 }, { x: 160, y: 90 }, { x: 321, y: 90 }, { x: 321, y: 112 }]),
+      // Thiết bị (click → drill vào màn hệ thống D3)
+      equip('m-furnace', 'furnace', 'Buồng lửa', 'BLR_FURN_PRESS_01', 'Pa', 'D3-boiler-combustion', 60, 250, 120, 150, [
+        { when: 'gt', value: 200, sev: 1 },
+        { when: 'lt', value: -200, sev: 1 },
+      ]),
+      equip('m-drum', 'drum', 'Bao hơi', 'BLR_DRUM_LEVEL_01', 'mm', 'D3-steam-drum', 64, 118, 112, 52, [
+        { when: 'gt', value: 250, sev: 1 },
+        { when: 'lt', value: -250, sev: 1 },
+      ]),
+      equip('m-sh', 'superheater', 'Quá nhiệt', 'BLR_MSTM_SH_TEMP_01', '°C', 'D3-boiler-combustion', 236, 118, 112, 52, [
+        { when: 'gt', value: 550, sev: 2 },
+      ]),
+      equip('m-turbine', 'turbine', 'Turbine', 'BLR_STEAM_FLOW_01', 't/h', 'D3-turbine-generator', 420, 116, 140, 96),
+      equip('m-gen', 'generator', 'Máy phát', 'GEN_MW_01', 'MW', 'D3-turbine-generator', 610, 122, 86, 86),
+      equip('m-grid', 'grid', 'Xuất lưới 500kV', 'ELEC_GRID_MW_01', 'MW', 'D3-electrical', 772, 136, 120, 58),
+      equip('m-cond', 'condenser', 'Bình ngưng', 'TRB_COND_VACUUM_01', 'kPa', 'D3-condenser-cw', 420, 318, 140, 66, [
+        { when: 'gt', value: 12, sev: 2 },
+      ]),
+      equip('m-bfp', 'pump', 'Bơm cấp', 'FW_FLOW_01', 't/h', 'D3-feedwater-heatrate', 250, 328, 66, 66),
+      equip('m-stack', 'stack', 'Ống khói', 'BLR_FLUE_O2_01', '%', 'D3-fluegas-air', 300, 28, 42, 84, [
+        { when: 'lt', value: 1.5, sev: 2 },
       ]),
     ],
   },

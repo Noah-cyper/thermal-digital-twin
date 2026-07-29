@@ -4,6 +4,7 @@ import type { NavNode } from '@idtp/sdk';
 
 export const thermalNav: ReadonlyArray<NavNode> = [
   { screenId: 'D1-plant-overview', level: 'D1', hotkey: 1, title: { vi: 'Tổng quan nhà máy', en: 'Plant Overview' } },
+  { screenId: 'D1-plant-mimic', level: 'D1', hotkey: 5, title: { vi: 'Sơ đồ nhà máy (live)', en: 'Plant Mimic (live)' } },
   { screenId: 'D3-steam-drum', level: 'D3', parentId: 'D1-plant-overview', hotkey: 2, title: { vi: 'Bao hơi & cấp nước', en: 'Steam Drum & Feedwater' } },
   { screenId: 'D3-boiler-combustion', level: 'D3', parentId: 'D1-plant-overview', hotkey: 3, title: { vi: 'Đốt & gió', en: 'Combustion & Air' } },
   { screenId: 'D3-turbine-generator', level: 'D3', parentId: 'D1-plant-overview', hotkey: 4, title: { vi: 'Turbine & Máy phát', en: 'Turbine & Generator' } },
