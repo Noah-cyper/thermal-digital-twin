@@ -701,6 +701,18 @@
   $('diagX').onclick = () => { $('diagModal').hidden = true; };
   $('openBuilder').onclick = openBuilder;
   $('builderX').onclick = () => { $('builderModal').hidden = true; };
+  // UX: đóng modal bằng Esc hoặc bấm ra nền tối (nhất quán, tránh overlay bẫy thao tác).
+  const overlayModals = ['reportModal', 'journalModal', 'diagModal', 'builderModal'];
+  overlayModals.forEach((id) => {
+    const el = $(id);
+    if (el) el.addEventListener('click', (e) => { if (e.target === el) el.hidden = true; });
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    let closed = false;
+    overlayModals.forEach((id) => { const el = $(id); if (el && !el.hidden) { el.hidden = true; closed = true; } });
+    if (closed) e.preventDefault();
+  });
   $('bAddTile').onclick = () => { const t = $('bTagPick').value.trim(); if (t){ bTiles.push({ tag: t, label: '', unit: '', kind: 'value' }); $('bTagPick').value = ''; renderBTiles(); } };
   $('bBuild').onclick = () => {
     const id = $('bScreenId').value.trim();
