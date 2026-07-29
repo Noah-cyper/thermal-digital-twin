@@ -12,6 +12,8 @@
     --mono:ui-monospace,"SF Mono","JetBrains Mono",Consolas,monospace;
   }
   *{box-sizing:border-box}
+  /* [hidden] phải thắng cả inline display:flex của các modal/panel — nếu không, thuộc tính hidden bị vô hiệu và overlay che toàn màn hình, chặn mọi click. */
+  [hidden]{display:none!important}
   body{margin:0;background:var(--bg-canvas);color:var(--text);
     font-family:ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;font-size:14px}
   .banner{display:flex;gap:20px;align-items:center;justify-content:space-between;
