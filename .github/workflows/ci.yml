@@ -44,3 +44,33 @@ jobs:
 
       - name: Test (vitest toàn workspace)
         run: pnpm test
+
+  e2e:
+    name: E2E smoke (HMI headless Chromium)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.7.0
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Build + bundle server
+        run: pnpm build && pnpm --filter @idtp/app-thermal-runtime bundle
+
+      - name: Install Chromium (Playwright)
+        run: pnpm --filter @idtp/app-thermal-runtime exec playwright install --with-deps chromium
+
+      - name: E2E smoke (modal/mimic/banner/trend/SLD/sparkline + 0 JS error)
+        run: pnpm --filter @idtp/app-thermal-runtime e2e

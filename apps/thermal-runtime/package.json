@@ -18,19 +18,21 @@
     "bundle": "esbuild src/server.ts --bundle --platform=node --format=esm --external:ws --outfile=dist/server.mjs",
     "serve": "pnpm bundle && node dist/server.mjs",
     "dev": "pnpm serve",
-    "start": "node dist/server.mjs"
+    "start": "node dist/server.mjs",
+    "e2e": "node e2e/smoke.mjs"
   },
   "dependencies": {
-    "@idtp/sdk": "workspace:*",
     "@idtp/engines": "workspace:*",
     "@idtp/kernel": "workspace:*",
     "@idtp/plugin-thermal-power-600": "workspace:*",
+    "@idtp/sdk": "workspace:*",
     "ws": "^8.18.0"
   },
   "devDependencies": {
     "@types/node": "^22.5.0",
     "@types/ws": "^8.5.12",
     "esbuild": "^0.21.5",
+    "playwright": "1.62.0",
     "typescript": "^5.5.4",
     "vitest": "^2.0.5"
   }
