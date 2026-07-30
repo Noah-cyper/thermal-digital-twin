@@ -93,7 +93,7 @@
 | M‑03 | Xác nhận có FGD hay không (doc 06‑39) | chủ đầu tư |
 | M‑04 | Tuning PID + τ/θ trên sim thực | pha code |
 | M‑05 | Mốc chuyển lát cắt → v1‑complete | lập lịch doc 24 |
-| M‑06 | Calibrate enthalpy chu trình (GĐ‑66/68/73) để hiệu suất net khớp 39 %/heat rate 9.200 | heat balance nhà chế tạo |
+| M‑06 | **Hiệu suất net mô hình ~33 % vs thiết kế 39 %** (heat rate ~10.900 vs 9.200). **QUYẾT ĐỊNH v1 (C1): GIỮ 33 % TRUNG THỰC** — không ép số cho đẹp; với digital twin, số suy ra nhất quán nội bộ > số cosmetic. Đã THỬ hiệu chỉnh 1 hằng số `DH_EVAP` 2758→2340 (GĐ‑32): **phá vỡ điểm vận hành CCS** (áp sập ~8 MPa · cân bằng NL vỡ · ~10 test sub‑model đỏ · trip giả) → **hoàn tác**. Kết luận: 33 % gắn chặt operating point + seed/gain 7 vòng (GĐ‑32) + ngưỡng mọi sub‑model ⇒ chỉ sửa ĐÚNG bằng **tái dẫn xuất TOÀN BỘ điểm vận hành**, KHÔNG phải tweak hằng số | heat balance nhà chế tạo (bắt buộc) + re‑tune seed/gain + cập nhật ~10 test |
 
 ## 3. Chống bịa
 Mọi số không có trong Design Basis đã gắn `[GIẢ ĐỊNH]` và đăng ký ở đây. Không trích số điều khoản
