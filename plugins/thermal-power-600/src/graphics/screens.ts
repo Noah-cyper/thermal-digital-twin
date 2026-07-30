@@ -142,6 +142,13 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       equip('m-stack', 'stack', 'Ống khói', 'BLR_FLUE_O2_01', '%', 'D3-fluegas-air', 300, 28, 42, 84, [
         { when: 'lt', value: 1.5, sev: 2 },
       ]),
+      // v2: vòng nước làm mát (CW) + gió cháy + khử SO₂
+      pipe('p-cond-ct', 'water', [{ x: 560, y: 351 }, { x: 612, y: 342 }]),
+      pipe('p-ct-cond', 'water', [{ x: 668, y: 384 }, { x: 668, y: 410 }, { x: 490, y: 410 }, { x: 490, y: 384 }]),
+      pipe('p-fd-fur', 'air', [{ x: 102, y: 428 }, { x: 102, y: 400 }]),
+      equip('m-fgd', 'box', 'Khử SO₂ FGD', 'EMI_FGD_EFF_01', '%', 'D3-emissions-cems', 185, 66, 92, 48),
+      equip('m-ct', 'box', 'Tháp giải nhiệt', 'CT_CW_SUPPLY_01', '°C', 'D3-cooling-tower', 612, 300, 112, 84),
+      equip('m-fd', 'pump', 'Quạt gió FD', 'PLANT_AIR_FLOW_01', 't/h', 'D3-fluegas-air', 66, 428, 72, 72),
     ],
   },
   {

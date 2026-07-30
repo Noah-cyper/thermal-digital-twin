@@ -50,7 +50,10 @@
   .tile canvas.spark{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
   .tile .lab,.tile .val,.tile .bar{position:relative;z-index:1}
   /* Mimic sơ đồ nhà máy (SVG) — thiết bị + đường ống môi chất, click drill vào màn hệ thống */
-  .mimic-pipe{fill:none;stroke-linejoin:round;stroke-linecap:round;opacity:.85}
+  .mimic-pipe{fill:none;stroke-linejoin:round;stroke-linecap:round;opacity:.8}
+  .mimic-flow{fill:none;stroke:#DCE6F2;stroke-width:2;stroke-linecap:round;stroke-dasharray:5 12;opacity:.85;animation:mimicflow 1s linear infinite}
+  @keyframes mimicflow{to{stroke-dashoffset:-34}}
+  @media (prefers-reduced-motion:reduce){.mimic-flow{animation:none;opacity:.4}}
   .mimic-eq{cursor:pointer}
   .mimic-eq .eq-shape{fill:var(--bg-panel);stroke:var(--equip-line);stroke-width:1.6}
   .mimic-eq:hover .eq-shape{stroke:var(--pv);fill:#232b34}
@@ -321,8 +324,11 @@
     return svgNode('rect', { x: x, y: y, width: w, height: h, rx: rx, ry: rx });
   }
   function makePipe(el){
-    return svgNode('polyline', { points: (el.points || []).map((p) => p.x + ',' + p.y).join(' '), class: 'mimic-pipe',
-      stroke: MEDIUM[el.medium] || '#8A939C', 'stroke-width': el.medium === 'shaft' ? 5 : 3.5 });
+    const pts = (el.points || []).map((p) => p.x + ',' + p.y).join(' ');
+    const g = svgNode('g', {});
+    g.appendChild(svgNode('polyline', { points: pts, class: 'mimic-pipe', stroke: MEDIUM[el.medium] || '#8A939C', 'stroke-width': el.medium === 'shaft' ? 6 : 4 }));
+    g.appendChild(svgNode('polyline', { points: pts, class: 'mimic-flow' }));
+    return g;
   }
   function makeEquip(el){
     const g = svgNode('g', { class: 'mimic-eq' });
