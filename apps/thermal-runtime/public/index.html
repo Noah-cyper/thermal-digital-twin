@@ -12,6 +12,8 @@
     --mono:ui-monospace,"SF Mono","JetBrains Mono",Consolas,monospace;
   }
   *{box-sizing:border-box}
+  /* [hidden] phải thắng cả inline display:flex của các modal/panel — nếu không, thuộc tính hidden bị vô hiệu và overlay che toàn màn hình, chặn mọi click. */
+  [hidden]{display:none!important}
   body{margin:0;background:var(--bg-canvas);color:var(--text);
     font-family:ui-sans-serif,-apple-system,"Segoe UI",system-ui,sans-serif;font-size:14px}
   .banner{display:flex;gap:20px;align-items:center;justify-content:space-between;
@@ -39,11 +41,24 @@
   .process{position:relative;flex:1;padding:12px 14px;overflow:auto}
   .process h1{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);margin:2px 0 8px}
   .canvas{position:relative;width:720px;height:280px}
-  .tile{position:absolute;background:var(--bg-panel);border:1px solid var(--border);border-radius:2px;padding:8px 10px;display:flex;flex-direction:column;justify-content:space-between}
+  .tile{position:absolute;background:var(--bg-panel);border:1px solid var(--border);border-radius:2px;padding:8px 10px;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden}
   .tile .lab{font-family:var(--mono);font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--text-dim)}
   .tile .val{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:26px;color:var(--pv);line-height:1}
   .tile .val .u{font-size:12px;color:var(--text-dim);margin-left:5px}
   .bar{height:10px;background:var(--bg-canvas);border:1px solid var(--border);border-radius:2px;overflow:hidden;margin-top:4px}
+  /* Sparkline xu hướng-động: lớp nền của mỗi ô giá trị, chữ số nằm trên (z-index). */
+  .tile canvas.spark{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+  .tile .lab,.tile .val,.tile .bar{position:relative;z-index:1}
+  /* Mimic sơ đồ nhà máy (SVG) — thiết bị + đường ống môi chất, click drill vào màn hệ thống */
+  .mimic-pipe{fill:none;stroke-linejoin:round;stroke-linecap:round;opacity:.8}
+  .mimic-flow{fill:none;stroke:#DCE6F2;stroke-width:2;stroke-linecap:round;stroke-dasharray:5 12;opacity:.85;animation:mimicflow 1s linear infinite}
+  @keyframes mimicflow{to{stroke-dashoffset:-34}}
+  @media (prefers-reduced-motion:reduce){.mimic-flow{animation:none;opacity:.4}}
+  .mimic-eq{cursor:pointer}
+  .mimic-eq .eq-shape{fill:var(--bg-panel);stroke:var(--equip-line);stroke-width:1.6}
+  .mimic-eq:hover .eq-shape{stroke:var(--pv);fill:#232b34}
+  .mimic-eq .eq-label{fill:var(--text-dim);font-family:var(--mono);font-size:10px;letter-spacing:.03em}
+  .mimic-eq .eq-val{fill:var(--pv);font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:15px}
   .bar > i{display:block;height:100%;background:var(--equip-line)}
   .controls{margin-top:16px;display:flex;gap:8px;flex-wrap:wrap}
   .controls button{font-family:var(--mono);font-size:12px;background:var(--bg-canvas);color:var(--text);
@@ -275,7 +290,9 @@
   const $ = (id) => document.getElementById(id);
   const state = {};        // tagId → value
   let screen = null;       // ScreenDef hiện tại
-  const nodes = new Map(); // elementId → { root, valEl, barEl, el }
+  const nodes = new Map(); // elementId → { root, valEl, barEl, el } | { kind:'equip', valEl, shapeEl, el }
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  const MEDIUM = { steam: '#F5A524', water: '#4A90D9', flue: '#8A939C', air: '#38BDF8', elec: '#57A773', shaft: '#6B7580' };
 
   function evalCondition(read, c){
     if (c.when === 'bad') return read.quality === 'Bad' || read.quality === 'Uncertain';
@@ -298,15 +315,63 @@
     return null;
   }
 
+  function svgNode(tag, attrs){ const e = document.createElementNS(SVGNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; }
+  function equipShape(el){
+    const x = el.x, y = el.y, w = el.w || 120, h = el.h || 64, s = el.shape || 'box';
+    if (s === 'turbine') return svgNode('polygon', { points: x + ',' + (y + h * 0.28) + ' ' + (x + w) + ',' + y + ' ' + (x + w) + ',' + (y + h) + ' ' + x + ',' + (y + h * 0.72) });
+    if (s === 'generator' || s === 'pump') return svgNode('circle', { cx: x + w / 2, cy: y + h / 2, r: Math.min(w, h) / 2 });
+    const rx = s === 'drum' ? h / 2 : s === 'stack' ? 3 : 6;
+    return svgNode('rect', { x: x, y: y, width: w, height: h, rx: rx, ry: rx });
+  }
+  function makePipe(el){
+    const pts = (el.points || []).map((p) => p.x + ',' + p.y).join(' ');
+    const g = svgNode('g', {});
+    g.appendChild(svgNode('polyline', { points: pts, class: 'mimic-pipe', stroke: MEDIUM[el.medium] || '#8A939C', 'stroke-width': el.medium === 'shaft' ? 6 : 4 }));
+    g.appendChild(svgNode('polyline', { points: pts, class: 'mimic-flow' }));
+    return g;
+  }
+  function makeEquip(el){
+    const g = svgNode('g', { class: 'mimic-eq' });
+    const shape = equipShape(el); shape.setAttribute('class', 'eq-shape'); g.appendChild(shape);
+    const cx = el.x + (el.w || 120) / 2;
+    const lab = svgNode('text', { x: cx, y: el.y + 13, class: 'eq-label', 'text-anchor': 'middle' }); lab.textContent = el.label || el.id; g.appendChild(lab);
+    const val = svgNode('text', { x: cx, y: el.y + (el.h || 64) / 2 + 8, class: 'eq-val', 'text-anchor': 'middle' }); val.textContent = '—'; g.appendChild(val);
+    g.addEventListener('click', () => { if (el.nav) openScreen(el.nav); else openFaceplateForTag(primaryTag(el)); });
+    nodes.set(el.id, { kind: 'equip', valEl: val, shapeEl: shape, el });
+    return g;
+  }
+  function buildMimic(def, canvas){
+    let W = 720, H = 280;
+    for (const el of def.elements){
+      if (el.symbol === 'equipment'){ W = Math.max(W, el.x + (el.w || 120) + 20); H = Math.max(H, el.y + (el.h || 64) + 20); }
+      else if (el.symbol === 'pipe' && el.points) for (const p of el.points){ W = Math.max(W, p.x + 20); H = Math.max(H, p.y + 20); }
+    }
+    canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+    const svg = svgNode('svg', { width: W, height: H }); svg.style.cssText = 'position:absolute;left:0;top:0;overflow:visible';
+    for (const el of def.elements) if (el.symbol === 'pipe') svg.appendChild(makePipe(el));
+    for (const el of def.elements) if (el.symbol === 'equipment') svg.appendChild(makeEquip(el));
+    canvas.appendChild(svg);
+  }
+
   function buildScreen(def){
     screen = def; nodes.clear();
     $('scrTitle').textContent = (def.title ? def.title.vi + '  ·  ' : '') + def.screenId;
     const canvas = $('canvas'); canvas.innerHTML = '';
+    const isMimic = def.elements.some((e) => e.symbol === 'pipe' || e.symbol === 'equipment');
+    if (isMimic) buildMimic(def, canvas);
+    else { canvas.style.width = ''; canvas.style.height = ''; }
     for (const el of def.elements){
+      if (el.symbol === 'pipe' || el.symbol === 'equipment') continue;
       const root = document.createElement('div');
       root.className = 'tile';
       root.style.left = el.x + 'px'; root.style.top = el.y + 'px';
       root.style.width = (el.w || 150) + 'px'; root.style.height = (el.h || 78) + 'px';
+      let spark = null;
+      if (el.symbol !== 'bar'){
+        spark = document.createElement('canvas'); spark.className = 'spark';
+        spark.width = (el.w || 150); spark.height = (el.h || 78);
+        root.appendChild(spark);
+      }
       const lab = document.createElement('div'); lab.className = 'lab'; lab.textContent = el.label || el.id;
       root.appendChild(lab);
       let valEl = null, barEl = null;
@@ -322,9 +387,38 @@
       }
       root.onclick = () => openFaceplateForTag(primaryTag(el));
       canvas.appendChild(root);
-      nodes.set(el.id, { root, valEl, barEl, el });
+      nodes.set(el.id, { root, valEl, barEl, spark, buf: [], el });
     }
     refresh();
+  }
+
+  const _cvar = {};
+  function cvar(name){ if (_cvar[name] == null){ const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim(); _cvar[name] = v || '#8A939C'; } return _cvar[name]; }
+  function sparkColor(fill){
+    if (!fill) return cvar('--equip-line');
+    const s = String(fill).trim(); const m = s.match(/^var\((--[a-z0-9-]+)\)/i);
+    return m ? cvar(m[1]) : s;
+  }
+  function drawSpark(n, fill){
+    const cv = n.spark; if (!cv) return;
+    const buf = n.buf, W = cv.width, H = cv.height, ctx = cv.getContext('2d');
+    ctx.clearRect(0, 0, W, H);
+    if (buf.length < 2) return;
+    const color = sparkColor(fill);
+    let mn = Infinity, mx = -Infinity; for (const v of buf){ if (v < mn) mn = v; if (v > mx) mx = v; }
+    // Deadband tương đối: nhiễu nhỏ quanh giá trị ổn định vẽ gần phẳng, chỉ biến thiên thật mới nổi rõ (tránh giả tín hiệu bất ổn kiểu ISA-101).
+    const ref = Math.max(Math.abs(mn), Math.abs(mx), 1e-6);
+    const span = Math.max(mx - mn, ref * 0.008) || 1;
+    const pad = 4, top = pad, bot = H - pad;
+    const xOf = (i) => (buf.length === 1 ? 0 : (i / (buf.length - 1)) * W);
+    const yOf = (v) => bot - ((v - mn) / span) * (bot - top);
+    ctx.beginPath(); ctx.moveTo(xOf(0), yOf(buf[0]));
+    for (let i = 1; i < buf.length; i++) ctx.lineTo(xOf(i), yOf(buf[i]));
+    ctx.lineTo(W, bot); ctx.lineTo(0, bot); ctx.closePath();
+    ctx.globalAlpha = 0.13; ctx.fillStyle = color; ctx.fill(); ctx.globalAlpha = 1;
+    ctx.beginPath(); ctx.moveTo(xOf(0), yOf(buf[0]));
+    for (let i = 1; i < buf.length; i++) ctx.lineTo(xOf(i), yOf(buf[i]));
+    ctx.strokeStyle = color; ctx.lineWidth = 1.4; ctx.stroke();
   }
 
   function refresh(){
@@ -334,6 +428,13 @@
       const v = state[primaryTag(el)];
       const num = (typeof v === 'number') ? v : null;
       const fill = fillFor(el);
+      if (n.kind === 'equip'){
+        const dec = el.unit === 'MPa' || el.unit === '%' ? 2 : Math.abs(num || 0) >= 100 ? 0 : 1;
+        n.valEl.textContent = (num == null ? '—' : num.toFixed(dec)) + (el.unit ? ' ' + el.unit : '');
+        if (fill){ const c = sparkColor(fill); n.shapeEl.style.stroke = c; n.shapeEl.style.strokeWidth = '2.6'; n.valEl.style.fill = c; }
+        else { n.shapeEl.style.stroke = ''; n.shapeEl.style.strokeWidth = ''; n.valEl.style.fill = ''; }
+        continue;
+      }
       if (el.symbol === 'bar'){
         const b = el.bindings.find(x => x.property === 'value');
         const scaled = (num == null) ? 0 : num * ((b && b.transform && b.transform.scale) || 1);
@@ -343,6 +444,10 @@
         n.valEl.innerHTML = (num == null ? '—' : num.toFixed(el.unit === 'MPa' || el.unit === '%' ? 2 : num >= 100 ? 0 : 1))
           + '<span class="u">' + (el.unit || '') + '</span>';
         n.valEl.style.color = fill || 'var(--pv)';
+      }
+      if (n.spark && num != null){
+        n.buf.push(num); if (n.buf.length > 60) n.buf.shift();
+        drawSpark(n, fill);
       }
     }
     $('kMw').textContent = (state.GEN_MW_01 ?? 0).toFixed(0);
@@ -613,7 +718,7 @@
   let fpOpen = null, fpTab = 'Overview', fpData = null, fpTrend = null, fpHours = 1;
   function openFaceplateForTag(tag){
     const asset = fpByTag[tag];
-    if (!asset) return;
+    if (!asset){ showToast('Tag ' + tag + ' chưa gắn faceplate — chỉ hiển thị số.', false); return; }
     fpOpen = asset; fpTab = 'Overview'; fpData = null; fpTrend = null;
     document.querySelectorAll('#fpTabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === 'Overview'));
     $('fpMask').classList.add('on');
@@ -701,6 +806,18 @@
   $('diagX').onclick = () => { $('diagModal').hidden = true; };
   $('openBuilder').onclick = openBuilder;
   $('builderX').onclick = () => { $('builderModal').hidden = true; };
+  // UX: đóng modal bằng Esc hoặc bấm ra nền tối (nhất quán, tránh overlay bẫy thao tác).
+  const overlayModals = ['reportModal', 'journalModal', 'diagModal', 'builderModal'];
+  overlayModals.forEach((id) => {
+    const el = $(id);
+    if (el) el.addEventListener('click', (e) => { if (e.target === el) el.hidden = true; });
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    let closed = false;
+    overlayModals.forEach((id) => { const el = $(id); if (el && !el.hidden) { el.hidden = true; closed = true; } });
+    if (closed) e.preventDefault();
+  });
   $('bAddTile').onclick = () => { const t = $('bTagPick').value.trim(); if (t){ bTiles.push({ tag: t, label: '', unit: '', kind: 'value' }); $('bTagPick').value = ''; renderBTiles(); } };
   $('bBuild').onclick = () => {
     const id = $('bScreenId').value.trim();

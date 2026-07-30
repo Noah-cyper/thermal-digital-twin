@@ -26,6 +26,8 @@ const DEMO_USERS: ReadonlyArray<{ user: string; roles: Role[] }> = [
 // Ánh xạ lệnh WS → hành động RBAC (doc 05-07). load = setpoint; leak/mill-trip = override (OTS nguy hiểm).
 const CMD_ACTION: Record<string, PermissionAction> = { load: 'setpoint', ack: 'ack', leak: 'override', 'mill-trip': 'override', vacuum: 'override' };
 const LIVE_OTS = new Set(['ots-freeze', 'ots-snapshot', 'ots-restore']); // OTS: action 'engineer'
+// 4 KPI trên banner (MW · hơi · áp · O₂) là trạng thái TOÀN CỤC — luôn stream dù đang xem màn nào.
+const BANNER_TAGS = ['GEN_MW_01', 'BLR_STEAM_FLOW_01', 'BLR_MSTM_SH_PRESS_01', 'BLR_FLUE_O2_01'];
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PUBLIC = join(HERE, '..', 'public');
@@ -364,7 +366,7 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
       if (m.cmd === 'screen' && m.screenId !== undefined && screensById.has(m.screenId)) {
         const scr = screensById.get(m.screenId);
         if (scr) {
-          subs.set(ws, { tags: screenTags(scr), last: new Map() });
+          subs.set(ws, { tags: [...new Set([...screenTags(scr), ...BANNER_TAGS])], last: new Map() });
           if (!replay) sendScreen(ws, true);
         }
       } else if (m.cmd !== undefined && m.cmd in CMD_ACTION) {

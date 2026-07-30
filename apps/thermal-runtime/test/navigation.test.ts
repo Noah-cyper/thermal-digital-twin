@@ -4,7 +4,7 @@ import { createThermalRuntime } from '../src/runtime';
 describe('thermal-runtime — Navigation (cây + alarm→D3 + breadcrumb)', () => {
   it('home D1, cây ≥ 3 node, breadcrumb, alarm→D3 chứa tag', () => {
     const rt = createThermalRuntime();
-    expect(rt.navHome()).toBe('D1-plant-overview');
+    expect(rt.navHome()).toBe('D1-plant-mimic'); // v2: sơ đồ mimic là màn chủ D1 (đầu danh sách D1)
     expect(rt.navTree().length).toBeGreaterThanOrEqual(3);
     expect(rt.navBreadcrumb('D3-steam-drum').map((n) => n.screenId)).toEqual(['D1-plant-overview', 'D3-steam-drum']);
 

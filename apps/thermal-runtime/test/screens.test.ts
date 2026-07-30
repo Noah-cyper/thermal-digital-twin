@@ -16,7 +16,7 @@ describe('boiler screens (khai báo) + graphics binding', () => {
     expect(boilerScreens.some((s) => s.level === 'D3')).toBe(true);
     for (const s of boilerScreens) {
       expect(screenTags(s).length).toBeGreaterThan(0);
-      for (const el of s.elements) expect(el.bindings.length).toBeGreaterThan(0);
+      for (const el of s.elements) { if (el.symbol === 'pipe') continue; expect(el.bindings.length).toBeGreaterThan(0); } // pipe = ống trang trí, không bind tag
     }
   });
 
