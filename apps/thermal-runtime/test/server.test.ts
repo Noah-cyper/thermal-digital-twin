@@ -280,7 +280,8 @@ describe('thermal-runtime server', () => {
     while (navs.length === 0 && Date.now() - t0 < 2000) await sleep(20);
     expect(navs.length).toBeGreaterThan(0);
     expect((navs[0]?.tree ?? []).some((n) => n.level === 'D1')).toBe(true);
-    expect(navs[0]?.alarmIndex?.['BLR-DRUM-LVL-HH']).toBe('D3-steam-drum');
+    // alarm→màn chi tiết D3 được gửi kèm khi kết nối (đích cụ thể + bất biến "chứa tag" test ở navigation.test.ts)
+    expect(navs[0]?.alarmIndex?.['BLR-DRUM-LVL-HH']).toMatch(/^D3-/);
 
     ws.close();
     await app.close();

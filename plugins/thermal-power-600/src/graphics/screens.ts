@@ -172,18 +172,33 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
   },
   // ── Màn chi tiết RIÊNG cho từng khối mimic (click khối → mở đúng màn của khối đó) ──
   {
+    // Sơ đồ BỐ TRÍ THIẾT BỊ hệ lò hơi (mimic): buồng lửa · bao hơi · SH · bộ hâm · sấy gió · quạt · ống khói.
     screenId: 'D3-furnace',
     level: 'D3',
-    title: { vi: 'Buồng lửa & đốt', en: 'Furnace & Firing' },
+    title: { vi: 'Lò hơi — bố trí thiết bị', en: 'Boiler — Equipment Layout' },
     elements: [
-      valueTile('coal', 'BLR_COAL_FLOW_01', 'Lưu lượng than', 't/h', 0, 0),
-      valueTile('mw', 'GEN_MW_01', 'Công suất', 'MW', 1, 0),
-      valueTile('furn', 'BLR_FURN_PRESS_01', 'Áp buồng lửa', 'Pa', 2, 0, [{ when: 'gt', value: 200, sev: 1 }, { when: 'lt', value: -200, sev: 1 }]),
-      valueTile('o2', 'BLR_FLUE_O2_01', 'O₂ khói', '%', 3, 0, [{ when: 'lt', value: 1.5, sev: 2 }]),
-      barTile('fuel', 'BLR_FUEL_DEMAND_01', 'Fuel demand', 0, 1, 1),
-      barTile('firing', 'BLR_FIRING_DEMAND', 'Firing demand', 1, 1, 1),
-      barTile('fd', 'BLR_FD_DAMPER_01', 'FD damper', 2, 1, 1),
-      barTile('o2bar', 'BLR_FLUE_O2_01', 'O₂ (0–21%)', 3, 1, 100 / 21),
+      // Ống: nước (xanh) · hơi (cam) · khói (xám) · gió (lam) · than (xám đậm)
+      pipe('bp-coal', 'shaft', [{ x: 100, y: 272 }, { x: 124, y: 272 }]),
+      pipe('bp-riser', 'water', [{ x: 190, y: 170 }, { x: 190, y: 156 }]),
+      pipe('bp-drum-sh', 'steam', [{ x: 244, y: 130 }, { x: 353, y: 130 }, { x: 353, y: 138 }]),
+      pipe('bp-sh-out', 'steam', [{ x: 353, y: 138 }, { x: 353, y: 84 }, { x: 470, y: 84 }]),
+      pipe('bp-fl-sh', 'flue', [{ x: 245, y: 170 }, { x: 245, y: 165 }, { x: 306, y: 165 }]),
+      pipe('bp-fl-eco', 'flue', [{ x: 400, y: 165 }, { x: 424, y: 165 }]),
+      pipe('bp-fl-ah', 'flue', [{ x: 518, y: 165 }, { x: 542, y: 165 }]),
+      pipe('bp-fl-id', 'flue', [{ x: 636, y: 165 }, { x: 660, y: 168 }]),
+      pipe('bp-fl-stack', 'flue', [{ x: 689, y: 198 }, { x: 689, y: 225 }, { x: 713, y: 225 }, { x: 713, y: 250 }]),
+      pipe('bp-air', 'air', [{ x: 208, y: 427 }, { x: 589, y: 427 }, { x: 589, y: 192 }]),
+      pipe('bp-eco-drum', 'water', [{ x: 471, y: 138 }, { x: 471, y: 78 }, { x: 190, y: 78 }, { x: 190, y: 104 }]),
+      // Thiết bị (click → màn chi tiết liên quan)
+      equip('bf-coal', 'box', 'Cấp than', 'BLR_COAL_FLOW_01', 't/h', 'D3-coal-handling', 14, 250, 86, 44),
+      equip('bf-drum', 'drum', 'Bao hơi', 'BLR_DRUM_LEVEL_01', 'mm', 'D3-steam-drum', 136, 104, 108, 52, [{ when: 'gt', value: 250, sev: 1 }, { when: 'lt', value: -250, sev: 1 }]),
+      equip('bf-furnace', 'furnace', 'Buồng lửa', 'BLR_FURN_PRESS_01', 'Pa', 'D3-fd-fan', 124, 170, 132, 210, [{ when: 'gt', value: 200, sev: 1 }, { when: 'lt', value: -200, sev: 1 }]),
+      equip('bf-fd', 'pump', 'Quạt gió FD', 'PLANT_AIR_FLOW_01', 't/h', 'D3-fd-fan', 150, 398, 58, 58),
+      equip('bf-sh', 'box', 'Bộ quá nhiệt', 'BLR_MSTM_SH_TEMP_01', '°C', 'D3-superheater', 306, 138, 94, 54, [{ when: 'gt', value: 550, sev: 2 }]),
+      equip('bf-eco', 'box', 'Bộ hâm ECO', 'FW_ECON_INLET_TEMP_01', '°C', 'D3-feedwater-heatrate', 424, 138, 94, 54),
+      equip('bf-ah', 'box', 'Sấy gió AH', 'AH_AIR_OUT_TEMP_01', '°C', 'D3-fd-fan', 542, 138, 94, 54),
+      equip('bf-id', 'pump', 'Quạt khói ID', 'FG_FLOW_01', 't/h', 'D3-fd-fan', 660, 140, 58, 58),
+      equip('bf-stack', 'stack', 'Ống khói', 'FG_STACK_TEMP_01', '°C', 'D3-flue-stack', 690, 250, 46, 130, [{ when: 'gt', value: 150, sev: 3 }]),
     ],
   },
   {
