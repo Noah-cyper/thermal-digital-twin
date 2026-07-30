@@ -10,6 +10,6 @@ describe('thermal-runtime — Navigation (cây + alarm→D3 + breadcrumb)', () =
 
     const idx = rt.navAlarmIndex();
     expect(idx['BLR-DRUM-LVL-HH']).toBe('D3-steam-drum');
-    expect(idx['BLR-FLUE-O2-LO']).toBe('D3-boiler-combustion');
+    expect(idx['BLR-FLUE-O2-LO']).toBe('D3-furnace'); // màn buồng lửa & đốt (chi tiết riêng theo khối) hiển thị O₂ — đích nhảy alarm hợp lý
   });
 });
