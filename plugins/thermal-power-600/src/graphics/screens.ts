@@ -79,6 +79,39 @@ function pipe(id: string, medium: string, points: ReadonlyArray<{ x: number; y: 
   return { id, symbol: 'pipe', medium, points, x: points[0]?.x ?? 0, y: points[0]?.y ?? 0, bindings: [] };
 }
 
+interface FlowItem {
+  id: string;
+  shape: string;
+  label: string;
+  tag: string;
+  unit: string;
+  nav?: string;
+  w?: number;
+  h?: number;
+  alarms?: AlarmCond[];
+}
+
+/**
+ * Chuỗi thiết bị nối tiếp TRÁI→PHẢI trên một trục ngang (centerY): tự giãn cách (không đè nhau) và tự
+ * nối ống giữa hai thiết bị liền kề theo môi chất. Dùng cho các hệ dạng dòng chảy tuyến tính (nước cấp,
+ * đường khói, đường gió, cấp than, trục turbine). Trả về mảng phần tử (pipe + equipment) để chèn thẳng.
+ */
+function flow(centerY: number, medium: string, items: ReadonlyArray<FlowItem>, x0 = 20, gap = 44): ScreenElement[] {
+  const out: ScreenElement[] = [];
+  let x = x0;
+  let prevRight: number | null = null;
+  for (const it of items) {
+    const w = it.w ?? 112;
+    const h = it.h ?? 56;
+    const y = Math.round(centerY - h / 2);
+    if (prevRight !== null) out.push(pipe(`${it.id}-in`, medium, [{ x: prevRight, y: centerY }, { x, y: centerY }]));
+    out.push(equip(it.id, it.shape, it.label, it.tag, it.unit, it.nav ?? '', x, y, w, h, it.alarms ?? []));
+    prevRight = x + w;
+    x = prevRight + gap;
+  }
+  return out;
+}
+
 export const boilerScreens: ReadonlyArray<ScreenDef> = [
   {
     screenId: 'D1-plant-overview',
@@ -204,244 +237,325 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
   {
     screenId: 'D3-superheater',
     level: 'D3',
-    title: { vi: 'Quá nhiệt & tái nhiệt', en: 'Superheater & Reheat' },
+    title: { vi: 'Quá nhiệt & tái nhiệt — bố trí thiết bị', en: 'Superheater & Reheat Layout' },
     elements: [
-      valueTile('shtemp', 'BLR_MSTM_SH_TEMP_01', 'Nhiệt hơi SH', '°C', 0, 0, [{ when: 'gt', value: 550, sev: 2 }]),
-      valueTile('shpress', 'BLR_MSTM_SH_PRESS_01', 'Áp hơi chính', 'MPa', 1, 0, [{ when: 'gt', value: 19, sev: 2 }, { when: 'lt', value: 16, sev: 2 }]),
-      valueTile('steam', 'BLR_STEAM_FLOW_01', 'Hơi chính', 't/h', 2, 0),
-      valueTile('rhduty', 'TRB_REHEAT_DUTY_01', 'Nhiệt reheater', 'MWth', 3, 0),
-      valueTile('crhp', 'TRB_CRH_PRESS_01', 'Áp cold reheat', 'MPa', 0, 1),
-      valueTile('crht', 'TRB_CRH_TEMP_01', 'Nhiệt cold reheat', '°C', 1, 1),
-      valueTile('hrhp', 'TRB_HRH_PRESS_01', 'Áp hot reheat', 'MPa', 2, 1),
-      valueTile('hrht', 'TRB_HRH_TEMP_01', 'Nhiệt hot reheat', '°C', 3, 1, [{ when: 'lt', value: 500, sev: 2 }]),
-      barTile('spray', 'BLR_SH_SPRAY_CV_01', 'Van phun giảm ôn', 0, 2, 1),
+      // Dòng hơi chính: bao hơi → bộ quá nhiệt (van giảm ôn phun nước) → góp hơi chính ra turbine.
+      ...flow(100, 'steam', [
+        { id: 'sh-drum', shape: 'drum', label: 'Bao hơi', tag: 'BLR_DRUM_LEVEL_01', unit: 'mm', nav: 'D3-steam-drum', w: 120, h: 56 },
+        { id: 'sh-sh', shape: 'box', label: 'Bộ quá nhiệt', tag: 'BLR_MSTM_SH_TEMP_01', unit: '°C', w: 132, h: 62, alarms: [{ when: 'gt', value: 550, sev: 2 }] },
+        { id: 'sh-header', shape: 'box', label: 'Góp hơi chính (áp)', tag: 'BLR_MSTM_SH_PRESS_01', unit: 'MPa', w: 132, h: 62, alarms: [{ when: 'gt', value: 19, sev: 2 }, { when: 'lt', value: 16, sev: 2 }] },
+      ], 30, 70),
+      pipe('sh-spray-p', 'water', [{ x: 296, y: 190 }, { x: 296, y: 131 }]),
+      equip('sh-spray', 'box', 'Van giảm ôn (OP)', 'BLR_SH_SPRAY_CV_01', '%', '', 230, 190, 132, 54),
+      pipe('sh-out', 'steam', [{ x: 552, y: 100 }, { x: 590, y: 100 }]),
+      equip('sh-flow', 'box', 'Lưu lượng hơi chính', 'BLR_STEAM_FLOW_01', 't/h', '', 590, 72, 140, 56),
+      // Nhánh tái nhiệt: cold-reheat từ xả HP → bộ tái nhiệt → hot-reheat về IP.
+      ...flow(270, 'steam', [
+        { id: 'rh-crh', shape: 'box', label: 'Cold reheat', tag: 'TRB_CRH_TEMP_01', unit: '°C', w: 140, h: 56 },
+        { id: 'rh-reheater', shape: 'box', label: 'Bộ tái nhiệt', tag: 'TRB_REHEAT_DUTY_01', unit: 'MWth', w: 140, h: 56 },
+        { id: 'rh-hrh', shape: 'box', label: 'Hot reheat', tag: 'TRB_HRH_TEMP_01', unit: '°C', w: 140, h: 56, alarms: [{ when: 'lt', value: 500, sev: 2 }] },
+      ], 30, 60),
+      equip('rh-crhp', 'box', 'Áp cold reheat', 'TRB_CRH_PRESS_01', 'MPa', '', 590, 242, 140, 56),
+      equip('rh-hrhp', 'box', 'Áp hot reheat', 'TRB_HRH_PRESS_01', 'MPa', '', 590, 310, 140, 56),
     ],
   },
   {
     screenId: 'D3-turbine',
     level: 'D3',
-    title: { vi: 'Turbine hơi (HP/IP/LP)', en: 'Steam Turbine' },
+    title: { vi: 'Turbine hơi — bố trí thiết bị', en: 'Steam Turbine Layout' },
     elements: [
-      valueTile('speed', 'TRB_SPEED_01', 'Tốc độ turbine', 'rpm', 0, 0, [{ when: 'gt', value: 3120, sev: 1 }]),
-      valueTile('steam', 'BLR_STEAM_FLOW_01', 'Hơi vào turbine', 't/h', 1, 0),
-      valueTile('stodola', 'TRB_STODOLA_FLOW', 'Lưu lượng Stodola', 't/h', 2, 0),
-      valueTile('vac', 'TRB_COND_VACUUM_01', 'Chân không bình ngưng', 'kPa', 3, 0, [{ when: 'gt', value: 12, sev: 2 }]),
-      valueTile('hpmw', 'TRB_HP_MW_01', 'Công suất HP', 'MW', 0, 1),
-      valueTile('ipmw', 'TRB_IP_MW_01', 'Công suất IP', 'MW', 1, 1),
-      valueTile('lpmw', 'TRB_LP_MW_01', 'Công suất LP', 'MW', 2, 1),
-      valueTile('rhduty', 'TRB_REHEAT_DUTY_01', 'Nhiệt reheater', 'MWth', 3, 1),
-      valueTile('crht', 'TRB_CRH_TEMP_01', 'Nhiệt cold reheat', '°C', 0, 2),
-      valueTile('hrht', 'TRB_HRH_TEMP_01', 'Nhiệt hot reheat', '°C', 1, 2),
+      // Trục turbine: hơi chính → HP → IP → LP → máy phát (cùng trục 3000 v/p). Nhánh tái nhiệt + xả về
+      // bình ngưng vẽ riêng phía dưới.
+      pipe('tb-msteam', 'steam', [{ x: 64, y: 20 }, { x: 64, y: 92 }]),
+      equip('tb-msv', 'box', 'Hơi vào TB', 'TRB_STODOLA_FLOW', 't/h', '', 14, 92, 100, 56),
+      pipe('tb-steam', 'steam', [{ x: 114, y: 120 }, { x: 140, y: 120 }]),
+      ...flow(120, 'shaft', [
+        { id: 'tb-hp', shape: 'turbine', label: 'HP', tag: 'TRB_HP_MW_01', unit: 'MW', nav: 'D3-turbine-generator', w: 108, h: 80 },
+        { id: 'tb-ip', shape: 'turbine', label: 'IP', tag: 'TRB_IP_MW_01', unit: 'MW', nav: 'D3-turbine-generator', w: 108, h: 80 },
+        { id: 'tb-lp', shape: 'turbine', label: 'LP', tag: 'TRB_LP_MW_01', unit: 'MW', nav: 'D3-turbine-generator', w: 150, h: 100 },
+        { id: 'tb-gen', shape: 'generator', label: 'Máy phát', tag: 'GEN_MW_01', unit: 'MW', nav: 'D3-generator', w: 92, h: 92 },
+      ], 140, 44),
+      // Nhánh tái nhiệt: xả HP (cold reheat) → bộ tái nhiệt → hot reheat về IP.
+      pipe('tb-crh', 'steam', [{ x: 194, y: 160 }, { x: 194, y: 277 }, { x: 280, y: 277 }]),
+      equip('tb-reheat', 'box', 'Bộ tái nhiệt', 'TRB_REHEAT_DUTY_01', 'MWth', 'D3-superheater', 280, 250, 132, 54),
+      pipe('tb-hrh', 'steam', [{ x: 412, y: 277 }, { x: 412, y: 200 }, { x: 346, y: 200 }, { x: 346, y: 160 }]),
+      // Xả LP → bình ngưng (chân không).
+      pipe('tb-lpx', 'steam', [{ x: 519, y: 170 }, { x: 519, y: 250 }]),
+      equip('tb-cond', 'box', 'Bình ngưng (chân không)', 'TRB_COND_VACUUM_01', 'kPa', 'D3-condenser-cw', 453, 250, 132, 54, [{ when: 'gt', value: 12, sev: 2 }]),
+      equip('tb-speed', 'box', 'Tốc độ trục', 'TRB_SPEED_01', 'rpm', '', 14, 250, 180, 54, [{ when: 'gt', value: 3120, sev: 1 }]),
     ],
   },
   {
     screenId: 'D3-generator',
     level: 'D3',
-    title: { vi: 'Máy phát & xuất tuyến', en: 'Generator & Output' },
+    title: { vi: 'Máy phát & xuất tuyến — sơ đồ một sợi', en: 'Generator Single-Line' },
     elements: [
-      valueTile('mw', 'GEN_MW_01', 'Công suất tác dụng', 'MW', 0, 0),
-      valueTile('mvar', 'GEN_MVAR_01', 'Công suất phản kháng', 'MVAr', 1, 0),
-      valueTile('freq', 'GEN_FREQ_01', 'Tần số', 'Hz', 2, 0, [{ when: 'gt', value: 50.5, sev: 2 }, { when: 'lt', value: 49.5, sev: 2 }]),
-      valueTile('mva', 'ELEC_GEN_MVA_01', 'Công suất biểu kiến', 'MVA', 3, 0),
-      valueTile('stator', 'GEN_STATOR_TEMP_01', 'Nhiệt cuộn stator', '°C', 0, 1, [{ when: 'gt', value: 120, sev: 2 }]),
-      valueTile('cur', 'ELEC_GEN_CURRENT_01', 'Dòng stator', 'kA', 1, 1),
-      valueTile('pf', 'ELEC_PF_01', 'Hệ số công suất', '', 2, 1, [{ when: 'lt', value: 0.85, sev: 3 }]),
-      valueTile('gsu', 'ELEC_GSU_LOADING_01', 'Tải GSU', '%', 3, 1, [{ when: 'gt', value: 100, sev: 2 }]),
+      // Một sợi máy phát: kích từ (AVR) → máy phát 667 MVA/20 kV → MBA tăng áp GSU 20/500 kV → thanh cái
+      // 500 kV. Dải thông số máy phát vẽ ngay dưới sợi.
+      ...flow(130, 'elec', [
+        { id: 'gn-exc', shape: 'box', label: 'Kích từ (Q)', tag: 'GEN_MVAR_01', unit: 'MVAr', w: 96, h: 56 },
+        { id: 'gn-gen', shape: 'generator', label: 'Máy phát', tag: 'GEN_MW_01', unit: 'MW', w: 100, h: 100 },
+        { id: 'gn-gsu', shape: 'transformer', label: 'GSU 20/500 kV', tag: 'ELEC_GSU_LOADING_01', unit: '%', nav: 'D3-electrical', w: 110, h: 100, alarms: [{ when: 'gt', value: 100, sev: 2 }] },
+        { id: 'gn-line', shape: 'box', label: 'Thanh cái 500 kV', tag: 'ELEC_GRID_MW_01', unit: 'MW', nav: 'D3-electrical', w: 120, h: 56 },
+      ], 20, 48),
+      equip('gn-freq', 'box', 'Tần số', 'GEN_FREQ_01', 'Hz', '', 20, 250, 112, 54, [{ when: 'gt', value: 50.5, sev: 2 }, { when: 'lt', value: 49.5, sev: 2 }]),
+      equip('gn-mva', 'box', 'Biểu kiến', 'ELEC_GEN_MVA_01', 'MVA', '', 146, 250, 112, 54),
+      equip('gn-stator', 'box', 'Nhiệt stator', 'GEN_STATOR_TEMP_01', '°C', '', 272, 250, 112, 54, [{ when: 'gt', value: 120, sev: 2 }]),
+      equip('gn-cur', 'box', 'Dòng stator', 'ELEC_GEN_CURRENT_01', 'kA', '', 398, 250, 112, 54),
+      equip('gn-pf', 'box', 'Hệ số cs (cosφ)', 'ELEC_PF_01', '', '', 524, 250, 112, 54, [{ when: 'lt', value: 0.85, sev: 3 }]),
     ],
   },
   {
     screenId: 'D3-flue-stack',
     level: 'D3',
-    title: { vi: 'Đường khói & ống khói', en: 'Flue Gas & Stack' },
+    title: { vi: 'Đường khói & ống khói — bố trí thiết bị', en: 'Flue Gas Path Layout' },
     elements: [
-      valueTile('fgflow', 'FG_FLOW_01', 'Lưu lượng khói', 't/h', 0, 0),
-      valueTile('o2', 'BLR_FLUE_O2_01', 'O₂ khói', '%', 1, 0, [{ when: 'lt', value: 1.5, sev: 2 }]),
-      valueTile('exair', 'FG_EXCESS_AIR_01', 'Gió thừa', '%', 2, 0, [{ when: 'gt', value: 40, sev: 2 }]),
-      valueTile('lambda', 'FG_LAMBDA_01', 'Tỷ số gió λ', '', 3, 0),
-      valueTile('stack', 'FG_STACK_TEMP_01', 'Nhiệt ống khói', '°C', 0, 1, [{ when: 'gt', value: 150, sev: 3 }]),
-      valueTile('ahgas', 'FG_AH_GAS_IN_TEMP_01', 'Khói vào air heater', '°C', 1, 1),
-      valueTile('beff', 'BLR_EFF_01', 'Hiệu suất lò', '%', 2, 1, [{ when: 'lt', value: 82, sev: 2 }]),
-      valueTile('dgloss', 'FG_DRYGAS_LOSS_01', 'Tổn thất khói khô', '%', 3, 1),
+      // Đường khói: buồng lửa → bộ hâm/economizer → sấy gió (AH) → quạt khói ID → ống khói. Chỉ số cháy
+      // (O₂/λ/gió thừa/hiệu suất) vẽ dưới đường khói.
+      pipe('fs-in', 'flue', [{ x: 0, y: 140 }, { x: 20, y: 140 }]),
+      ...flow(140, 'flue', [
+        { id: 'fs-eco', shape: 'box', label: 'Bộ hâm (khói ra)', tag: 'FG_AH_GAS_IN_TEMP_01', unit: '°C', w: 130, h: 60 },
+        { id: 'fs-ah', shape: 'box', label: 'Sấy gió (AH)', tag: 'AH_AIR_OUT_TEMP_01', unit: '°C', w: 130, h: 60 },
+        { id: 'fs-id', shape: 'pump', label: 'Quạt khói ID', tag: 'FG_FLOW_01', unit: 't/h', w: 64, h: 64 },
+        { id: 'fs-stack', shape: 'stack', label: 'Ống khói', tag: 'FG_STACK_TEMP_01', unit: '°C', w: 70, h: 180, alarms: [{ when: 'gt', value: 150, sev: 3 }] },
+      ], 20, 50),
+      pipe('fs-up', 'flue', [{ x: 529, y: 50 }, { x: 529, y: 24 }]),
+      equip('fs-o2', 'box', 'O₂ khói', 'BLR_FLUE_O2_01', '%', '', 20, 254, 130, 54, [{ when: 'lt', value: 1.5, sev: 2 }]),
+      equip('fs-exair', 'box', 'Gió thừa', 'FG_EXCESS_AIR_01', '%', '', 162, 254, 130, 54, [{ when: 'gt', value: 40, sev: 2 }]),
+      equip('fs-lambda', 'box', 'Tỷ số gió λ', 'FG_LAMBDA_01', '', '', 304, 254, 130, 54),
+      equip('fs-eff', 'box', 'Hiệu suất lò', 'BLR_EFF_01', '%', '', 446, 254, 130, 54, [{ when: 'lt', value: 82, sev: 2 }]),
+      equip('fs-dgloss', 'box', 'Tổn thất khói khô', 'FG_DRYGAS_LOSS_01', '%', '', 588, 254, 140, 54),
     ],
   },
   {
     screenId: 'D3-fd-fan',
     level: 'D3',
-    title: { vi: 'Quạt gió & gió cháy', en: 'FD Fan & Combustion Air' },
+    title: { vi: 'Quạt gió & gió cháy — bố trí thiết bị', en: 'FD Fan & Combustion Air Layout' },
     elements: [
-      valueTile('air', 'PLANT_AIR_FLOW_01', 'Gió cháy', 't/h', 0, 0),
-      valueTile('furn', 'BLR_FURN_PRESS_01', 'Áp buồng lửa', 'Pa', 1, 0, [{ when: 'gt', value: 200, sev: 1 }, { when: 'lt', value: -200, sev: 1 }]),
-      valueTile('airout', 'AH_AIR_OUT_TEMP_01', 'Gió cháy sau AH', '°C', 2, 0),
-      valueTile('lambda', 'FG_LAMBDA_01', 'Tỷ số gió λ', '', 3, 0),
-      barTile('fd', 'BLR_FD_DAMPER_01', 'FD damper', 0, 1, 1),
-      barTile('idvane', 'BLR_ID_VANE_01', 'ID guide vane', 1, 1, 1),
-      barTile('o2bar', 'BLR_FLUE_O2_01', 'O₂ (0–21%)', 2, 1, 100 / 21),
+      // Đường gió cháy: quạt gió FD → sấy gió (AH) → hộp gió (windbox) → buồng lửa. Vị trí van gió/khói +
+      // O₂/λ vẽ dưới đường gió.
+      pipe('fd-airin', 'air', [{ x: 0, y: 140 }, { x: 20, y: 140 }]),
+      ...flow(140, 'air', [
+        { id: 'fd-fan', shape: 'pump', label: 'Quạt gió FD', tag: 'PLANT_AIR_FLOW_01', unit: 't/h', w: 64, h: 64 },
+        { id: 'fd-ah', shape: 'box', label: 'Sấy gió (AH)', tag: 'AH_AIR_OUT_TEMP_01', unit: '°C', w: 120, h: 60 },
+        { id: 'fd-wb', shape: 'box', label: 'Hộp gió (windbox)', tag: 'FG_EXCESS_AIR_01', unit: '%', w: 120, h: 60, alarms: [{ when: 'gt', value: 40, sev: 2 }] },
+        { id: 'fd-furn', shape: 'furnace', label: 'Buồng lửa', tag: 'BLR_FURN_PRESS_01', unit: 'Pa', nav: 'D3-furnace', w: 140, h: 150, alarms: [{ when: 'gt', value: 200, sev: 1 }, { when: 'lt', value: -200, sev: 1 }] },
+      ], 20, 50),
+      equip('fd-fdd', 'box', 'FD damper (OP)', 'BLR_FD_DAMPER_01', '%', '', 20, 254, 150, 54),
+      equip('fd-idvane', 'box', 'ID guide vane (OP)', 'BLR_ID_VANE_01', '%', '', 182, 254, 150, 54),
+      equip('fd-o2', 'box', 'O₂ khói', 'BLR_FLUE_O2_01', '%', '', 344, 254, 130, 54, [{ when: 'lt', value: 1.5, sev: 2 }]),
+      equip('fd-lambda', 'box', 'Tỷ số gió λ', 'FG_LAMBDA_01', '', '', 486, 254, 130, 54),
     ],
   },
   {
     screenId: 'D3-steam-drum',
     level: 'D3',
-    title: { vi: 'Bao hơi & cấp nước', en: 'Steam Drum & Feedwater' },
+    title: { vi: 'Bao hơi & cấp nước — bố trí thiết bị', en: 'Steam Drum & Feedwater Layout' },
     elements: [
-      valueTile('level', 'BLR_DRUM_LEVEL_01', 'Mức bao hơi', 'mm', 0, 0, [
-        { when: 'gt', value: 250, sev: 1 },
-        { when: 'lt', value: -250, sev: 1 },
-      ]),
-      valueTile('steam', 'BLR_STEAM_FLOW_01', 'Hơi sinh ra', 't/h', 1, 0),
-      valueTile('fw', 'BLR_FW_FLOW_01', 'Nước cấp', 't/h', 2, 0),
-      valueTile('press', 'BLR_MSTM_SH_PRESS_01', 'Áp hơi chính', 'MPa', 3, 0, [{ when: 'lt', value: 16, sev: 2 }]),
-      barTile('fwcv', 'BLR_FW_CV_01', 'Van nước cấp (OP)', 0, 1, 1),
-      valueTile('temp', 'BLR_MSTM_SH_TEMP_01', 'Nhiệt hơi SH', '°C', 1, 1, [{ when: 'gt', value: 550, sev: 2 }]),
+      // Bao hơi là nút trung tâm: nước cấp (qua van FW) vào; hơi bão hoà ra bộ quá nhiệt; vòng tuần hoàn
+      // tự nhiên xuống dàn ống sinh hơi (downcomer) và hơi-nước lên lại (riser).
+      pipe('sd-p-fw', 'water', [{ x: 140, y: 95 }, { x: 160, y: 95 }]),
+      equip('sd-fw', 'box', 'Nước cấp', 'BLR_FW_FLOW_01', 't/h', '', 20, 67, 120, 56),
+      pipe('sd-p-cv', 'water', [{ x: 250, y: 95 }, { x: 270, y: 95 }]),
+      equip('sd-fwcv', 'box', 'Van FW (OP)', 'BLR_FW_CV_01', '%', '', 160, 67, 90, 56),
+      equip('sd-drum', 'drum', 'Bao hơi', 'BLR_DRUM_LEVEL_01', 'mm', '', 270, 60, 220, 70, [{ when: 'gt', value: 250, sev: 1 }, { when: 'lt', value: -250, sev: 1 }]),
+      pipe('sd-p-steam', 'steam', [{ x: 490, y: 95 }, { x: 560, y: 95 }]),
+      equip('sd-steam', 'box', 'Hơi ra → SH', 'BLR_STEAM_FLOW_01', 't/h', 'D3-superheater', 560, 67, 150, 56),
+      pipe('sd-p-down', 'water', [{ x: 330, y: 130 }, { x: 330, y: 250 }]),
+      pipe('sd-p-riser', 'steam', [{ x: 430, y: 250 }, { x: 430, y: 130 }]),
+      equip('sd-furn', 'box', 'Dàn ống sinh hơi', 'BLR_FURN_PRESS_01', 'Pa', 'D3-furnace', 300, 250, 160, 60),
+      equip('sd-press', 'box', 'Áp hơi chính', 'BLR_MSTM_SH_PRESS_01', 'MPa', '', 20, 250, 140, 54, [{ when: 'lt', value: 16, sev: 2 }]),
+      equip('sd-temp', 'box', 'Nhiệt hơi SH', 'BLR_MSTM_SH_TEMP_01', '°C', '', 560, 250, 150, 54, [{ when: 'gt', value: 550, sev: 2 }]),
     ],
   },
   {
     screenId: 'D3-boiler-combustion',
     level: 'D3',
-    title: { vi: 'Đốt & gió', en: 'Combustion & Air' },
+    title: { vi: 'Đốt & gió — bố trí thiết bị', en: 'Combustion & Air Layout' },
     elements: [
-      valueTile('coal', 'BLR_COAL_FLOW_01', 'Lưu lượng than', 't/h', 0, 0),
-      valueTile('o2', 'BLR_FLUE_O2_01', 'O₂ khói', '%', 1, 0, [{ when: 'lt', value: 1.5, sev: 2 }]),
-      valueTile('furnace', 'BLR_FURN_PRESS_01', 'Áp buồng lửa', 'Pa', 2, 0, [
-        { when: 'gt', value: 200, sev: 1 },
-        { when: 'lt', value: -200, sev: 1 },
-      ]),
-      valueTile('mw', 'GEN_MW_01', 'Công suất', 'MW', 3, 0),
-      barTile('firing', 'BLR_FIRING_DEMAND', 'Firing demand', 0, 1, 1),
-      barTile('fd', 'BLR_FD_DAMPER_01', 'FD damper', 1, 1, 1),
-      barTile('idvane', 'BLR_ID_VANE_01', 'ID guide vane', 2, 1, 1),
-      barTile('o2bar', 'BLR_FLUE_O2_01', 'O₂ (0–21%)', 3, 1, 100 / 21),
+      // Cụm đốt: than (từ máy nghiền) + gió cháy (từ FD/windbox) gặp nhau tại vòi đốt → ngọn lửa vào buồng
+      // lửa; khói nóng bốc lên đường khói. Firing demand điều phối tỷ lệ nhiên liệu–gió.
+      pipe('bc-coalp', 'shaft', [{ x: 180, y: 98 }, { x: 300, y: 98 }, { x: 300, y: 120 }]),
+      equip('bc-coal', 'box', 'Cấp than', 'BLR_COAL_FLOW_01', 't/h', 'D3-coal-handling', 40, 70, 140, 56),
+      pipe('bc-fddp', 'air', [{ x: 180, y: 228 }, { x: 300, y: 228 }, { x: 300, y: 190 }]),
+      equip('bc-fdd', 'box', 'FD damper (OP)', 'BLR_FD_DAMPER_01', '%', '', 40, 200, 140, 56),
+      equip('bc-burner', 'box', 'Cụm vòi đốt', 'BLR_FIRING_DEMAND', '%', '', 300, 120, 130, 70),
+      pipe('bc-flame', 'flue', [{ x: 430, y: 155 }, { x: 480, y: 155 }]),
+      equip('bc-furn', 'furnace', 'Buồng lửa', 'BLR_FURN_PRESS_01', 'Pa', 'D3-furnace', 480, 80, 150, 170, [{ when: 'gt', value: 200, sev: 1 }, { when: 'lt', value: -200, sev: 1 }]),
+      pipe('bc-flue', 'flue', [{ x: 555, y: 80 }, { x: 555, y: 54 }]),
+      equip('bc-o2', 'box', 'O₂ khói', 'BLR_FLUE_O2_01', '%', '', 40, 290, 140, 54, [{ when: 'lt', value: 1.5, sev: 2 }]),
+      equip('bc-idvane', 'box', 'ID guide vane (OP)', 'BLR_ID_VANE_01', '%', '', 196, 290, 140, 54),
+      equip('bc-mw', 'box', 'Công suất', 'GEN_MW_01', 'MW', '', 352, 290, 140, 54),
     ],
   },
   {
     screenId: 'D3-turbine-generator',
     level: 'D3',
-    title: { vi: 'Turbine & Máy phát', en: 'Turbine & Generator' },
+    title: { vi: 'Turbine & Máy phát — chu trình tái nhiệt', en: 'Turbine-Generator Reheat Cycle' },
     elements: [
-      valueTile('mw', 'GEN_MW_01', 'Công suất', 'MW', 0, 0),
-      valueTile('speed', 'TRB_SPEED_01', 'Tốc độ turbine', 'rpm', 1, 0, [{ when: 'gt', value: 3120, sev: 1 }]),
-      valueTile('freq', 'GEN_FREQ_01', 'Tần số', 'Hz', 2, 0, [
-        { when: 'gt', value: 50.5, sev: 2 },
-        { when: 'lt', value: 49.5, sev: 2 },
-      ]),
-      valueTile('mvar', 'GEN_MVAR_01', 'Công suất phản kháng', 'MVAr', 3, 0),
-      valueTile('stodola', 'TRB_STODOLA_FLOW', 'Lưu lượng Stodola', 't/h', 0, 1),
-      valueTile('stator', 'GEN_STATOR_TEMP_01', 'Nhiệt cuộn stator', '°C', 1, 1, [{ when: 'gt', value: 120, sev: 2 }]),
-      valueTile('vac', 'TRB_COND_VACUUM_01', 'Chân không bình ngưng', 'kPa', 2, 1, [{ when: 'gt', value: 12, sev: 2 }]),
-      // Chu trình tái nhiệt + tách công suất tầng (v1.18) — HP+IP+LP cộng lại = công suất trục.
-      valueTile('hpmw', 'TRB_HP_MW_01', 'Công suất HP', 'MW', 0, 2),
-      valueTile('ipmw', 'TRB_IP_MW_01', 'Công suất IP', 'MW', 1, 2),
-      valueTile('lpmw', 'TRB_LP_MW_01', 'Công suất LP', 'MW', 2, 2),
-      valueTile('rhduty', 'TRB_REHEAT_DUTY_01', 'Nhiệt lượng reheater', 'MWth', 3, 2),
-      valueTile('crhp', 'TRB_CRH_PRESS_01', 'Áp cold reheat', 'MPa', 0, 3),
-      valueTile('crht', 'TRB_CRH_TEMP_01', 'Nhiệt cold reheat', '°C', 1, 3),
-      valueTile('hrhp', 'TRB_HRH_PRESS_01', 'Áp hot reheat', 'MPa', 2, 3),
-      valueTile('hrht', 'TRB_HRH_TEMP_01', 'Nhiệt hot reheat', '°C', 3, 3, [{ when: 'lt', value: 500, sev: 2 }]),
+      // Chu trình tái nhiệt đầy đủ: hơi chính → HP → (tái nhiệt) → IP → LP → bình ngưng; công suất tầng
+      // HP+IP+LP cộng lại = công suất trục máy phát. Dải thông số điện + tái nhiệt vẽ phía dưới.
+      pipe('tg-steam', 'steam', [{ x: 110, y: 110 }, { x: 120, y: 110 }]),
+      equip('tg-msv', 'box', 'Hơi vào TB', 'TRB_STODOLA_FLOW', 't/h', '', 14, 82, 96, 56),
+      ...flow(110, 'shaft', [
+        { id: 'tg-hp', shape: 'turbine', label: 'HP', tag: 'TRB_HP_MW_01', unit: 'MW', w: 100, h: 74 },
+        { id: 'tg-ip', shape: 'turbine', label: 'IP', tag: 'TRB_IP_MW_01', unit: 'MW', w: 100, h: 74 },
+        { id: 'tg-lp', shape: 'turbine', label: 'LP', tag: 'TRB_LP_MW_01', unit: 'MW', w: 140, h: 94 },
+        { id: 'tg-gen', shape: 'generator', label: 'Máy phát', tag: 'GEN_MW_01', unit: 'MW', nav: 'D3-generator', w: 86, h: 86 },
+      ], 120, 40),
+      pipe('tg-crh', 'steam', [{ x: 170, y: 147 }, { x: 170, y: 235 }, { x: 250, y: 235 }]),
+      equip('tg-reheat', 'box', 'Bộ tái nhiệt', 'TRB_REHEAT_DUTY_01', 'MWth', '', 250, 210, 120, 50),
+      pipe('tg-hrh', 'steam', [{ x: 370, y: 235 }, { x: 370, y: 175 }, { x: 310, y: 175 }, { x: 310, y: 147 }]),
+      pipe('tg-lpx', 'steam', [{ x: 470, y: 157 }, { x: 470, y: 210 }]),
+      equip('tg-cond', 'box', 'Bình ngưng', 'TRB_COND_VACUUM_01', 'kPa', 'D3-condenser-cw', 400, 210, 140, 50, [{ when: 'gt', value: 12, sev: 2 }]),
+      equip('tg-freq', 'box', 'Tần số', 'GEN_FREQ_01', 'Hz', '', 14, 300, 130, 54, [{ when: 'gt', value: 50.5, sev: 2 }, { when: 'lt', value: 49.5, sev: 2 }]),
+      equip('tg-mvar', 'box', 'Q phản kháng', 'GEN_MVAR_01', 'MVAr', '', 158, 300, 130, 54),
+      equip('tg-stator', 'box', 'Nhiệt stator', 'GEN_STATOR_TEMP_01', '°C', '', 302, 300, 130, 54, [{ when: 'gt', value: 120, sev: 2 }]),
+      equip('tg-speed', 'box', 'Tốc độ trục', 'TRB_SPEED_01', 'rpm', '', 446, 300, 130, 54, [{ when: 'gt', value: 3120, sev: 1 }]),
+      equip('tg-crhp', 'box', 'Áp cold reheat', 'TRB_CRH_PRESS_01', 'MPa', '', 14, 364, 130, 54),
+      equip('tg-crht', 'box', 'Nhiệt cold reheat', 'TRB_CRH_TEMP_01', '°C', '', 158, 364, 130, 54),
+      equip('tg-hrhp', 'box', 'Áp hot reheat', 'TRB_HRH_PRESS_01', 'MPa', '', 302, 364, 130, 54),
+      equip('tg-hrht', 'box', 'Nhiệt hot reheat', 'TRB_HRH_TEMP_01', '°C', '', 446, 364, 130, 54, [{ when: 'lt', value: 500, sev: 2 }]),
     ],
   },
   {
     screenId: 'D3-feedwater-heatrate',
     level: 'D3',
-    title: { vi: 'Nước cấp & Heat Rate', en: 'Feed Water & Heat Rate' },
+    title: { vi: 'Nước cấp & Heat Rate — bố trí thiết bị', en: 'Feed Water Train Layout' },
     elements: [
-      // Đoàn gia nhiệt hồi nhiệt (v1.19): condensate → 4 LP heater → deaerator → BFP → 3 HP heater → econ.
-      valueTile('fwflow', 'FW_FLOW_01', 'Lưu lượng nước cấp', 't/h', 0, 0),
-      valueTile('cond', 'FW_CONDENSATE_TEMP_01', 'Nhiệt condensate', '°C', 1, 0),
-      valueTile('dea', 'FW_DEAERATOR_TEMP_01', 'Nhiệt deaerator', '°C', 2, 0),
-      valueTile('econ', 'FW_ECON_INLET_TEMP_01', 'Nước cấp vào economizer', '°C', 3, 0, [{ when: 'lt', value: 200, sev: 3 }]),
-      valueTile('regen', 'FW_REGEN_DUTY_01', 'Nhiệt hồi nhiệt', 'MWth', 0, 1),
-      valueTile('hr', 'PLANT_CYCLE_HR_01', 'Heat rate chu trình', 'kJ/kWh', 1, 1, [{ when: 'gt', value: 9500, sev: 2 }]),
+      // Đoàn gia nhiệt hồi nhiệt: condensate → gia nhiệt hạ áp → bình khử khí → bơm nước cấp (BFP) →
+      // vào economizer. Hơi trích cấp cho bình khử khí (đường cam từ trên).
+      pipe('fw-in', 'water', [{ x: 0, y: 130 }, { x: 16, y: 130 }]),
+      ...flow(130, 'water', [
+        { id: 'fw-cond', shape: 'box', label: 'Condensate', tag: 'FW_CONDENSATE_TEMP_01', unit: '°C', w: 116, h: 56 },
+        { id: 'fw-lph', shape: 'box', label: 'Gia nhiệt hồi nhiệt', tag: 'FW_REGEN_DUTY_01', unit: 'MWth', w: 140, h: 56 },
+        { id: 'fw-dea', shape: 'drum', label: 'Bình khử khí', tag: 'FW_DEAERATOR_TEMP_01', unit: '°C', w: 120, h: 56 },
+        { id: 'fw-bfp', shape: 'pump', label: 'Bơm nước cấp', tag: 'FW_FLOW_01', unit: 't/h', w: 64, h: 64 },
+        { id: 'fw-econ', shape: 'box', label: 'Vào economizer', tag: 'FW_ECON_INLET_TEMP_01', unit: '°C', nav: 'D3-furnace', w: 140, h: 56, alarms: [{ when: 'lt', value: 200, sev: 3 }] },
+      ], 16, 34),
+      pipe('fw-extract', 'steam', [{ x: 400, y: 20 }, { x: 400, y: 102 }]),
+      equip('fw-hr', 'box', 'Heat rate chu trình', 'PLANT_CYCLE_HR_01', 'kJ/kWh', '', 16, 250, 200, 54, [{ when: 'gt', value: 9500, sev: 2 }]),
     ],
   },
   {
     screenId: 'D3-condenser-cw',
     level: 'D3',
-    title: { vi: 'Bình ngưng & Nước tuần hoàn', en: 'Condenser & Circulating Water' },
+    title: { vi: 'Bình ngưng & Nước tuần hoàn — bố trí thiết bị', en: 'Condenser & CW Layout' },
     elements: [
-      // Bình ngưng + CW (v1.20): cân bằng năng lượng — nhiệt thải, phía nước tuần hoàn 64.000 m³/h.
-      valueTile('cduty', 'COND_DUTY_01', 'Nhiệt thải bình ngưng', 'MWth', 0, 0),
-      valueTile('csat', 'COND_SAT_TEMP_01', 'Nhiệt bão hoà', '°C', 1, 0, [{ when: 'gt', value: 45, sev: 2 }]),
-      valueTile('cttd', 'COND_TTD_01', 'TTD', '°C', 2, 0),
-      valueTile('cwflow', 'COND_CW_FLOW_01', 'Lưu lượng CW', 't/h', 3, 0),
-      valueTile('cwin', 'COND_CW_IN_TEMP_01', 'CW vào', '°C', 0, 1),
-      valueTile('cwout', 'COND_CW_OUT_TEMP_01', 'CW ra', '°C', 1, 1, [{ when: 'gt', value: 42, sev: 3 }]),
-      valueTile('cwrise', 'COND_CW_RISE_01', 'Độ tăng nhiệt CW', '°C', 2, 1),
+      // Bình ngưng: hơi xả LP ngưng tụ trong vỏ; nước tuần hoàn (CW) chạy qua chùm ống lấy nhiệt thải;
+      // nước ngưng rơi xuống hotwell về đoàn nước cấp.
+      pipe('cd-steam', 'steam', [{ x: 370, y: 20 }, { x: 370, y: 64 }]),
+      equip('cd-cond', 'box', 'Bình ngưng', 'COND_DUTY_01', 'MWth', '', 250, 64, 240, 110),
+      pipe('cd-cwinp', 'water', [{ x: 134, y: 119 }, { x: 250, y: 119 }]),
+      equip('cd-cwin', 'box', 'CW vào', 'COND_CW_IN_TEMP_01', '°C', '', 30, 91, 104, 56),
+      pipe('cd-cwoutp', 'water', [{ x: 490, y: 119 }, { x: 556, y: 119 }]),
+      equip('cd-cwout', 'box', 'CW ra', 'COND_CW_OUT_TEMP_01', '°C', 'D3-cooling-tower', 556, 91, 104, 56, [{ when: 'gt', value: 42, sev: 3 }]),
+      pipe('cd-out', 'water', [{ x: 370, y: 174 }, { x: 370, y: 224 }]),
+      equip('cd-sat', 'box', 'Nhiệt bão hoà', 'COND_SAT_TEMP_01', '°C', '', 30, 250, 130, 54, [{ when: 'gt', value: 45, sev: 2 }]),
+      equip('cd-ttd', 'box', 'TTD', 'COND_TTD_01', '°C', '', 172, 250, 110, 54),
+      equip('cd-cwflow', 'box', 'Lưu lượng CW', 'COND_CW_FLOW_01', 't/h', '', 294, 250, 140, 54),
+      equip('cd-rise', 'box', 'Tăng nhiệt CW', 'COND_CW_RISE_01', '°C', '', 446, 250, 140, 54),
     ],
   },
   {
     screenId: 'D3-fluegas-air',
     level: 'D3',
-    title: { vi: 'Đường khói & Hiệu suất lò', en: 'Flue Gas & Boiler Efficiency' },
+    title: { vi: 'Sấy gió & Hiệu suất lò — bố trí thiết bị', en: 'Air Heater & Efficiency Layout' },
     elements: [
-      // Đường khói + gió cháy + hiệu suất lò (v1.21): khép kín cân bằng năng lượng phía nhiên liệu.
-      valueTile('beff', 'BLR_EFF_01', 'Hiệu suất lò', '%', 0, 0, [{ when: 'lt', value: 82, sev: 2 }]),
-      valueTile('exair', 'FG_EXCESS_AIR_01', 'Gió thừa', '%', 1, 0, [{ when: 'gt', value: 40, sev: 2 }]),
-      valueTile('lambda', 'FG_LAMBDA_01', 'Tỷ số gió λ', '', 2, 0),
-      valueTile('fgflow', 'FG_FLOW_01', 'Lưu lượng khói', 't/h', 3, 0),
-      valueTile('ahgas', 'FG_AH_GAS_IN_TEMP_01', 'Khói vào air heater', '°C', 0, 1),
-      valueTile('stack', 'FG_STACK_TEMP_01', 'Nhiệt ống khói', '°C', 1, 1, [{ when: 'gt', value: 150, sev: 3 }]),
-      valueTile('airout', 'AH_AIR_OUT_TEMP_01', 'Gió cháy sau AH', '°C', 2, 1),
-      valueTile('dgloss', 'FG_DRYGAS_LOSS_01', 'Tổn thất khói khô', '%', 3, 1),
+      // Bộ sấy gió (air heater) trao đổi nhiệt ngược dòng: khói nóng nhả nhiệt (vào trái-trên, ra trái-dưới
+      // → ESP) sấy gió cháy (ra phải-trên → windbox). Thu hồi nhiệt này quyết định hiệu suất lò & tổn thất.
+      equip('fa-ah', 'box', 'Bộ sấy gió (AH)', 'FG_FLOW_01', 't/h', '', 310, 100, 170, 150),
+      pipe('fa-fluep1', 'flue', [{ x: 290, y: 118 }, { x: 310, y: 118 }]),
+      equip('fa-fluein', 'box', 'Khói vào AH', 'FG_AH_GAS_IN_TEMP_01', '°C', '', 150, 90, 140, 56),
+      pipe('fa-fluep2', 'flue', [{ x: 310, y: 228 }, { x: 290, y: 228 }]),
+      equip('fa-flueout', 'box', 'Khói ra → ESP', 'FG_STACK_TEMP_01', '°C', 'D3-flue-stack', 150, 200, 140, 56, [{ when: 'gt', value: 150, sev: 3 }]),
+      pipe('fa-airp', 'air', [{ x: 480, y: 118 }, { x: 500, y: 118 }]),
+      equip('fa-airout', 'box', 'Gió nóng → windbox', 'AH_AIR_OUT_TEMP_01', '°C', '', 500, 90, 150, 56),
+      equip('fa-eff', 'box', 'Hiệu suất lò', 'BLR_EFF_01', '%', '', 500, 200, 150, 56, [{ when: 'lt', value: 82, sev: 2 }]),
+      equip('fa-lambda', 'box', 'Tỷ số gió λ', 'FG_LAMBDA_01', '', '', 150, 300, 140, 54),
+      equip('fa-dgloss', 'box', 'Tổn thất khói khô', 'FG_DRYGAS_LOSS_01', '%', '', 310, 300, 170, 54),
+      equip('fa-exair', 'box', 'Gió thừa', 'FG_EXCESS_AIR_01', '%', '', 500, 300, 150, 54, [{ when: 'gt', value: 40, sev: 2 }]),
     ],
   },
   {
     screenId: 'D3-emissions-cems',
     level: 'D3',
-    title: { vi: 'Phát thải (CEMS)', en: 'Emissions (CEMS)' },
+    title: { vi: 'Phát thải (CEMS) — bố trí thiết bị', en: 'Emissions (CEMS) Layout' },
     elements: [
-      // Phát thải CEMS (v1.22): sau ESP + FGD, quy về nồng độ mg/Nm³ + tải CO₂.
-      valueTile('dust', 'EMI_DUST_STACK_01', 'Bụi ra ống khói', 'mg/Nm³', 0, 0, [{ when: 'gt', value: 30, sev: 2 }]),
-      valueTile('so2', 'EMI_SO2_STACK_01', 'SO₂ ra ống khói', 'mg/Nm³', 1, 0, [{ when: 'gt', value: 200, sev: 2 }]),
-      valueTile('nox', 'EMI_NOX_STACK_01', 'NOₓ ra ống khói', 'mg/Nm³', 2, 0, [{ when: 'gt', value: 500, sev: 2 }]),
-      valueTile('co2', 'EMI_CO2_RATE_01', 'Phát thải CO₂', 't/h', 3, 0),
-      valueTile('fgvol', 'EMI_FG_VOLUME_01', 'Lưu lượng khói', 'Nm³/h', 0, 1),
-      valueTile('esp', 'EMI_ESP_EFF_01', 'Độ khử bụi ESP', '%', 1, 1),
-      valueTile('fgd', 'EMI_FGD_EFF_01', 'Độ khử SO₂ FGD', '%', 2, 1),
+      // Xử lý khói cuối nguồn: lọc bụi tĩnh điện (ESP) → khử SO₂ (FGD) → ống khói. Cụm phân tích CEMS đo
+      // liên tục bụi/SO₂/NOₓ/CO₂ tại miệng ống khói.
+      pipe('em-in', 'flue', [{ x: 10, y: 150 }, { x: 30, y: 150 }]),
+      ...flow(150, 'flue', [
+        { id: 'em-esp', shape: 'box', label: 'Lọc bụi ESP', tag: 'EMI_ESP_EFF_01', unit: '%', w: 130, h: 70 },
+        { id: 'em-fgd', shape: 'box', label: 'Khử SO₂ (FGD)', tag: 'EMI_FGD_EFF_01', unit: '%', w: 130, h: 70 },
+        { id: 'em-stack', shape: 'stack', label: 'Ống khói', tag: 'EMI_FG_VOLUME_01', unit: 'Nm³/h', w: 70, h: 180 },
+      ], 30, 60),
+      pipe('em-up', 'flue', [{ x: 445, y: 60 }, { x: 445, y: 30 }]),
+      pipe('em-tap', 'flue', [{ x: 480, y: 150 }, { x: 500, y: 150 }]),
+      pipe('em-bus', 'flue', [{ x: 500, y: 67 }, { x: 500, y: 277 }]),
+      equip('em-dust', 'box', 'Bụi', 'EMI_DUST_STACK_01', 'mg/Nm³', '', 520, 40, 170, 54, [{ when: 'gt', value: 30, sev: 2 }]),
+      equip('em-so2', 'box', 'SO₂', 'EMI_SO2_STACK_01', 'mg/Nm³', '', 520, 110, 170, 54, [{ when: 'gt', value: 200, sev: 2 }]),
+      equip('em-nox', 'box', 'NOₓ', 'EMI_NOX_STACK_01', 'mg/Nm³', '', 520, 180, 170, 54, [{ when: 'gt', value: 500, sev: 2 }]),
+      equip('em-co2', 'box', 'CO₂', 'EMI_CO2_RATE_01', 't/h', '', 520, 250, 170, 54),
     ],
   },
   {
     screenId: 'D3-electrical',
     level: 'D3',
-    title: { vi: 'Điện & Xuất lưới', en: 'Electrical & Grid Export' },
+    title: { vi: 'Điện & Xuất lưới — sơ đồ một sợi', en: 'Electrical Single-Line' },
     elements: [
-      // Phía điện (v1.23): máy phát 667 MVA/20 kV → GSU 20/500 kV → lưới 500 kV; tự dùng qua UAT.
-      valueTile('net', 'ELEC_NET_MW_01', 'Công suất tinh (net)', 'MW', 0, 0),
-      valueTile('aux', 'ELEC_AUX_POWER_01', 'Tự dùng', 'MW', 1, 0),
-      valueTile('grid', 'ELEC_GRID_MW_01', 'Xuất lưới 500 kV', 'MW', 2, 0),
-      valueTile('mva', 'ELEC_GEN_MVA_01', 'Công suất biểu kiến', 'MVA', 3, 0),
-      valueTile('pf', 'ELEC_PF_01', 'Hệ số công suất', '', 0, 1, [{ when: 'lt', value: 0.85, sev: 3 }]),
-      valueTile('cur', 'ELEC_GEN_CURRENT_01', 'Dòng stator', 'kA', 1, 1),
-      valueTile('gsu', 'ELEC_GSU_LOADING_01', 'Tải GSU', '%', 2, 1, [{ when: 'gt', value: 100, sev: 2 }]),
-      valueTile('uat', 'ELEC_AUX_LOADING_01', 'Tải UAT', '%', 3, 1, [{ when: 'gt', value: 100, sev: 2 }]),
+      // Sơ đồ một sợi phía điện: máy phát 667 MVA/20 kV → MBA tăng áp GSU 20/500 kV → lưới 500 kV. Nhánh
+      // tự dùng: trích từ đầu cực máy phát qua MBA tự dùng (UAT) 20/6,6 kV → thanh cái 6,6 kV.
+      ...flow(100, 'elec', [
+        { id: 'el-gen', shape: 'generator', label: 'Máy phát', tag: 'ELEC_GEN_MVA_01', unit: 'MVA', w: 100, h: 100 },
+        { id: 'el-gsu', shape: 'transformer', label: 'GSU 20/500 kV', tag: 'ELEC_GSU_LOADING_01', unit: '%', w: 110, h: 100, alarms: [{ when: 'gt', value: 100, sev: 2 }] },
+        { id: 'el-grid', shape: 'box', label: 'Lưới 500 kV', tag: 'ELEC_GRID_MW_01', unit: 'MW', w: 130, h: 56 },
+      ], 30, 70),
+      pipe('el-netp', 'elec', [{ x: 510, y: 100 }, { x: 560, y: 100 }]),
+      equip('el-net', 'box', 'Công suất net', 'ELEC_NET_MW_01', 'MW', '', 560, 72, 150, 56),
+      equip('el-cur', 'box', 'Dòng stator', 'ELEC_GEN_CURRENT_01', 'kA', '', 560, 150, 150, 56),
+      pipe('el-auxbus', 'elec', [{ x: 80, y: 150 }, { x: 80, y: 300 }, { x: 200, y: 300 }]),
+      equip('el-uat', 'transformer', 'UAT 20/6,6 kV', 'ELEC_AUX_LOADING_01', '%', '', 200, 250, 110, 100, [{ when: 'gt', value: 100, sev: 2 }]),
+      pipe('el-auxp', 'elec', [{ x: 310, y: 300 }, { x: 380, y: 300 }]),
+      equip('el-aux', 'box', 'Tự dùng 6,6 kV', 'ELEC_AUX_POWER_01', 'MW', '', 380, 272, 150, 56),
+      equip('el-pf', 'box', 'Hệ số cs (cosφ)', 'ELEC_PF_01', '', '', 560, 272, 150, 56, [{ when: 'lt', value: 0.85, sev: 3 }]),
     ],
   },
   {
     screenId: 'D3-cooling-tower',
     level: 'D3',
-    title: { vi: 'Tháp làm mát', en: 'Cooling Tower' },
+    title: { vi: 'Tháp làm mát — bố trí thiết bị', en: 'Cooling Tower Layout' },
     elements: [
-      // Tháp làm mát natural draft (v1.24): khép vòng CW — bầu ướt + approach + bốc hơi + nước bổ sung.
-      valueTile('reject', 'CT_HEAT_REJECT_01', 'Nhiệt thải khí quyển', 'MWth', 0, 0),
-      valueTile('wb', 'CT_WETBULB_01', 'Bầu ướt', '°C', 1, 0),
-      valueTile('supply', 'CT_CW_SUPPLY_01', 'CW cấp (lạnh)', '°C', 2, 0),
-      valueTile('approach', 'CT_APPROACH_01', 'Approach', '°C', 3, 0),
-      valueTile('range', 'CT_RANGE_01', 'Range', '°C', 0, 1),
-      valueTile('evap', 'CT_EVAP_LOSS_01', 'Bốc hơi', 't/h', 1, 1),
-      valueTile('makeup', 'CT_MAKEUP_01', 'Nước bổ sung', 't/h', 2, 1),
+      // Vòng nước tuần hoàn khép kín: CW nóng từ bình ngưng lên tháp làm mát (đối lưu tự nhiên) → hơi ẩm
+      // bốc lên, nước lạnh rơi xuống bể → bơm CW đẩy về bình ngưng. Bổ sung bù bốc hơi + cuốn theo.
+      pipe('ct-vapor', 'air', [{ x: 375, y: 44 }, { x: 375, y: 16 }]),
+      equip('ct-tower', 'stack', 'Tháp làm mát', 'CT_HEAT_REJECT_01', 'MWth', '', 300, 44, 150, 190),
+      pipe('ct-hotp', 'water', [{ x: 194, y: 98 }, { x: 300, y: 98 }]),
+      equip('ct-hot', 'box', 'CW nóng (từ bình ngưng)', 'CT_RANGE_01', '°C', 'D3-condenser-cw', 24, 70, 170, 56),
+      pipe('ct-coldp', 'water', [{ x: 375, y: 234 }, { x: 375, y: 300 }, { x: 264, y: 300 }]),
+      equip('ct-cwp', 'pump', 'Bơm CW', 'CT_CW_SUPPLY_01', '°C', '', 200, 268, 64, 64),
+      pipe('ct-retp', 'water', [{ x: 200, y: 300 }, { x: 80, y: 300 }, { x: 80, y: 126 }]),
+      equip('ct-wb', 'box', 'Bầu ướt', 'CT_WETBULB_01', '°C', '', 480, 70, 160, 54),
+      equip('ct-approach', 'box', 'Approach', 'CT_APPROACH_01', '°C', '', 480, 150, 160, 54),
+      equip('ct-evap', 'box', 'Bốc hơi', 'CT_EVAP_LOSS_01', 't/h', '', 480, 230, 160, 54),
+      equip('ct-makeup', 'box', 'Nước bổ sung', 'CT_MAKEUP_01', 't/h', '', 480, 310, 160, 54),
     ],
   },
   {
     screenId: 'D3-coal-handling',
     level: 'D3',
-    title: { vi: 'Cung cấp than', en: 'Coal Handling' },
+    title: { vi: 'Cung cấp than — bố trí thiết bị', en: 'Coal Handling Layout' },
     elements: [
-      // Cung cấp than (v1.25): bunker → feeder → mill; băng tải cấp; dự trữ yard.
-      valueTile('cons', 'COAL_CONSUMPTION_01', 'Tiêu thụ than', 't/h', 0, 0),
-      valueTile('bunker', 'COAL_BUNKER_LEVEL_01', 'Mức bunker', '%', 1, 0, [{ when: 'lt', value: 30, sev: 2 }]),
-      valueTile('conv', 'COAL_CONVEYOR_FEED_01', 'Băng tải cấp', 't/h', 2, 0),
-      valueTile('mills', 'COAL_MILLS_RUNNING_01', 'Máy nghiền chạy', '', 3, 0),
-      valueTile('mload', 'COAL_MILL_LOADING_01', 'Tải máy nghiền', '%', 0, 1, [{ when: 'gt', value: 100, sev: 2 }]),
-      valueTile('feeder', 'COAL_FEEDER_RATE_01', 'Suất feeder', 't/h', 1, 1),
-      valueTile('yard', 'COAL_YARD_DAYS_01', 'Dự trữ yard', 'ngày', 2, 1, [{ when: 'lt', value: 7, sev: 2 }]),
+      // Tuyến than: kho than (yard) → băng tải → bunker → feeder định lượng → máy nghiền → vòi đốt vào lò.
+      ...flow(130, 'shaft', [
+        { id: 'cl-yard', shape: 'box', label: 'Kho than (yard)', tag: 'COAL_YARD_DAYS_01', unit: 'ngày', w: 110, h: 56, alarms: [{ when: 'lt', value: 7, sev: 2 }] },
+        { id: 'cl-conv', shape: 'box', label: 'Băng tải cấp', tag: 'COAL_CONVEYOR_FEED_01', unit: 't/h', w: 110, h: 56 },
+        { id: 'cl-bunker', shape: 'box', label: 'Bunker', tag: 'COAL_BUNKER_LEVEL_01', unit: '%', w: 110, h: 56, alarms: [{ when: 'lt', value: 30, sev: 2 }] },
+        { id: 'cl-feeder', shape: 'box', label: 'Feeder', tag: 'COAL_FEEDER_RATE_01', unit: 't/h', w: 110, h: 56 },
+        { id: 'cl-mill', shape: 'generator', label: 'Máy nghiền', tag: 'COAL_MILL_LOADING_01', unit: '%', w: 72, h: 72, alarms: [{ when: 'gt', value: 100, sev: 2 }] },
+        { id: 'cl-burner', shape: 'box', label: 'Vòi đốt → lò', tag: 'COAL_CONSUMPTION_01', unit: 't/h', nav: 'D3-furnace', w: 110, h: 56 },
+      ], 14, 24),
+      equip('cl-mills', 'box', 'Số máy nghiền chạy', 'COAL_MILLS_RUNNING_01', '', '', 550, 250, 160, 54),
     ],
   },
   {
