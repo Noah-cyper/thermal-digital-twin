@@ -11,6 +11,7 @@ import type { ScreenDef, PermissionAction, Role, LoopMode, ScreenBuildSpec } fro
 import type { ReplaySession } from '@idtp/engines';
 import { SecurityEngine, buildScreen } from '@idtp/engines';
 import { boilerScreens, screenTags } from '@idtp/plugin-thermal-power-600';
+import { startPersistence } from './persistence';
 import { createThermalRuntime } from './runtime';
 import type { OtsSnapshot } from './runtime';
 
@@ -506,12 +507,24 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
     }
   }, stepMs);
 
+  // (5) Persistence + Sparkplug — BẬT khi có env; base run KHÔNG chạm pg/mqtt (startPersistence không được gọi).
+  let persistStop: (() => Promise<void>) | undefined;
+  if (process.env.IDTP_TIMESCALE_URL || process.env.IDTP_MQTT_URL) {
+    void startPersistence(rt, { timescaleUrl: process.env.IDTP_TIMESCALE_URL, mqttUrl: process.env.IDTP_MQTT_URL })
+      .then((stop) => {
+        persistStop = stop;
+        console.log('[persist] BẬT — Timescale:', !!process.env.IDTP_TIMESCALE_URL, '· Sparkplug:', !!process.env.IDTP_MQTT_URL);
+      })
+      .catch((e) => console.error('[persist] lỗi kết nối, bỏ qua:', e?.message ?? e));
+  }
+
   const ready = new Promise<number>((resolve) => {
     server.listen(port, () => resolve((server.address() as AddressInfo).port));
   });
   const close = (): Promise<void> =>
     new Promise<void>((resolve) => {
       clearInterval(timer);
+      void persistStop?.();
       wss.close(() => server.close(() => resolve()));
     });
 
