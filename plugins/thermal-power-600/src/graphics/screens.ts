@@ -152,6 +152,25 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
     ],
   },
   {
+    // Sơ đồ MỘT SỢI điện (SLD): máy phát → GSU → thanh cái 500 kV → đường dây; nhánh UAT → tự dùng 6,6 kV.
+    screenId: 'D1-electrical-sld',
+    level: 'D1',
+    title: { vi: 'Sơ đồ một sợi điện (SLD)', en: 'Electrical Single-Line' },
+    elements: [
+      pipe('e-gen-gsu', 'elec', [{ x: 364, y: 118 }, { x: 364, y: 158 }]),
+      pipe('e-gsu-bus', 'elec', [{ x: 364, y: 220 }, { x: 364, y: 280 }]),
+      pipe('e-bus-line', 'elec', [{ x: 560, y: 318 }, { x: 560, y: 360 }]),
+      pipe('e-bus-uat', 'elec', [{ x: 200, y: 318 }, { x: 200, y: 358 }]),
+      pipe('e-uat-aux', 'elec', [{ x: 200, y: 420 }, { x: 200, y: 430 }]),
+      equip('e-gen', 'generator', 'Máy phát', 'GEN_MW_01', 'MW', 'D3-turbine-generator', 320, 30, 88, 88),
+      equip('e-gsu', 'transformer', 'GSU tăng áp', 'ELEC_GSU_LOADING_01', '%', 'D3-electrical', 336, 158, 56, 62, [{ when: 'gt', value: 100, sev: 2 }]),
+      equip('e-bus', 'box', 'Thanh cái 500 kV', 'ELEC_GRID_MW_01', 'MW', 'D3-electrical', 120, 280, 520, 38),
+      equip('e-line', 'grid', 'Đường dây 500 kV', 'ELEC_GRID_MW_01', 'MW', 'D3-electrical', 505, 360, 135, 56),
+      equip('e-uat', 'transformer', 'UAT tự dùng', 'ELEC_AUX_LOADING_01', '%', 'D3-electrical', 172, 358, 56, 62, [{ when: 'gt', value: 100, sev: 2 }]),
+      equip('e-aux', 'box', 'Tự dùng 6,6 kV', 'ELEC_AUX_POWER_01', 'MW', 'D3-electrical', 110, 430, 180, 46),
+    ],
+  },
+  {
     screenId: 'D3-steam-drum',
     level: 'D3',
     title: { vi: 'Bao hơi & cấp nước', en: 'Steam Drum & Feedwater' },
