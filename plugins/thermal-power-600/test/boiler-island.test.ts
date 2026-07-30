@@ -139,4 +139,26 @@ describe('BoilerIslandModel', () => {
     const steamTrip = out(run(full, ctx, 1500), 'BLR_STEAM_FLOW_01');
     expect(steamTrip).toBeLessThan(steamFull);
   });
+
+  it('malfunction: trip quạt FD → O₂ sập; trip quạt ID → áp buồng lửa dương; clear khôi phục', () => {
+    const ctx = mkCtx({ BLR_FUEL_DEMAND_01: 70, BLR_FD_DAMPER_01: 62, BLR_ID_VANE_01: 62 });
+    const base = new BoilerIslandModel();
+    base.init();
+    const o2Base = out(run(base, ctx, 800), 'BLR_FLUE_O2_01');
+    const furnBase = out(run(base, ctx, 200), 'BLR_FURN_PRESS_01');
+    expect(furnBase).toBeLessThan(0); // bình thường buồng lửa âm (~ −50 Pa)
+
+    const fd = new BoilerIslandModel();
+    fd.init();
+    fd.injectMalfunction({ id: 'fd-fan-trip' });
+    const o2Fd = out(run(fd, ctx, 800), 'BLR_FLUE_O2_01');
+    expect(o2Fd).toBeLessThan(o2Base - 1); // thiếu gió cháy → O₂ sập rõ
+    fd.clearMalfunction('fd-fan-trip');
+    expect(out(run(fd, ctx, 800), 'BLR_FLUE_O2_01')).toBeGreaterThan(o2Fd + 0.5); // khôi phục
+
+    const idm = new BoilerIslandModel();
+    idm.init();
+    idm.injectMalfunction({ id: 'id-fan-trip' });
+    expect(out(run(idm, ctx, 300), 'BLR_FURN_PRESS_01')).toBeGreaterThan(0); // mất hút → dương
+  });
 });

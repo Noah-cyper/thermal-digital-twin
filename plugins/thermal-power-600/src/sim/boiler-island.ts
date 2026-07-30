@@ -181,6 +181,8 @@ export class BoilerIslandModel implements ISimModel {
   private leak = 0; // t/h — tube leak (malfunction)
   private vacuum = VACUUM_NOM_KPA; // kPa(a)
   private vacuumTarget = VACUUM_NOM_KPA;
+  private fdFanTripped = false; // malfunction: trip quạt gió FD → thiếu gió cháy → O₂ sập
+  private idFanTripped = false; // malfunction: trip quạt khói ID → mất hút → áp buồng lửa dương
 
   private readonly steam = new Foptd(TAU_STEAM, TH_STEAM, 0.1);
   private readonly o2 = new Foptd(TAU_O2, TH_O2, 0.1);
@@ -197,6 +199,8 @@ export class BoilerIslandModel implements ISimModel {
     this.leak = 0;
     this.vacuum = VACUUM_NOM_KPA;
     this.vacuumTarget = VACUUM_NOM_KPA;
+    this.fdFanTripped = false;
+    this.idFanTripped = false;
     this.steam.reset(ws.steamGen);
     this.o2.reset(ws.o2);
     this.shTemp.reset(ws.shTemp);
@@ -232,7 +236,7 @@ export class BoilerIslandModel implements ISimModel {
     this.coalFlow += (dtSec / TAU_COAL_ACT) * (coalTarget - this.coalFlow);
 
     // ── Gió & O₂ (air/fuel ratio → excess air) ──
-    const airFlow = (fdDamper / 100) * AIR_MAX_TPH; // t/h
+    const airFlow = (this.fdFanTripped ? 0.05 : fdDamper / 100) * AIR_MAX_TPH; // t/h (trip quạt FD → chỉ còn ~5% gió tự nhiên)
     const lambda = airFlow / Math.max(1e-3, this.coalFlow * AF_STOICH);
     const o2Target = clamp(21 * (1 - 1 / Math.max(lambda, 1e-3)), 0, 21);
     const o2Now = this.o2.step(o2Target, dtSec);
@@ -267,7 +271,7 @@ export class BoilerIslandModel implements ISimModel {
     const shTempNow = this.shTemp.step(tTarget, dtSec);
 
     // ── Áp buồng lửa (balanced draft: FD đẩy vào, ID hút ra) ──
-    const furnTarget = DRAFT_NOM_PA + K_DRAFT * (fdDamper - idVane);
+    const furnTarget = this.idFanTripped ? K_DRAFT * fdDamper * 0.8 : DRAFT_NOM_PA + K_DRAFT * (fdDamper - idVane); // trip quạt ID → mất hút → buồng lửa dương
     const furnNow = this.furnace.step(furnTarget, dtSec);
 
     // ── Chân không bình ngưng: mất chân không → hệ số giảm → tụt công suất (Stodola đơn giản hoá) ──
@@ -304,6 +308,8 @@ export class BoilerIslandModel implements ISimModel {
       leak: this.leak,
       vacuum: this.vacuum,
       vacuumTarget: this.vacuumTarget,
+      fdFanTripped: this.fdFanTripped ? 1 : 0,
+      idFanTripped: this.idFanTripped ? 1 : 0,
       rng: this.rng.state,
     };
     this.steam.dump(state, 'steam');
@@ -321,6 +327,8 @@ export class BoilerIslandModel implements ISimModel {
     this.millsAvailable = s.millsAvailable ?? MILLS_RUNNING;
     this.leak = s.leak ?? 0;
     this.vacuum = s.vacuum ?? VACUUM_NOM_KPA;
+    this.fdFanTripped = (s.fdFanTripped ?? 0) > 0;
+    this.idFanTripped = (s.idFanTripped ?? 0) > 0;
     this.vacuumTarget = s.vacuumTarget ?? VACUUM_NOM_KPA;
     this.rng.state = s.rng ?? SIM_SEED;
     this.steam.load(s, 'steam');
@@ -333,12 +341,16 @@ export class BoilerIslandModel implements ISimModel {
     if (mf.id === 'tube-leak') this.leak = mf.params?.rate ?? 50;
     else if (mf.id === 'mill-trip') this.millsAvailable = Math.max(0, this.millsAvailable - 1);
     else if (mf.id === 'loss-of-vacuum') this.vacuumTarget = mf.params?.kpa ?? LOSS_VAC_KPA;
+    else if (mf.id === 'fd-fan-trip') this.fdFanTripped = true;
+    else if (mf.id === 'id-fan-trip') this.idFanTripped = true;
   }
 
   clearMalfunction(id: string): void {
     if (id === 'tube-leak') this.leak = 0;
     else if (id === 'mill-trip') this.millsAvailable = MILLS_RUNNING;
     else if (id === 'loss-of-vacuum') this.vacuumTarget = VACUUM_NOM_KPA;
+    else if (id === 'fd-fan-trip') this.fdFanTripped = false;
+    else if (id === 'id-fan-trip') this.idFanTripped = false;
   }
 
   dispose(): void {
