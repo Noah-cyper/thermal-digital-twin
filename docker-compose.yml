@@ -1,8 +1,11 @@
-# IDTP — hạ tầng bền hoá (doc 15/19). TimescaleDB cho Historian production (TimescaleHistorian).
-# Dev/on-prem: `docker compose up -d timescale`. Ứng dụng cấp SqlExecutor (node-postgres) trỏ vào.
+# IDTP — hạ tầng bền hoá (doc 15/16/19): TimescaleDB (Historian production) + Mosquitto (Sparkplug B).
+# Dev/on-prem: `docker compose up -d`. Bật persistence bằng env (xem docs/26-persistence-sparkplug.md):
+#   IDTP_TIMESCALE_URL=postgres://idtp:idtp@localhost:5432/idtp \
+#   IDTP_MQTT_URL=mqtt://localhost:1883 \
+#   pnpm --filter @idtp/app-thermal-runtime serve
 services:
   timescale:
-    image: timescale/timescaledb:2.17.2-pg16
+    image: timescale/timescaledb:2.17.2-pg16 # extension timescaledb nạp sẵn → create_hypertable chạy được
     container_name: idtp-timescale
     environment:
       POSTGRES_DB: idtp
@@ -17,6 +20,14 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: idtp-mosquitto
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./deploy/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
 
 volumes:
   idtp_timescale:

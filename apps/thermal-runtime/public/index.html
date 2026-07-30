@@ -194,9 +194,12 @@
         <button data-rstart="1">▶ Replay lịch sử</button>
         <button data-resim="loss-of-vacuum">🟠 What-if: mất chân không</button>
         <button data-resim="load:600">🟠 What-if: tải 600 MW</button>
+        <button data-resim="fd-fan-trip">🟠 What-if: trip quạt FD</button>
+        <button data-resim="id-fan-trip">🟠 What-if: trip quạt ID</button>
         <button data-build="1" title="Dựng nhanh một màn hình demo mẫu">🧩 Màn hình demo</button>
         <button id="openBuilder" title="Screen Builder (L5): chọn tag, kéo-thả sắp xếp, tạo màn hình — không code">🧩 Screen Builder…</button>
         <button id="openReport" title="Báo cáo ca/ngày (doc 21): tổng hợp số liệu từ Historian">📋 Báo cáo ca</button>
+        <button id="openTrend" title="Trend đa tag: chọn nhiều tag + dải thời gian → biểu đồ đường từ Historian">📈 Trend</button>
         <button id="openJournal" title="Event Log / SOE (màn hình hệ thống): nhật ký sự kiện alarm/trip/lệnh/chuỗi/bảo mật">📓 Nhật ký sự kiện</button>
         <button id="openDiag" title="System Diagnostic (màn hình hệ thống): tự soi trạng thái sim/tag/loop/historian/alarm/journal">🩺 Chẩn đoán hệ thống</button>
         <button data-ots="freeze" id="otsFreeze">Freeze (OTS)</button>
@@ -257,6 +260,26 @@
         <span id="diagX" style="cursor:pointer;opacity:.6;font-size:16px">✕</span></div>
       <div id="diagBody"></div>
       <div class="note" style="margin-top:8px;font-size:11px;opacity:.6">Chỉ đọc — số liệu lấy từ nguồn thật của runtime (sim/tag/loop/historian/alarm/journal). Không tác động thiết bị.</div>
+    </div>
+  </div>
+  <div id="trendModal" hidden style="position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center">
+    <div style="background:var(--panel,#141a20);color:var(--text,#e7edf2);border:1px solid var(--line,#2a343d);border-radius:8px;width:min(880px,96vw);max-height:92vh;overflow:auto;padding:16px 18px;font-size:13px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <b>📈 Trend — biểu đồ đa tag (Historian)</b>
+        <span id="trendX" style="cursor:pointer;opacity:.6;font-size:16px">✕</span></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px">
+        <input id="trTagPick" list="trTagList" placeholder="Gõ/chọn tag rồi + Thêm pen" style="flex:1;min-width:180px;background:var(--panel2,#0e1318);color:inherit;border:1px solid var(--line,#2a343d);border-radius:4px;padding:6px 8px">
+        <datalist id="trTagList"></datalist>
+        <button id="trAdd">+ Thêm pen</button>
+        <span style="opacity:.4">·</span>
+        <button class="trh" data-h="0.25">15 phút</button>
+        <button class="trh" data-h="1">1 giờ</button>
+        <button class="trh" data-h="8">8 giờ</button>
+        <button class="trh" data-h="24">24 giờ</button>
+      </div>
+      <canvas id="trendCanvas" width="840" height="300" style="width:100%;height:auto;background:rgba(127,127,127,.06);border-radius:4px"></canvas>
+      <div id="trLegend" style="display:flex;flex-wrap:wrap;gap:14px;margin-top:8px;font-size:12px"></div>
+      <div class="note" style="margin-top:8px;font-size:11px;opacity:.6">Mỗi pen tự chuẩn hoá min–max trong cửa sổ (chỉ đọc từ Historian). Tối đa 8 pen. Bấm nhãn pen để bỏ.</div>
     </div>
   </div>
   <div id="builderModal" hidden style="position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center">
@@ -320,6 +343,12 @@
     const x = el.x, y = el.y, w = el.w || 120, h = el.h || 64, s = el.shape || 'box';
     if (s === 'turbine') return svgNode('polygon', { points: x + ',' + (y + h * 0.28) + ' ' + (x + w) + ',' + y + ' ' + (x + w) + ',' + (y + h) + ' ' + x + ',' + (y + h * 0.72) });
     if (s === 'generator' || s === 'pump') return svgNode('circle', { cx: x + w / 2, cy: y + h / 2, r: Math.min(w, h) / 2 });
+    if (s === 'transformer'){ // ký hiệu SLD chuẩn: 2 vòng tròn chồng dọc
+      const g = svgNode('g', {}), r = Math.min(w, h * 0.58) / 2, cx = x + w / 2;
+      g.appendChild(svgNode('circle', { cx: cx, cy: y + r + 3, r: r }));
+      g.appendChild(svgNode('circle', { cx: cx, cy: y + h - r - 3, r: r }));
+      return g;
+    }
     const rx = s === 'drum' ? h / 2 : s === 'stack' ? 3 : 6;
     return svgNode('rect', { x: x, y: y, width: w, height: h, rx: rx, ry: rx });
   }
@@ -678,6 +707,7 @@
       else if (m.type === 'built-screen'){ if (m.def){ openScreen(m.def.screenId); showToast('🧩 Đã tạo & mở màn hình: ' + m.def.screenId, true); } }
       else if (m.type === 'tags'){ builderTags = m.items || []; }
       else if (m.type === 'report'){ onReport(m.report); }
+      else if (m.type === 'trend-series'){ drawTrend(m); }
       else if (m.type === 'journal'){ onJournal(m); }
       else if (m.type === 'diag'){ onDiag(m.diag); }
     } catch {} };
@@ -803,11 +833,63 @@
   $('openJournal').onclick = () => send({ cmd: 'journal' });
   $('journalX').onclick = () => { $('journalModal').hidden = true; };
   $('openDiag').onclick = () => send({ cmd: 'diag' });
+  // ── Trend viewer đa tag (Historian) ──
+  const TREND_COLORS = ['#E8952A', '#4A90D9', '#57A773', '#E5484D', '#C9A227', '#38BDF8', '#B14CFF', '#9AA5B1'];
+  let trPens = ['GEN_MW_01', 'BLR_STEAM_FLOW_01', 'BLR_MSTM_SH_PRESS_01', 'BLR_DRUM_LEVEL_01'];
+  let trHours = 1;
+  function openTrend(){
+    $('trTagList').innerHTML = builderTags.map((t) => '<option value="' + t + '"></option>').join('');
+    $('trendModal').hidden = false;
+    trSend();
+  }
+  function trSend(){ send({ cmd: 'trend', tags: trPens, hours: trHours }); }
+  function addPen(){
+    const t = $('trTagPick').value.trim();
+    if (t && !trPens.includes(t) && trPens.length < 8){ trPens.push(t); $('trTagPick').value = ''; trSend(); }
+  }
+  function drawTrend(m){
+    const cv = $('trendCanvas'), ctx = cv.getContext('2d'), W = cv.width, H = cv.height, padL = 8, padR = 8, padT = 10, padB = 22;
+    ctx.clearRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(127,127,127,.25)'; ctx.lineWidth = 1; ctx.strokeRect(padL, padT, W - padL - padR, H - padT - padB);
+    const series = m.series || {}, leg = $('trLegend'); leg.innerHTML = '';
+    const x0 = padL, x1 = W - padR, y0 = H - padB, y1 = padT;
+    trPens.forEach((tag, i) => {
+      const pts = series[tag] || [], color = TREND_COLORS[i % TREND_COLORS.length];
+      let mn = Infinity, mx = -Infinity, last = null;
+      for (const p of pts){ if (p.value < mn) mn = p.value; if (p.value > mx) mx = p.value; last = p.value; }
+      const chip = document.createElement('span');
+      chip.style.cssText = 'cursor:pointer;display:inline-flex;align-items:center;gap:5px';
+      chip.title = 'Bấm để bỏ pen';
+      chip.innerHTML = '<i style="width:11px;height:11px;border-radius:2px;display:inline-block;background:' + color + '"></i>'
+        + '<span style="font-family:var(--mono,monospace)">' + tag + '</span>'
+        + (last != null ? ' <b>' + last.toFixed(2) + '</b>' : '')
+        + (pts.length ? '<span style="opacity:.5;font-size:11px"> [' + mn.toFixed(1) + '–' + mx.toFixed(1) + ']</span>' : '<span style="opacity:.5">— chưa có dữ liệu</span>');
+      chip.onclick = () => { trPens = trPens.filter((x) => x !== tag); trSend(); };
+      leg.appendChild(chip);
+      if (pts.length < 2) return;
+      // Deadband tương đối khi VẼ (legend vẫn hiện min–max thật): nhiễu nhỏ quanh giá trị ổn định không bị kéo full-height.
+      const ref = Math.max(Math.abs(mn), Math.abs(mx), 1e-6);
+      const span = Math.max(mx - mn, ref * 0.01) || 1;
+      const mid = (mn + mx) / 2, lo = mid - span / 2;
+      ctx.beginPath();
+      pts.forEach((p, j) => { const x = x0 + (x1 - x0) * (j / (pts.length - 1)); const y = y0 - (y0 - y1) * ((p.value - lo) / span); j ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+      ctx.strokeStyle = color; ctx.lineWidth = 1.6; ctx.stroke();
+    });
+    ctx.fillStyle = 'rgba(150,160,175,.85)'; ctx.font = '10px monospace';
+    const fmt = (s) => (s ? s.slice(11, 16) : '');
+    ctx.fillText(fmt(m.from), padL + 2, H - 7);
+    const tt = fmt(m.to); ctx.fillText(tt, W - padR - ctx.measureText(tt).width - 2, H - 7);
+  }
+  $('openTrend').onclick = openTrend;
+  $('trendX').onclick = () => { $('trendModal').hidden = true; };
+  $('trAdd').onclick = addPen;
+  $('trTagPick').addEventListener('keydown', (e) => { if (e.key === 'Enter'){ e.preventDefault(); addPen(); } });
+  document.querySelectorAll('.trh').forEach((b) => b.onclick = () => { trHours = Number(b.dataset.h); trSend(); });
   $('diagX').onclick = () => { $('diagModal').hidden = true; };
   $('openBuilder').onclick = openBuilder;
   $('builderX').onclick = () => { $('builderModal').hidden = true; };
   // UX: đóng modal bằng Esc hoặc bấm ra nền tối (nhất quán, tránh overlay bẫy thao tác).
-  const overlayModals = ['reportModal', 'journalModal', 'diagModal', 'builderModal'];
+  const overlayModals = ['reportModal', 'journalModal', 'diagModal', 'builderModal', 'trendModal'];
   overlayModals.forEach((id) => {
     const el = $(id);
     if (el) el.addEventListener('click', (e) => { if (e.target === el) el.hidden = true; });
