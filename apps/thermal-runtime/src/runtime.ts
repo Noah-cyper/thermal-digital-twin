@@ -153,6 +153,7 @@ export interface ThermalRuntime {
   faceplateList(): ReadonlyArray<{ faceplateId: string; assetId: string; title: { vi: string; en: string }; pvTag: string }>;
   faceplateData(assetId: string): FaceplateData | undefined;
   faceplateTrend(assetId: string, hours: number): Promise<FaceplateTrend>;
+  trendSeries(tags: ReadonlyArray<string>, hours: number, buckets?: number): Promise<{ from: string; to: string; series: Record<string, ReadonlyArray<{ ts: string; value: number }>> }>;
   navTree(): ReadonlyArray<NavNode>;
   navAlarmIndex(): Record<string, string>;
   navHome(): string;
@@ -576,6 +577,21 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
         },
       };
       return reportEngine.generate(ctx, title);
+    },
+    trendSeries: async (tags, hours, buckets = 120) => {
+      // Chuỗi mẫu đa-tag cho màn Trend (READ-ONLY, từ Historian thật). Bucket đều theo dải thời gian.
+      const range = historian.dataRange();
+      if (!range) return { from: '', to: '', series: {} };
+      const toMs = Date.parse(range.to);
+      const fromMs = Math.max(Date.parse(range.from), toMs - hours * 3_600_000);
+      const from = time.formatEpoch(fromMs);
+      const bucketMs = Math.max(1000, Math.floor((toMs - fromMs) / Math.max(1, buckets)));
+      const series: Record<string, ReadonlyArray<{ ts: string; value: number }>> = {};
+      for (const t of tags.slice(0, 8)) {
+        const pts = await historian.query(t, from, range.to, 'avg', bucketMs);
+        series[t] = pts.map((p) => ({ ts: p.ts, value: p.value }));
+      }
+      return { from, to: range.to, series };
     },
     eventLog: (opts) => journal.query(opts),
     eventSummary: () => journal.summary(),
