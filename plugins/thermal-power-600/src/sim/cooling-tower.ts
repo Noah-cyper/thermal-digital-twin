@@ -27,6 +27,8 @@ export class CoolingTowerModel implements ISimModel {
     'CT_HEAT_REJECT_01', // MWth — nhiệt thải ra khí quyển
     'CT_EVAP_LOSS_01', // t/h — bốc hơi
     'CT_MAKEUP_01', // t/h — nước bổ sung (bốc hơi + blowdown + drift)
+    'CT_CW_HOT_01', // °C — CW nóng vào tháp (spray header = CW cấp + range)
+    'CT_FILL_MID_01', // °C — nhiệt nước giữa lớp fill (làm mát dần khi rơi qua fill)
   ];
 
   init(_ctx?: ISimModelContext, _config?: unknown): void {
@@ -40,6 +42,10 @@ export class CoolingTowerModel implements ISimModel {
 
     // CW cấp (lạnh) = bầu ướt + approach; range = độ tăng nhiệt qua bình ngưng.
     const cwSupply = WET_BULB_C + APPROACH_C;
+    // Profile nhiệt QUA FILL (tháp natural-draft không có "cell" như tháp cưỡng bức; nước nóng rơi qua
+    // fill và nguội dần): spray header nóng = cấp + range → giữa fill → bể (= cấp lạnh).
+    const cwHot = cwSupply + range;
+    const fillMid = cwSupply + range / 2;
 
     // Bốc hơi = nhiệt thải / ẩn nhiệt; nước bổ sung = bốc hơi × hệ số (blowdown + drift).
     const evapTph = rejecting ? (duty * 1000) / LATENT_KJKG * 3.6 : 0; // MW→kW /kJkg = kg/s → t/h
@@ -54,6 +60,8 @@ export class CoolingTowerModel implements ISimModel {
         { tagId: 'CT_HEAT_REJECT_01', value: duty, quality: 'Good' },
         { tagId: 'CT_EVAP_LOSS_01', value: evapTph, quality: 'Good' },
         { tagId: 'CT_MAKEUP_01', value: makeupTph, quality: 'Good' },
+        { tagId: 'CT_CW_HOT_01', value: cwHot, quality: 'Good' },
+        { tagId: 'CT_FILL_MID_01', value: fillMid, quality: 'Good' },
       ],
     };
   }

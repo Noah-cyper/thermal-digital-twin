@@ -68,6 +68,7 @@ const TH_FURN = 1; // furnace draft
 const T_FIRE_BASE = 505;
 const T_FIRE_SPAN = 80;
 const K_SPRAY = 95;
+const T_SH_SAT_C = 355; // °C — nhiệt hơi bão hoà từ bao hơi (~18 MPa) vào tầng quá nhiệt đầu [GIẢ ĐỊNH]
 const K_DRAFT = 5; // Pa / % chênh (FD damper − ID vane)
 
 // Biên nhiễu đo tuyệt đối (~0,1–0,3% giá trị danh định) — doc 10 §8
@@ -166,7 +167,9 @@ export class BoilerIslandModel implements ISimModel {
     'BLR_FW_FLOW_01', // t/h
     'BLR_COAL_FLOW_01', // t/h
     'BLR_MSTM_SH_PRESS_01', // MPa
-    'BLR_MSTM_SH_TEMP_01', // °C
+    'BLR_MSTM_SH_TEMP_01', // °C — nhiệt hơi SH cuối (final SH out)
+    'BLR_SH_LTSH_TEMP_01', // °C — nhiệt hơi sau bộ quá nhiệt cấp 1 (LTSH)
+    'BLR_SH_PLATEN_TEMP_01', // °C — nhiệt hơi sau bộ quá nhiệt bức xạ (platen)
     'BLR_FLUE_O2_01', // %
     'BLR_FURN_PRESS_01', // Pa
     'GEN_MW_01', // MW (turbine đơn giản hoá)
@@ -278,6 +281,10 @@ export class BoilerIslandModel implements ISimModel {
     const effSpray = this.shSprayFail ? 0 : sprayCv;
     const tTarget = T_FIRE_BASE + T_FIRE_SPAN * loadFrac - K_SPRAY * (effSpray / 100);
     const shTempNow = this.shTemp.step(tTarget, dtSec);
+    // Nhiệt hơi qua CÁC TẦNG quá nhiệt: hơi bão hoà từ bao hơi (~355 °C ở 18 MPa) tăng dần qua LTSH →
+    // platen → final. Nội suy bậc đều giữa nhiệt bão hoà và nhiệt SH cuối (đơn điệu tăng, tất định).
+    const shLtsh = T_SH_SAT_C + (shTempNow - T_SH_SAT_C) / 3;
+    const shPlaten = T_SH_SAT_C + ((shTempNow - T_SH_SAT_C) * 2) / 3;
 
     // ── Áp buồng lửa (balanced draft: FD đẩy vào, ID hút ra) ──
     const furnTarget = this.idFanTripped ? K_DRAFT * fdDamper * 0.8 : DRAFT_NOM_PA + K_DRAFT * (fdDamper - idVane); // trip quạt ID → mất hút → buồng lửa dương
@@ -300,6 +307,8 @@ export class BoilerIslandModel implements ISimModel {
         { tagId: 'BLR_COAL_FLOW_01', value: m(this.coalFlow, N_COAL), quality: 'Good' },
         { tagId: 'BLR_MSTM_SH_PRESS_01', value: m(this.pressure, N_PRESS), quality: 'Good' },
         { tagId: 'BLR_MSTM_SH_TEMP_01', value: m(shTempNow, N_TEMP), quality: 'Good' },
+        { tagId: 'BLR_SH_LTSH_TEMP_01', value: m(shLtsh, N_TEMP), quality: 'Good' },
+        { tagId: 'BLR_SH_PLATEN_TEMP_01', value: m(shPlaten, N_TEMP), quality: 'Good' },
         { tagId: 'BLR_FLUE_O2_01', value: m(o2Now, N_O2), quality: 'Good' },
         { tagId: 'BLR_FURN_PRESS_01', value: m(furnNow, N_FURN), quality: 'Good' },
         { tagId: 'GEN_MW_01', value: m(mw, N_MW), quality: 'Good' },
