@@ -247,6 +247,8 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       ], 30, 70),
       pipe('sh-spray-p', 'water', [{ x: 296, y: 190 }, { x: 296, y: 131 }]),
       equip('sh-spray', 'box', 'Van giảm ôn (OP)', 'BLR_SH_SPRAY_CV_01', '%', '', 230, 190, 132, 54),
+      equip('sh-ltsh', 'box', 'SH cấp 1 (LTSH)', 'BLR_SH_LTSH_TEMP_01', '°C', '', 30, 190, 92, 54),
+      equip('sh-platen', 'box', 'SH bức xạ (platen)', 'BLR_SH_PLATEN_TEMP_01', '°C', '', 128, 190, 96, 54),
       pipe('sh-out', 'steam', [{ x: 552, y: 100 }, { x: 590, y: 100 }]),
       equip('sh-flow', 'box', 'Lưu lượng hơi chính', 'BLR_STEAM_FLOW_01', 't/h', '', 590, 72, 140, 56),
       // Nhánh tái nhiệt: cold-reheat từ xả HP → bộ tái nhiệt → hot-reheat về IP.
@@ -257,6 +259,7 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       ], 30, 60),
       equip('rh-crhp', 'box', 'Áp cold reheat', 'TRB_CRH_PRESS_01', 'MPa', '', 590, 242, 140, 56),
       equip('rh-hrhp', 'box', 'Áp hot reheat', 'TRB_HRH_PRESS_01', 'MPa', '', 590, 310, 140, 56),
+      equip('rh-bias', 'box', 'Gas-biasing RH (loop)', 'TRB_RH_BIAS_01', '%', '', 590, 150, 140, 54),
     ],
   },
   {
@@ -283,6 +286,8 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       pipe('tb-lpx', 'steam', [{ x: 519, y: 170 }, { x: 519, y: 250 }]),
       equip('tb-cond', 'box', 'Bình ngưng (chân không)', 'TRB_COND_VACUUM_01', 'kPa', 'D3-condenser-cw', 453, 250, 132, 54, [{ when: 'gt', value: 12, sev: 2 }]),
       equip('tb-speed', 'box', 'Tốc độ trục', 'TRB_SPEED_01', 'rpm', '', 14, 250, 180, 54, [{ when: 'gt', value: 3120, sev: 1 }]),
+      equip('tb-brg', 'box', 'Nhiệt gối trục', 'TRB_BRG_TEMP_01', '°C', '', 14, 314, 140, 54, [{ when: 'gt', value: 110, sev: 2 }]),
+      equip('tb-vib', 'box', 'Rung trục', 'TRB_VIB_01', 'mm/s', '', 164, 314, 140, 54, [{ when: 'gt', value: 7, sev: 2 }]),
     ],
   },
   {
@@ -463,6 +468,7 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       equip('fw-regen', 'box', 'Nhiệt hồi nhiệt', 'FW_REGEN_DUTY_01', 'MWth', '', 14, 250, 180, 54),
       equip('fw-hr', 'box', 'Heat rate chu trình', 'PLANT_CYCLE_HR_01', 'kJ/kWh', '', 210, 250, 200, 54, [{ when: 'gt', value: 9500, sev: 2 }]),
       equip('fw-dealvl', 'box', 'Mức khử khí (loop)', 'FW_DEAERATOR_LEVEL_01', '%', '', 424, 250, 170, 54, [{ when: 'gt', value: 80, sev: 2 }, { when: 'lt', value: 20, sev: 2 }]),
+      equip('fw-recirc', 'box', 'BFP recirc (loop)', 'BLR_BFP_RECIRC_01', '%', '', 604, 250, 150, 54),
     ],
   },
   {
@@ -582,6 +588,8 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       equip('ct-approach', 'box', 'Approach', 'CT_APPROACH_01', '°C', '', 480, 150, 160, 54),
       equip('ct-evap', 'box', 'Bốc hơi', 'CT_EVAP_LOSS_01', 't/h', '', 480, 230, 160, 54),
       equip('ct-makeup', 'box', 'Nước bổ sung', 'CT_MAKEUP_01', 't/h', '', 480, 310, 160, 54),
+      equip('ct-cwhot', 'box', 'CW nóng (spray)', 'CT_CW_HOT_01', '°C', '', 24, 140, 150, 48),
+      equip('ct-fillmid', 'box', 'Giữa lớp fill', 'CT_FILL_MID_01', '°C', '', 24, 200, 150, 48),
     ],
   },
   {

@@ -211,6 +211,9 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   put('BLR_FW_CV_01', boilerLoopSeeds['drum-level'] ?? 0);
   put('FW_DEA_LCV_01', boilerLoopSeeds['deaerator-level'] ?? 0);
   put('COND_CEP_LCV_01', boilerLoopSeeds['hotwell-level'] ?? 0);
+  put('BLR_PRESS_SP', 17.5); // setpoint áp hơi (coordinated master ghi lại mỗi bước — trượt theo tải)
+  put('TRB_RH_BIAS_01', boilerLoopSeeds['reheat-temp'] ?? 0);
+  put('BLR_BFP_RECIRC_01', boilerLoopSeeds['bfp-recirc'] ?? 0);
 
   const host = new SimulationHost(DT_MS, {
     now: () => nowIso(),
@@ -448,6 +451,11 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   const advance = (): void => {
     stepCount += 1;
     host.step(); // sim đọc OP → ghi PV
+    // Coordinated master: setpoint áp hơi chính TRƯỢT theo tải (sliding pressure). Trên ~55% tải giữ áp
+    // định mức 17,5 MPa (van turbine mở tối đa, hiệu suất tốt); dưới đó áp giảm tuyến tính. Boiler-master
+    // bám BLR_PRESS_SP. Ở điểm vận hành (~448 MW) = 17,5 MPa (không đổi điểm vận hành).
+    const loadFrac = Math.max(0, Math.min(1.1, num('GEN_MW_01') / 600));
+    put('BLR_PRESS_SP', Math.min(17.5, 14 + 3.5 * (loadFrac / 0.55)));
     ingestOut(); // loop đọc PV → ghi OP
   };
 

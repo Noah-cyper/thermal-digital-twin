@@ -24,6 +24,14 @@ const Q_FACTOR = 0.62; // MVAr/MW ở hệ số công suất 0,85 (tan(acos 0,85
 const STATOR_AMB = 45; // °C nền cuộn stator
 const STATOR_RISE = 55; // °C tăng ở đầy tải (I²R)
 const TAU_STATOR = 60; // s — quán tính nhiệt stator
+/* ── Gối trục & rung (bearing temp / shaft vibration) — GĐ-82 ── */
+const BRG_AMB_C = 45; // °C nền nhiệt gối
+const BRG_RISE_C = 40; // °C tăng theo tải (ma sát + nhiệt dầu)
+const TAU_BRG = 90; // s — quán tính nhiệt gối
+const VIB_BASE_MMS = 1.8; // mm/s rung nền ở tốc độ định mức
+const VIB_SPIKE_MMS = 9; // mm/s đỉnh rung khi qua tốc độ tới hạn
+const CRIT_RPM = 1500; // tốc độ tới hạn (rung cộng hưởng khi coast-down qua đây)
+const CRIT_WIDTH_RPM = 350; // bề rộng dải cộng hưởng
 
 function clamp(x: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, x));
@@ -37,14 +45,18 @@ export class TurbineGeneratorModel implements ISimModel {
     'GEN_FREQ_01', // Hz
     'GEN_MVAR_01', // MVAr — công suất phản kháng
     'GEN_STATOR_TEMP_01', // °C — nhiệt cuộn stator
+    'TRB_BRG_TEMP_01', // °C — nhiệt gối trục turbine (metal)
+    'TRB_VIB_01', // mm/s — rung trục (đỉnh khi qua tốc độ tới hạn lúc coast-down)
   ];
 
   private speed = RATED_RPM;
   private statorTemp = 80;
+  private brgTemp = 75; // °C — nhiệt gối trục (quán tính nhiệt)
 
   init(_ctx?: ISimModelContext, _config?: unknown): void {
     this.speed = RATED_RPM;
     this.statorTemp = 80;
+    this.brgTemp = 75;
   }
 
   step(ctx: ISimModelContext): ISimStepResult {
@@ -72,6 +84,12 @@ export class TurbineGeneratorModel implements ISimModel {
     const statorTarget = STATOR_AMB + STATOR_RISE * (mw / MW_GROSS);
     this.statorTemp += (statorTarget - this.statorTemp) * (dt / TAU_STATOR);
 
+    // Nhiệt gối trục (quán tính nhiệt) theo tải; rung trục nền thấp ở định mức, ĐỈNH khi tốc độ đi qua
+    // vùng tới hạn (coast-down sau trip) — cảnh báo tình trạng máy quay.
+    const brgTarget = BRG_AMB_C + BRG_RISE_C * clamp(mw / MW_GROSS, 0, 1);
+    this.brgTemp += (brgTarget - this.brgTemp) * (dt / TAU_BRG);
+    const vib = VIB_BASE_MMS + VIB_SPIKE_MMS * Math.exp(-(((this.speed - CRIT_RPM) / CRIT_WIDTH_RPM) ** 2)) + clamp(mw / MW_GROSS, 0, 1);
+
     return {
       outputs: [
         { tagId: 'TRB_STODOLA_FLOW', value: stodola, quality: 'Good' },
@@ -79,16 +97,19 @@ export class TurbineGeneratorModel implements ISimModel {
         { tagId: 'GEN_FREQ_01', value: freq, quality: 'Good' },
         { tagId: 'GEN_MVAR_01', value: mvar, quality: 'Good' },
         { tagId: 'GEN_STATOR_TEMP_01', value: this.statorTemp, quality: 'Good' },
+        { tagId: 'TRB_BRG_TEMP_01', value: this.brgTemp, quality: 'Good' },
+        { tagId: 'TRB_VIB_01', value: vib, quality: 'Good' },
       ],
     };
   }
 
   snapshot(): ISimSnapshot {
-    return { state: { speed: this.speed, statorTemp: this.statorTemp } };
+    return { state: { speed: this.speed, statorTemp: this.statorTemp, brgTemp: this.brgTemp } };
   }
   restore(snapshot: ISimSnapshot): void {
     this.speed = snapshot.state.speed ?? RATED_RPM;
     this.statorTemp = snapshot.state.statorTemp ?? 80;
+    this.brgTemp = snapshot.state.brgTemp ?? 75;
   }
   injectMalfunction(_m: IMalfunction): void {
     // model không có malfunction riêng ở v1.12
