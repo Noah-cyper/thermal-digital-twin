@@ -549,6 +549,7 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       pipe('el-netp', 'elec', [{ x: 510, y: 100 }, { x: 570, y: 100 }]),
       equip('el-net', 'box', 'Công suất net', 'ELEC_NET_MW_01', 'MW', '', 570, 72, 150, 56),
       equip('el-cur', 'box', 'Dòng stator', 'ELEC_GEN_CURRENT_01', 'kA', '', 570, 150, 150, 56),
+      equip('el-breaker', 'box', 'Máy cắt MF (1=đóng)', 'ELEC_BREAKER_01', '', '', 110, 162, 150, 48, [{ when: 'lt', value: 1, sev: 1 }]),
       // Nhánh tự dùng: đầu cực máy phát → UAT 20/6,6 kV → 2 phân đoạn thanh cái 6,6 kV (A/B).
       pipe('el-auxbus', 'elec', [{ x: 80, y: 150 }, { x: 80, y: 300 }, { x: 200, y: 300 }]),
       equip('el-uat', 'transformer', 'UAT 20/6,6 kV', 'ELEC_AUX_LOADING_01', '%', '', 200, 250, 110, 100, [{ when: 'gt', value: 100, sev: 2 }]),

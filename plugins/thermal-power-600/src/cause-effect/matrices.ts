@@ -37,13 +37,18 @@ export const thermalCauseEffect: ReadonlyArray<CauseEffectMatrix> = [
     effects: [
       { id: 'trip-turbine', tag: 'TRB_TRIP', value: 1, title: { vi: 'Trip turbine', en: 'Trip turbine' } },
       { id: 'close-msv', tag: 'TRB_MSV_CLOSE', value: 1, title: { vi: 'Đóng van stop chính', en: 'Close main stop valve' } },
+      { id: 'gen-breaker', tag: 'GEN_BREAKER_TRIP', value: 1, title: { vi: 'Mở máy cắt máy phát', en: 'Open generator breaker' } },
     ],
+    // Turbine trip → đóng MSV (turbine coast-down) + mở máy cắt máy phát (tách lưới, tổ máy nhập tự dùng).
     cells: [
       { cause: 'low-vacuum', effect: 'trip-turbine' },
       { cause: 'low-vacuum', effect: 'close-msv' },
+      { cause: 'low-vacuum', effect: 'gen-breaker' },
       { cause: 'ms-press-hh', effect: 'trip-turbine' },
+      { cause: 'ms-press-hh', effect: 'gen-breaker' },
       { cause: 'manual-trip', effect: 'trip-turbine' },
       { cause: 'manual-trip', effect: 'close-msv' },
+      { cause: 'manual-trip', effect: 'gen-breaker' },
     ],
   },
 ];
