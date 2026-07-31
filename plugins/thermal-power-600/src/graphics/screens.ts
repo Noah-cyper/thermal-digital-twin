@@ -638,6 +638,11 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       pipe('cl-bhdr', 'shaft', [{ x: 70, y: 286 }, { x: 670, y: 286 }]),
       pipe('cl-bdrop', 'shaft', [{ x: 370, y: 286 }, { x: 370, y: 320 }]),
       equip('cl-furn', 'box', '→ Vòi đốt / buồng lửa', 'COAL_CONSUMPTION_01', 't/h', 'D3-furnace', 280, 320, 180, 54),
+      // Hệ gió sơ cấp/sấy mill (loop C-3): nhiệt ra mill (van gió nóng) + áp header PA (van quạt PA).
+      equip('cl-milltemp', 'box', 'Nhiệt ra mill (loop)', 'COAL_MILL_OUT_TEMP_01', '°C', '', 14, 320, 126, 54, [{ when: 'gt', value: 90, sev: 2 }]),
+      equip('cl-hotdmp', 'box', 'Van gió nóng', 'COAL_HOT_AIR_DMPR_01', '%', '', 148, 320, 120, 54),
+      equip('cl-paheader', 'box', 'Áp header PA (loop)', 'COAL_PA_HEADER_PRESS_01', 'kPa', '', 480, 320, 140, 54, [{ when: 'lt', value: 5, sev: 2 }]),
+      equip('cl-pavane', 'box', 'Van quạt PA', 'COAL_PA_FAN_VANE_01', '%', '', 628, 320, 130, 54),
     ],
   },
   {

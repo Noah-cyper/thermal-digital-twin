@@ -218,6 +218,8 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   put('EMI_FGD_SLURRY_01', boilerLoopSeeds['fgd-so2'] ?? 0); // lệnh cấp slurry FGD (bumpless MAN→AUTO)
   put('FW_DEA_PEG_VALVE_01', boilerLoopSeeds['deaerator-pressure'] ?? 0); // van pegging deaerator (bumpless)
   put('TRB_GLAND_VALVE_01', boilerLoopSeeds['gland-steam-pressure'] ?? 0); // van hơi chèn trục (bumpless)
+  put('COAL_HOT_AIR_DMPR_01', boilerLoopSeeds['mill-outlet-temp'] ?? 0); // van gió nóng mill (bumpless)
+  put('COAL_PA_FAN_VANE_01', boilerLoopSeeds['pa-header-pressure'] ?? 0); // van hướng quạt PA (bumpless)
 
   const host = new SimulationHost(DT_MS, {
     now: () => nowIso(),

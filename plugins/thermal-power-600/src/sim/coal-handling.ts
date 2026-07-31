@@ -19,6 +19,15 @@ const CONVEYOR_RATE_TPH = 800; // suất băng tải cấp bunker
 const REFILL_LOW_PCT = 60; // < ngưỡng → bật băng tải
 const REFILL_HIGH_PCT = 90; // > ngưỡng → tắt băng tải (trễ chống dao động)
 const YARD_STOCK_T = 180_000; // dự trữ yard (~26 ngày ở tải danh định)
+/* ── Nhiệt ra máy nghiền + áp header gió sơ cấp (mill outlet temp / PA header) — GĐ-85 ── */
+const T_TEMPER_AIR_C = 30; // gió lạnh tempering (môi trường)
+const T_HOT_PA_FALLBACK_C = 271; // gió nóng PA từ air heater ở đầy tải (fallback khi tag vắng — standalone)
+const K_COAL_DRY_COOL_C = 40; // °C — làm nguội do bốc ẩm than theo tải mill
+const MILL_TEMP_MIN_C = 30; // sàn nhiệt ra mill (gió lạnh)
+const MILL_TEMP_MAX_C = 120; // trần an toàn (quá nhiệt → nguy cơ cháy bột than)
+const TAU_MILL_S = 45; // quán tính nhiệt máy nghiền (kim loại + tồn than) — làm mượt loop nhiệt
+const K_PA_VANE_KPA = 18; // kPa toàn hành trình van hướng quạt gió sơ cấp (PA)
+const K_PA_RESIST_KPA = 4; // kPa sụt áp trở lực mill/vòi đốt theo tải
 
 function clamp(x: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, x));
@@ -42,18 +51,23 @@ export class CoalHandlingModel implements ISimModel {
     'COAL_MILL_D_LOAD_01',
     'COAL_MILL_E_LOAD_01',
     'COAL_MILL_F_LOAD_01',
+    'COAL_MILL_OUT_TEMP_01', // °C — nhiệt ra máy nghiền (van gió nóng/tempering giữ ~70 °C)
+    'COAL_PA_HEADER_PRESS_01', // kPa — áp header gió sơ cấp (quạt PA giữ ~9 kPa)
   ];
 
   private bunkerPct = 75;
   private conveyorOn = false;
+  private millTemp = 70; // °C — nhiệt ra máy nghiền (quán tính nhiệt → loop nhiệt ổn định)
 
   init(_ctx?: ISimModelContext, _config?: unknown): void {
     this.bunkerPct = 75;
     this.conveyorOn = false;
+    this.millTemp = 70;
   }
 
   step(ctx: ISimModelContext): ISimStepResult {
     const dtH = ctx.dtMs / 3_600_000; // giờ
+    const dt = ctx.dtMs / 1000; // giây
     const coal = Math.max(0, ctx.getTag('BLR_COAL_FLOW_01')); // t/h tiêu thụ
     const firing = coal > 1;
 
@@ -76,6 +90,23 @@ export class CoalHandlingModel implements ISimModel {
     // Tải từng máy nghiền A–F: `running` máy đầu ở tải trung bình, phần còn lại dự phòng ở 0 %.
     const millIds = ['A', 'B', 'C', 'D', 'E', 'F'] as const;
 
+    // Nhiệt ra máy nghiền: trộn gió NÓNG PA (từ air heater AH_AIR_OUT_TEMP_01) + gió LẠNH tempering, trừ
+    // làm nguội do bốc ẩm than (∝ tải mill). Van gió nóng COAL_HOT_AIR_DMPR_01 (loop 'mill-outlet-temp',
+    // direct: nhiệt thấp → mở thêm gió nóng) giữ ~70 °C sấy bột than mà không quá nhiệt. Không cháy → gió lạnh.
+    const hotDmpr = clamp(ctx.getTag('COAL_HOT_AIR_DMPR_01'), 0, 100);
+    const tHotPa = ctx.getTag('AH_AIR_OUT_TEMP_01') > 1 ? ctx.getTag('AH_AIR_OUT_TEMP_01') : T_HOT_PA_FALLBACK_C;
+    const millTempTarget = firing
+      ? clamp(T_TEMPER_AIR_C + (tHotPa - T_TEMPER_AIR_C) * (hotDmpr / 100) - K_COAL_DRY_COOL_C * (millLoading / 100), MILL_TEMP_MIN_C, MILL_TEMP_MAX_C)
+      : T_TEMPER_AIR_C;
+    // Quán tính nhiệt máy nghiền (kim loại + tồn than): nhiệt ra BÁM mục tiêu trộn với trễ TAU_MILL —
+    // làm mượt vòng 'mill-outlet-temp' (mục tiêu trộn tức thời có gain lớn, cần quán tính cho ổn định).
+    this.millTemp += (millTempTarget - this.millTemp) * (dt / TAU_MILL_S);
+
+    // Áp header gió sơ cấp (PA): quạt PA (van hướng COAL_PA_FAN_VANE_01) tạo áp; trở lực mill/vòi đốt sụt
+    // áp theo tải. Loop 'pa-header-pressure' (direct) giữ ~9 kPa vận chuyển bột than tới vòi đốt.
+    const paVane = clamp(ctx.getTag('COAL_PA_FAN_VANE_01'), 0, 100);
+    const paHeader = firing ? Math.max(0, (paVane / 100) * K_PA_VANE_KPA - K_PA_RESIST_KPA * (millLoading / 100)) : 0;
+
     return {
       outputs: [
         { tagId: 'COAL_CONSUMPTION_01', value: coal, quality: 'Good' },
@@ -86,16 +117,19 @@ export class CoalHandlingModel implements ISimModel {
         { tagId: 'COAL_FEEDER_RATE_01', value: feederRate, quality: 'Good' },
         { tagId: 'COAL_YARD_DAYS_01', value: yardDays, quality: 'Good' },
         ...millIds.map((_L, i) => ({ tagId: `COAL_MILL_${millIds[i]}_LOAD_01` as TagId, value: i < running ? millLoading : 0, quality: 'Good' as const })),
+        { tagId: 'COAL_MILL_OUT_TEMP_01', value: this.millTemp, quality: 'Good' },
+        { tagId: 'COAL_PA_HEADER_PRESS_01', value: paHeader, quality: 'Good' },
       ],
     };
   }
 
   snapshot(): ISimSnapshot {
-    return { state: { bunkerPct: this.bunkerPct, conveyorOn: this.conveyorOn ? 1 : 0 } };
+    return { state: { bunkerPct: this.bunkerPct, conveyorOn: this.conveyorOn ? 1 : 0, millTemp: this.millTemp } };
   }
   restore(snapshot: ISimSnapshot): void {
     this.bunkerPct = snapshot.state.bunkerPct ?? 75;
     this.conveyorOn = (snapshot.state.conveyorOn ?? 0) > 0.5;
+    this.millTemp = snapshot.state.millTemp ?? 70;
   }
   injectMalfunction(_m: IMalfunction): void {
     // model không có malfunction riêng ở v1.25
