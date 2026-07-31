@@ -39,6 +39,12 @@ export class FlueGasAirModel implements ISimModel {
     'FG_STACK_TEMP_01', // °C — khói ra ống khói
     'AH_AIR_OUT_TEMP_01', // °C — gió cháy sau air heater
     'FG_DRYGAS_LOSS_01', // % — tổn thất khói khô
+    // Chiều sâu SCADA: 2 quạt gió FD (A/B, mỗi quạt 50% lưu lượng gió) + 2 quạt khói ID (A/B, mỗi quạt
+    // 50% lưu lượng khói) — chia đều tổng ĐÃ TÍNH cho cặp quạt song song (KHÔNG bịa, không thêm trạng thái).
+    'FG_FDA_FLOW_01',
+    'FG_FDB_FLOW_01',
+    'FG_IDA_FLOW_01',
+    'FG_IDB_FLOW_01',
   ];
 
   private tGasIn = T_AH_GAS_IN_NOM_C;
@@ -65,6 +71,8 @@ export class FlueGasAirModel implements ISimModel {
     const excess = (o2 / Math.max(1e-3, 21 - o2)) * 100;
     // Lưu lượng khói = than + gió cháy = than·(1 + AFR); AFR = AF_STOICH·λ.
     const fgFlow = firing ? coal * (1 + AF_STOICH * lambda) : 0;
+    // Gió cháy = khói − than (bảo toàn khối lượng); mỗi quạt trong cặp song song gánh một nửa.
+    const airFlow = firing ? Math.max(0, fgFlow - coal) : 0;
 
     // Nhiệt đường khói bám mục tiêu theo tải (lag air heater). Không cháy → nguội về môi trường.
     const gasInTarget = firing ? T_AMB_C + (T_AH_GAS_IN_NOM_C - T_AMB_C) * (0.6 + 0.4 * clamp(loadFrac, 0, 1)) : T_AMB_C;
@@ -92,6 +100,10 @@ export class FlueGasAirModel implements ISimModel {
         { tagId: 'FG_STACK_TEMP_01', value: this.tStack, quality: 'Good' },
         { tagId: 'AH_AIR_OUT_TEMP_01', value: this.tAirOut, quality: 'Good' },
         { tagId: 'FG_DRYGAS_LOSS_01', value: dryGasLoss, quality: 'Good' },
+        { tagId: 'FG_FDA_FLOW_01', value: airFlow / 2, quality: 'Good' },
+        { tagId: 'FG_FDB_FLOW_01', value: airFlow / 2, quality: 'Good' },
+        { tagId: 'FG_IDA_FLOW_01', value: fgFlow / 2, quality: 'Good' },
+        { tagId: 'FG_IDB_FLOW_01', value: fgFlow / 2, quality: 'Good' },
       ],
     };
   }

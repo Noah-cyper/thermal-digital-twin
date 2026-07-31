@@ -37,6 +37,9 @@ export class ElectricalModel implements ISimModel {
     'ELEC_GEN_CURRENT_01', // kA — dòng stator ở 20 kV
     'ELEC_GSU_LOADING_01', // % — tải máy biến áp chính
     'ELEC_AUX_LOADING_01', // % — tải biến áp tự dùng UAT
+    // Chiều sâu SCADA: 2 phân đoạn thanh cái tự dùng 6,6 kV (A/B, mỗi board 50% qua 2×UAT 50 MVA).
+    'ELEC_AUX_A_MW_01',
+    'ELEC_AUX_B_MW_01',
   ];
 
   init(_ctx?: ISimModelContext, _config?: unknown): void {
@@ -73,6 +76,8 @@ export class ElectricalModel implements ISimModel {
         { tagId: 'ELEC_GEN_CURRENT_01', value: current, quality: 'Good' },
         { tagId: 'ELEC_GSU_LOADING_01', value: gsuLoading, quality: 'Good' },
         { tagId: 'ELEC_AUX_LOADING_01', value: auxLoading, quality: 'Good' },
+        { tagId: 'ELEC_AUX_A_MW_01', value: aux / 2, quality: 'Good' },
+        { tagId: 'ELEC_AUX_B_MW_01', value: aux / 2, quality: 'Good' },
       ],
     };
   }
