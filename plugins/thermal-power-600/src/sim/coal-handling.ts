@@ -34,6 +34,14 @@ export class CoalHandlingModel implements ISimModel {
     'COAL_MILL_LOADING_01', // % — tải trung bình mỗi máy nghiền
     'COAL_FEEDER_RATE_01', // t/h — suất feeder mỗi máy nghiền
     'COAL_YARD_DAYS_01', // ngày — dự trữ yard ở tiêu thụ hiện tại
+    // Chiều sâu SCADA: tải TỪNG máy nghiền A–F (6 máy). n máy đầu mang tải đều (= tải trung bình), số
+    // còn lại DỰ PHÒNG ở 0 % — dùng chính `running`/`millLoading` đã tính (KHÔNG bịa, không thêm trạng thái).
+    'COAL_MILL_A_LOAD_01',
+    'COAL_MILL_B_LOAD_01',
+    'COAL_MILL_C_LOAD_01',
+    'COAL_MILL_D_LOAD_01',
+    'COAL_MILL_E_LOAD_01',
+    'COAL_MILL_F_LOAD_01',
   ];
 
   private bunkerPct = 75;
@@ -65,6 +73,9 @@ export class CoalHandlingModel implements ISimModel {
     // Dự trữ yard tính theo ngày ở tiêu thụ hiện tại.
     const yardDays = firing ? YARD_STOCK_T / (coal * 24) : 0;
 
+    // Tải từng máy nghiền A–F: `running` máy đầu ở tải trung bình, phần còn lại dự phòng ở 0 %.
+    const millIds = ['A', 'B', 'C', 'D', 'E', 'F'] as const;
+
     return {
       outputs: [
         { tagId: 'COAL_CONSUMPTION_01', value: coal, quality: 'Good' },
@@ -74,6 +85,7 @@ export class CoalHandlingModel implements ISimModel {
         { tagId: 'COAL_MILL_LOADING_01', value: millLoading, quality: 'Good' },
         { tagId: 'COAL_FEEDER_RATE_01', value: feederRate, quality: 'Good' },
         { tagId: 'COAL_YARD_DAYS_01', value: yardDays, quality: 'Good' },
+        ...millIds.map((_L, i) => ({ tagId: `COAL_MILL_${millIds[i]}_LOAD_01` as TagId, value: i < running ? millLoading : 0, quality: 'Good' as const })),
       ],
     };
   }

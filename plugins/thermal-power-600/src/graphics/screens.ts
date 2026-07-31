@@ -560,18 +560,36 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
   {
     screenId: 'D3-coal-handling',
     level: 'D3',
-    title: { vi: 'Cung cấp than — bố trí thiết bị', en: 'Coal Handling Layout' },
+    title: { vi: 'Cung cấp than — bố trí thiết bị (chi tiết)', en: 'Coal Handling Layout (detailed)' },
     elements: [
-      // Tuyến than: kho than (yard) → băng tải → bunker → feeder định lượng → máy nghiền → vòi đốt vào lò.
-      ...flow(130, 'shaft', [
-        { id: 'cl-yard', shape: 'box', label: 'Kho than (yard)', tag: 'COAL_YARD_DAYS_01', unit: 'ngày', w: 110, h: 56, alarms: [{ when: 'lt', value: 7, sev: 2 }] },
-        { id: 'cl-conv', shape: 'box', label: 'Băng tải cấp', tag: 'COAL_CONVEYOR_FEED_01', unit: 't/h', w: 110, h: 56 },
-        { id: 'cl-bunker', shape: 'box', label: 'Bunker', tag: 'COAL_BUNKER_LEVEL_01', unit: '%', w: 110, h: 56, alarms: [{ when: 'lt', value: 30, sev: 2 }] },
-        { id: 'cl-feeder', shape: 'box', label: 'Feeder', tag: 'COAL_FEEDER_RATE_01', unit: 't/h', w: 110, h: 56 },
-        { id: 'cl-mill', shape: 'generator', label: 'Máy nghiền', tag: 'COAL_MILL_LOADING_01', unit: '%', w: 72, h: 72, alarms: [{ when: 'gt', value: 100, sev: 2 }] },
-        { id: 'cl-burner', shape: 'box', label: 'Vòi đốt → lò', tag: 'COAL_CONSUMPTION_01', unit: 't/h', nav: 'D3-furnace', w: 110, h: 56 },
-      ], 14, 24),
-      equip('cl-mills', 'box', 'Số máy nghiền chạy', 'COAL_MILLS_RUNNING_01', '', '', 550, 250, 160, 54),
+      // Tuyến than: kho than (yard) → băng tải → bunker gallery; bunker cấp SONG SONG cho 6 máy nghiền
+      // A–F (5 chạy + 1 dự phòng), mỗi máy có tải sống riêng → gom về vòi đốt buồng lửa.
+      pipe('cl-p1', 'shaft', [{ x: 144, y: 56 }, { x: 170, y: 56 }]),
+      equip('cl-yard', 'box', 'Kho than (yard)', 'COAL_YARD_DAYS_01', 'ngày', '', 14, 28, 130, 56, [{ when: 'lt', value: 7, sev: 2 }]),
+      pipe('cl-p2', 'shaft', [{ x: 300, y: 56 }, { x: 326, y: 56 }]),
+      equip('cl-conv', 'box', 'Băng tải cấp', 'COAL_CONVEYOR_FEED_01', 't/h', '', 170, 28, 130, 56),
+      equip('cl-bunker', 'box', 'Bunker', 'COAL_BUNKER_LEVEL_01', '%', '', 326, 28, 150, 56, [{ when: 'lt', value: 30, sev: 2 }]),
+      equip('cl-millsrun', 'box', 'Số mill chạy', 'COAL_MILLS_RUNNING_01', '', '', 520, 28, 120, 56),
+      equip('cl-feeder', 'box', 'Suất feeder/mill', 'COAL_FEEDER_RATE_01', 't/h', '', 660, 28, 134, 56),
+      // Phân phối từ bunker xuống 6 mill.
+      pipe('cl-drop', 'shaft', [{ x: 401, y: 84 }, { x: 401, y: 150 }]),
+      pipe('cl-header', 'shaft', [{ x: 70, y: 150 }, { x: 670, y: 150 }]),
+      pipe('cl-d1', 'shaft', [{ x: 70, y: 150 }, { x: 70, y: 214 }]),
+      pipe('cl-d2', 'shaft', [{ x: 190, y: 150 }, { x: 190, y: 214 }]),
+      pipe('cl-d3', 'shaft', [{ x: 310, y: 150 }, { x: 310, y: 214 }]),
+      pipe('cl-d4', 'shaft', [{ x: 430, y: 150 }, { x: 430, y: 214 }]),
+      pipe('cl-d5', 'shaft', [{ x: 550, y: 150 }, { x: 550, y: 214 }]),
+      pipe('cl-d6', 'shaft', [{ x: 670, y: 150 }, { x: 670, y: 214 }]),
+      equip('cl-mill-a', 'generator', 'Mill A', 'COAL_MILL_A_LOAD_01', '%', '', 34, 214, 72, 72, [{ when: 'gt', value: 100, sev: 2 }]),
+      equip('cl-mill-b', 'generator', 'Mill B', 'COAL_MILL_B_LOAD_01', '%', '', 154, 214, 72, 72, [{ when: 'gt', value: 100, sev: 2 }]),
+      equip('cl-mill-c', 'generator', 'Mill C', 'COAL_MILL_C_LOAD_01', '%', '', 274, 214, 72, 72, [{ when: 'gt', value: 100, sev: 2 }]),
+      equip('cl-mill-d', 'generator', 'Mill D', 'COAL_MILL_D_LOAD_01', '%', '', 394, 214, 72, 72, [{ when: 'gt', value: 100, sev: 2 }]),
+      equip('cl-mill-e', 'generator', 'Mill E', 'COAL_MILL_E_LOAD_01', '%', '', 514, 214, 72, 72, [{ when: 'gt', value: 100, sev: 2 }]),
+      equip('cl-mill-f', 'generator', 'Mill F (dự phòng)', 'COAL_MILL_F_LOAD_01', '%', '', 634, 214, 72, 72, [{ when: 'gt', value: 100, sev: 2 }]),
+      // Gom bột than về vòi đốt buồng lửa.
+      pipe('cl-bhdr', 'shaft', [{ x: 70, y: 286 }, { x: 670, y: 286 }]),
+      pipe('cl-bdrop', 'shaft', [{ x: 370, y: 286 }, { x: 370, y: 320 }]),
+      equip('cl-furn', 'box', '→ Vòi đốt / buồng lửa', 'COAL_CONSUMPTION_01', 't/h', 'D3-furnace', 280, 320, 180, 54),
     ],
   },
   {
