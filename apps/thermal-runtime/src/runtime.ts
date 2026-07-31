@@ -757,8 +757,8 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
       return executeScenario(def, {
         step,
         setLoad: (mw) => put('BLR_MW_DEMAND', mw),
-        inject: (id) => host.inject(model.id, { id }),
-        clear: (id) => host.clear(model.id, id),
+        inject: (id) => host.injectAll({ id }),
+        clear: (id) => host.clearAll(id),
         set: (tagId, v) => put(tagId, v),
         runSequence: (id) => runSeqState(id).status,
         getTag: (id) => num(id),

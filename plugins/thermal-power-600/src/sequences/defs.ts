@@ -77,4 +77,16 @@ export const thermalSequences: ReadonlyArray<SequenceDef> = [
       { stepId: 'stabilize', title: { vi: 'Ổn định', en: 'Stabilize' }, permissive: [], actions: [{ tag: 'UNIT_RUNBACK_CMD', value: 0, reason: 'xoá cờ khi đã ổn định' }], transition: [], holdMs: 400, timeoutMs: 30000 },
     ],
   },
+  {
+    // NFPA 85: sau Master Fuel Trip, BẮT BUỘC thông gió lò trước khi cho phép mồi lửa lại (đuổi khí cháy
+    // dư). Permissive chỉ cho chạy khi ĐÃ trip (BLR_MFT_TRIP ≥ 1) — không purge khi lò đang cháy.
+    sequenceId: 'post-trip-purge',
+    title: { vi: 'Thông gió sau trip (NFPA 85)', en: 'Post-trip purge (NFPA 85)' },
+    steps: [
+      { stepId: 'verify-trip', title: { vi: 'Xác nhận đã MFT', en: 'Verify MFT' }, permissive: [{ tag: 'BLR_MFT_TRIP', op: 'ge', value: 1 }], actions: [{ tag: 'BLR_POST_TRIP_PURGE_CMD', value: 1, reason: 'khởi động trình tự thông gió sau trip' }], transition: [], holdMs: 300, timeoutMs: 20000 },
+      { stepId: 'dampers-open', title: { vi: 'Mở damper gió/khói', en: 'Open air/gas dampers' }, permissive: [], actions: [{ tag: 'BLR_PURGE_DAMPER_CMD', value: 1, reason: 'đường gió/khói thông suốt' }], transition: [], holdMs: 300, timeoutMs: 20000 },
+      { stepId: 'air-flow', title: { vi: 'Đặt lưu lượng gió ≥ 30%', en: 'Set air flow ≥ 30%' }, permissive: [], actions: [{ tag: 'BLR_PURGE_AIR_CMD', value: 30, reason: 'NFPA 85: ≥ 30% MCR air, 5 lần thay khí' }], transition: [], holdMs: 500, timeoutMs: 30000 },
+      { stepId: 'purge-done', title: { vi: 'Hoàn tất thông gió', en: 'Purge complete' }, permissive: [], actions: [{ tag: 'BLR_PURGE_COMPLETE', value: 1, reason: 'đủ thông gió → cho phép mồi lửa lại' }], transition: [], holdMs: 500, timeoutMs: 30000 },
+    ],
+  },
 ];
