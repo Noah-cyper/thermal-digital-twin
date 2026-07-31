@@ -421,20 +421,36 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
   {
     screenId: 'D3-feedwater-heatrate',
     level: 'D3',
-    title: { vi: 'Nước cấp & Heat Rate — bố trí thiết bị', en: 'Feed Water Train Layout' },
+    title: { vi: 'Đoàn nước cấp — bố trí thiết bị (chi tiết)', en: 'Feed Water Train Layout (detailed)' },
     elements: [
-      // Đoàn gia nhiệt hồi nhiệt: condensate → gia nhiệt hạ áp → bình khử khí → bơm nước cấp (BFP) →
-      // vào economizer. Hơi trích cấp cho bình khử khí (đường cam từ trên).
-      pipe('fw-in', 'water', [{ x: 0, y: 130 }, { x: 16, y: 130 }]),
-      ...flow(130, 'water', [
-        { id: 'fw-cond', shape: 'box', label: 'Condensate', tag: 'FW_CONDENSATE_TEMP_01', unit: '°C', w: 116, h: 56 },
-        { id: 'fw-lph', shape: 'box', label: 'Gia nhiệt hồi nhiệt', tag: 'FW_REGEN_DUTY_01', unit: 'MWth', w: 140, h: 56 },
-        { id: 'fw-dea', shape: 'drum', label: 'Bình khử khí', tag: 'FW_DEAERATOR_TEMP_01', unit: '°C', w: 120, h: 56 },
-        { id: 'fw-bfp', shape: 'pump', label: 'Bơm nước cấp', tag: 'FW_FLOW_01', unit: 't/h', w: 64, h: 64 },
-        { id: 'fw-econ', shape: 'box', label: 'Vào economizer', tag: 'FW_ECON_INLET_TEMP_01', unit: '°C', nav: 'D3-furnace', w: 140, h: 56, alarms: [{ when: 'lt', value: 200, sev: 3 }] },
-      ], 16, 34),
-      pipe('fw-extract', 'steam', [{ x: 400, y: 20 }, { x: 400, y: 102 }]),
-      equip('fw-hr', 'box', 'Heat rate chu trình', 'PLANT_CYCLE_HR_01', 'kJ/kWh', '', 16, 250, 200, 54, [{ when: 'gt', value: 9500, sev: 2 }]),
+      // Đoàn gia nhiệt hồi nhiệt ĐẦY ĐỦ: condensate → 4 bình gia nhiệt hạ áp (LP) → bình khử khí →
+      // bơm nước cấp (BFP) → 3 bình gia nhiệt cao áp (HP) → vào economizer. Mỗi bình có nhiệt đầu ra
+      // sống riêng; hơi trích từ các tầng turbine cấp cho từng bình (đường cam từ trên).
+      pipe('fw-in', 'water', [{ x: 0, y: 150 }, { x: 14, y: 150 }]),
+      ...flow(150, 'water', [
+        { id: 'fw-cond', shape: 'box', label: 'Condensate', tag: 'FW_CONDENSATE_TEMP_01', unit: '°C', w: 96, h: 64 },
+        { id: 'fw-lph1', shape: 'box', label: 'GN hạ áp 1', tag: 'FW_LPH1_TEMP_01', unit: '°C', w: 92, h: 64 },
+        { id: 'fw-lph2', shape: 'box', label: 'GN hạ áp 2', tag: 'FW_LPH2_TEMP_01', unit: '°C', w: 92, h: 64 },
+        { id: 'fw-lph3', shape: 'box', label: 'GN hạ áp 3', tag: 'FW_LPH3_TEMP_01', unit: '°C', w: 92, h: 64 },
+        { id: 'fw-lph4', shape: 'box', label: 'GN hạ áp 4', tag: 'FW_LPH4_TEMP_01', unit: '°C', w: 92, h: 64 },
+        { id: 'fw-dea', shape: 'drum', label: 'Bình khử khí', tag: 'FW_DEAERATOR_TEMP_01', unit: '°C', w: 104, h: 60 },
+        { id: 'fw-bfp', shape: 'pump', label: 'Bơm nước cấp', tag: 'FW_FLOW_01', unit: 't/h', w: 66, h: 66 },
+        { id: 'fw-hph1', shape: 'box', label: 'GN cao áp 1', tag: 'FW_HPH1_TEMP_01', unit: '°C', w: 92, h: 64 },
+        { id: 'fw-hph2', shape: 'box', label: 'GN cao áp 2', tag: 'FW_HPH2_TEMP_01', unit: '°C', w: 92, h: 64 },
+        { id: 'fw-hph3', shape: 'box', label: 'GN cao áp 3', tag: 'FW_HPH3_TEMP_01', unit: '°C', w: 92, h: 64 },
+        { id: 'fw-econ', shape: 'box', label: '→ Economizer', tag: 'FW_ECON_INLET_TEMP_01', unit: '°C', nav: 'D3-furnace', w: 120, h: 64, alarms: [{ when: 'lt', value: 200, sev: 3 }] },
+      ], 14, 18),
+      // Hơi trích từ turbine cấp cho từng bình gia nhiệt + bình khử khí (sơ đồ, không tag riêng).
+      pipe('fw-ext1', 'steam', [{ x: 174, y: 90 }, { x: 174, y: 118 }]),
+      pipe('fw-ext2', 'steam', [{ x: 284, y: 90 }, { x: 284, y: 118 }]),
+      pipe('fw-ext3', 'steam', [{ x: 394, y: 90 }, { x: 394, y: 118 }]),
+      pipe('fw-ext4', 'steam', [{ x: 504, y: 90 }, { x: 504, y: 118 }]),
+      pipe('fw-ext5', 'steam', [{ x: 620, y: 90 }, { x: 620, y: 120 }]),
+      pipe('fw-ext6', 'steam', [{ x: 820, y: 90 }, { x: 820, y: 118 }]),
+      pipe('fw-ext7', 'steam', [{ x: 930, y: 90 }, { x: 930, y: 118 }]),
+      pipe('fw-ext8', 'steam', [{ x: 1040, y: 90 }, { x: 1040, y: 118 }]),
+      equip('fw-regen', 'box', 'Nhiệt hồi nhiệt', 'FW_REGEN_DUTY_01', 'MWth', '', 14, 250, 180, 54),
+      equip('fw-hr', 'box', 'Heat rate chu trình', 'PLANT_CYCLE_HR_01', 'kJ/kWh', '', 210, 250, 200, 54, [{ when: 'gt', value: 9500, sev: 2 }]),
     ],
   },
   {
