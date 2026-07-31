@@ -12,11 +12,12 @@ const STEAM_TO_FWCV = 100 / 2100; // steam flow (t/h) → FW CV feedforward (%)
 const STEAM_TO_DEALCV = 100 / 2200; // steam flow (t/h) → deaerator condensate LCV feedforward (%)
 const STEAM_TO_CEPLCV = 100 / 2200; // steam flow (t/h) → condensate extraction pump LCV feedforward (%)
 
-/** 19 control loop Boiler Island + môi trường + phụ trợ + máy phát (doc 09): governor · boiler master
- *  (sliding pressure) · fuel master · air/O₂ · furnace draft · SH temp · drum level 3-element · deaerator
- *  level · hotwell level · reheat temp (gas-biasing) · BFP min-flow recirc · SCR deNOx (NH₃) · FGD SO₂
- *  (slurry) · deaerator pressure (pegging steam) · gland steam pressure · mill outlet temp · PA header
- *  pressure · generator H₂ pressure · stator cooling water temp. Coordinated master = boiler-follow + áp trượt. */
+/** 22 control loop Boiler Island + môi trường + phụ trợ + máy phát + dầu/hơi phụ trợ (doc 09): governor ·
+ *  boiler master (sliding pressure) · fuel master · air/O₂ · furnace draft · SH temp · drum level 3-element ·
+ *  deaerator level · hotwell level · reheat temp (gas-biasing) · BFP min-flow recirc · SCR deNOx (NH₃) ·
+ *  FGD SO₂ (slurry) · deaerator pressure (pegging steam) · gland steam pressure · mill outlet temp · PA
+ *  header pressure · generator H₂ pressure · stator cooling water temp · lube oil temp · lube oil pressure ·
+ *  aux steam header pressure. Coordinated master = boiler-follow + setpoint áp trượt. */
 export const boilerControlLoops: ReadonlyArray<ControlLoopDef> = [
   {
     id: 'governor',
@@ -265,6 +266,43 @@ export const boilerControlLoops: ReadonlyArray<ControlLoopDef> = [
     reverse: true,
     outTag: 'ELEC_STATOR_CW_VALVE_01',
   },
+  {
+    id: 'lube-oil-temp',
+    desc: 'Nhiệt dầu bôi trơn gối trục: giữ 45 °C bằng van nước làm mát cooler dầu (ma sát theo tải, reverse)',
+    pvTag: 'TRB_LUBE_OIL_TEMP_01',
+    sp: 45,
+    kp: 2,
+    ki: 0.2,
+    kd: 0,
+    outLo: 0,
+    outHi: 100,
+    reverse: true,
+    outTag: 'TRB_OIL_CW_VALVE_01',
+  },
+  {
+    id: 'lube-oil-pressure',
+    desc: 'Áp header dầu bôi trơn: giữ 0,2 MPa bằng bơm/van dầu (bảo vệ màng dầu gối, direct)',
+    pvTag: 'TRB_LUBE_OIL_PRESS_01',
+    sp: 0.2,
+    kp: 200,
+    ki: 20,
+    kd: 0,
+    outLo: 0,
+    outHi: 100,
+    outTag: 'TRB_OIL_PUMP_CMD_01',
+  },
+  {
+    id: 'aux-steam-header',
+    desc: 'Áp header hơi phụ trợ (PRDS): giữ 1,3 MPa bằng van giảm áp (pegging/sootblow/atomizing, direct)',
+    pvTag: 'FW_AUX_STEAM_PRESS_01',
+    sp: 1.3,
+    kp: 30,
+    ki: 3,
+    kd: 0,
+    outLo: 0,
+    outHi: 100,
+    outTag: 'FW_AUX_PRDS_VALVE_01',
+  },
 ];
 
 /** Điểm vận hành khởi động (~1500 t/h hơi / ~448 MW) — nạp bumpless MAN→AUTO để khởi động êm.
@@ -289,4 +327,7 @@ export const boilerLoopSeeds: Readonly<Record<string, number>> = {
   'pa-header-pressure': 70, // COAL_PA_FAN_VANE_01 (%) — quạt PA giữ header ~9 kPa tại điểm vận hành
   'generator-h2-pressure': 50, // ELEC_H2_VALVE_01 (%) — van H₂ giữ áp 0,4 MPa (0,2 + 0,5·0,4)
   'stator-cooling-temp': 52.9, // ELEC_STATOR_CW_VALVE_01 (%) — van nước làm mát giữ stator CW ~45 °C
+  'lube-oil-temp': 51.6, // TRB_OIL_CW_VALVE_01 (%) — van CW cooler dầu giữ dầu bôi trơn ~45 °C
+  'lube-oil-pressure': 50, // TRB_OIL_PUMP_CMD_01 (%) — bơm/van dầu giữ áp header 0,2 MPa
+  'aux-steam-header': 50, // FW_AUX_PRDS_VALVE_01 (%) — van PRDS giữ header phụ trợ 1,3 MPa (0,5 + 0,5·1,6)
 };
