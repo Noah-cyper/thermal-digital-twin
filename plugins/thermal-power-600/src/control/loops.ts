@@ -12,10 +12,11 @@ const STEAM_TO_FWCV = 100 / 2100; // steam flow (t/h) → FW CV feedforward (%)
 const STEAM_TO_DEALCV = 100 / 2200; // steam flow (t/h) → deaerator condensate LCV feedforward (%)
 const STEAM_TO_CEPLCV = 100 / 2200; // steam flow (t/h) → condensate extraction pump LCV feedforward (%)
 
-/** 15 control loop Boiler Island + môi trường + phụ trợ (doc 09): governor · boiler master (sliding
+/** 17 control loop Boiler Island + môi trường + phụ trợ (doc 09): governor · boiler master (sliding
  *  pressure) · fuel master · air/O₂ · furnace draft · SH temp · drum level 3-element · deaerator level ·
  *  hotwell level · reheat temp (gas-biasing) · BFP min-flow recirc · SCR deNOx (NH₃) · FGD SO₂ (slurry) ·
- *  deaerator pressure (pegging steam) · gland steam pressure. Coordinated master = boiler-follow + áp trượt. */
+ *  deaerator pressure (pegging steam) · gland steam pressure · mill outlet temp · PA header pressure.
+ *  Coordinated master = boiler-follow + setpoint áp trượt. */
 export const boilerControlLoops: ReadonlyArray<ControlLoopDef> = [
   {
     id: 'governor',
@@ -215,6 +216,30 @@ export const boilerControlLoops: ReadonlyArray<ControlLoopDef> = [
     outHi: 100,
     outTag: 'TRB_GLAND_VALVE_01',
   },
+  {
+    id: 'mill-outlet-temp',
+    desc: 'Nhiệt ra máy nghiền: giữ 70 °C bằng van gió nóng/tempering (sấy bột than, direct)',
+    pvTag: 'COAL_MILL_OUT_TEMP_01',
+    sp: 70,
+    kp: 0.4,
+    ki: 0.04,
+    kd: 0,
+    outLo: 0,
+    outHi: 100,
+    outTag: 'COAL_HOT_AIR_DMPR_01',
+  },
+  {
+    id: 'pa-header-pressure',
+    desc: 'Áp header gió sơ cấp (PA): giữ 9 kPa bằng van hướng quạt PA (vận chuyển bột than, direct)',
+    pvTag: 'COAL_PA_HEADER_PRESS_01',
+    sp: 9,
+    kp: 3,
+    ki: 0.3,
+    kd: 0,
+    outLo: 0,
+    outHi: 100,
+    outTag: 'COAL_PA_FAN_VANE_01',
+  },
 ];
 
 /** Điểm vận hành khởi động (~1500 t/h hơi / ~448 MW) — nạp bumpless MAN→AUTO để khởi động êm.
@@ -235,4 +260,6 @@ export const boilerLoopSeeds: Readonly<Record<string, number>> = {
   'fgd-so2': 55.6, // EMI_FGD_SLURRY_01 (%) — slurry giữ FGD 0,95 (SO₂ ~61) tại điểm vận hành
   'deaerator-pressure': 30.6, // FW_DEA_PEG_VALVE_01 (%) — pegging bù hơi trích 0,75→0,9 MPa
   'gland-steam-pressure': 33.5, // TRB_GLAND_VALVE_01 (%) — van chèn bù tự chèn 3→5 kPag tại điểm vận hành
+  'mill-outlet-temp': 31, // COAL_HOT_AIR_DMPR_01 (%) — gió nóng giữ nhiệt ra mill ~70 °C
+  'pa-header-pressure': 70, // COAL_PA_FAN_VANE_01 (%) — quạt PA giữ header ~9 kPa tại điểm vận hành
 };
