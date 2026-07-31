@@ -32,6 +32,10 @@ const VIB_BASE_MMS = 1.8; // mm/s rung nền ở tốc độ định mức
 const VIB_SPIKE_MMS = 9; // mm/s đỉnh rung khi qua tốc độ tới hạn
 const CRIT_RPM = 1500; // tốc độ tới hạn (rung cộng hưởng khi coast-down qua đây)
 const CRIT_WIDTH_RPM = 350; // bề rộng dải cộng hưởng
+/* ── Hơi chèn trục (gland/seal steam) — GĐ-84 ── */
+const GLAND_SP_KPAG = 5; // setpoint áp header hơi chèn trục (kPa gauge, dương nhẹ chống lọt khí)
+const GLAND_SELF_SEAL_MAX = 4; // kPag tự chèn từ leak-off HP ∝ tải (đầy tải turbine tự chèn)
+const K_GLAND_VALVE = 6; // kPag toàn hành trình van cấp hơi chèn (bù khi tải thấp chưa tự chèn)
 
 function clamp(x: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, x));
@@ -47,6 +51,7 @@ export class TurbineGeneratorModel implements ISimModel {
     'GEN_STATOR_TEMP_01', // °C — nhiệt cuộn stator
     'TRB_BRG_TEMP_01', // °C — nhiệt gối trục turbine (metal)
     'TRB_VIB_01', // mm/s — rung trục (đỉnh khi qua tốc độ tới hạn lúc coast-down)
+    'TRB_GLAND_PRESS_01', // kPag — áp header hơi chèn trục (tự chèn theo tải + van cấp giữ 5 kPag)
   ];
 
   private speed = RATED_RPM;
@@ -90,6 +95,12 @@ export class TurbineGeneratorModel implements ISimModel {
     this.brgTemp += (brgTarget - this.brgTemp) * (dt / TAU_BRG);
     const vib = VIB_BASE_MMS + VIB_SPIKE_MMS * Math.exp(-(((this.speed - CRIT_RPM) / CRIT_WIDTH_RPM) ** 2)) + clamp(mw / MW_GROSS, 0, 1);
 
+    // Hơi chèn trục: đầy tải turbine TỰ CHÈN từ leak-off HP (∝ tải); tải thấp cần van cấp hơi chèn bù
+    // giữ áp header dương ~5 kPag (chống lọt khí vào chân không). Loop 'gland-steam-pressure' điều van
+    // (direct: áp thấp → mở thêm). Ở điểm vận hành (~0,75 tải) tự chèn ~3 kPag → van mở ~33% bù tới 5.
+    const glandValve = clamp(ctx.getTag('TRB_GLAND_VALVE_01'), 0, 100);
+    const glandPress = GLAND_SELF_SEAL_MAX * clamp(mw / MW_GROSS, 0, 1) + (glandValve / 100) * K_GLAND_VALVE;
+
     return {
       outputs: [
         { tagId: 'TRB_STODOLA_FLOW', value: stodola, quality: 'Good' },
@@ -99,6 +110,7 @@ export class TurbineGeneratorModel implements ISimModel {
         { tagId: 'GEN_STATOR_TEMP_01', value: this.statorTemp, quality: 'Good' },
         { tagId: 'TRB_BRG_TEMP_01', value: this.brgTemp, quality: 'Good' },
         { tagId: 'TRB_VIB_01', value: vib, quality: 'Good' },
+        { tagId: 'TRB_GLAND_PRESS_01', value: glandPress, quality: 'Good' },
       ],
     };
   }
