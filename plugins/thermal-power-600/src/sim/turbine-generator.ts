@@ -18,6 +18,8 @@ const MW_PER_TPH = MW_GROSS / BMCR_STEAM_TPH; // ~0,2988
 const K_STODOLA = NOM_STEAM_TPH / P_MSTM_NOM_MPA; // ~85,7 → Stodola flow ≈ hơi danh định tại áp nom
 const K_IMB = 0.5; // rpm lệch / MW mất cân bằng cơ-điện
 const TAU_SWING = 5; // s — quán tính swing tổ máy
+const COAST_RPM = 200; // rpm vùng turning-gear khi trip (MSV đóng → không hơi vào turbine)
+const TAU_COAST = 30; // s — quán tính coast-down khi trip (rotor lớn, quán tính cao) [GIẢ ĐỊNH]
 const Q_FACTOR = 0.62; // MVAr/MW ở hệ số công suất 0,85 (tan(acos 0,85))
 const STATOR_AMB = 45; // °C nền cuộn stator
 const STATOR_RISE = 55; // °C tăng ở đầy tải (I²R)
@@ -52,18 +54,21 @@ export class TurbineGeneratorModel implements ISimModel {
     const pout = poutKpa / 1000; // MPa
     const steam = Math.max(0, ctx.getTag('BLR_STEAM_FLOW_01')); // t/h
     const mw = Math.max(0, ctx.getTag('GEN_MW_01')); // MW
+    // Turbine trip (C&E): MSV đóng → KHÔNG hơi vào turbine → Stodola 0, mất công cơ → rotor COAST-DOWN.
+    const tripped = ctx.getTag('TRB_TRIP') > 0 || ctx.getTag('TRB_MSV_CLOSE') > 0;
 
-    // Ellipse Stodola: lưu lượng ∝ √(p_in² − p_out²).
-    const stodola = K_STODOLA * Math.sqrt(Math.max(0, pin * pin - pout * pout));
+    // Ellipse Stodola: lưu lượng ∝ √(p_in² − p_out²); trip → van stop đóng → 0.
+    const stodola = tripped ? 0 : K_STODOLA * Math.sqrt(Math.max(0, pin * pin - pout * pout));
 
-    // Swing tổ máy: cân bằng cơ (hơi) − điện (tải) → lệch tốc độ quanh 3000 rpm (khoá lưới).
+    // Swing tổ máy: cân bằng cơ (hơi) − điện (tải) → lệch tốc độ quanh 3000 rpm (khoá lưới). Trip → mất
+    // công cơ + tách lưới → coast-down về vùng turning-gear (quán tính rotor lớn).
     const vacFactor = clamp(1 - (poutKpa - VACUUM_NOM_KPA) / 40, 0.5, 1);
-    const pmech = steam * MW_PER_TPH * vacFactor; // MW cơ
-    const target = RATED_RPM + K_IMB * (pmech - mw);
-    this.speed += (target - this.speed) * (dt / TAU_SWING);
+    const pmech = tripped ? 0 : steam * MW_PER_TPH * vacFactor; // MW cơ
+    const target = tripped ? COAST_RPM : RATED_RPM + K_IMB * (pmech - mw);
+    this.speed += (target - this.speed) * (dt / (tripped ? TAU_COAST : TAU_SWING));
     const freq = this.speed / 60;
 
-    const mvar = mw * Q_FACTOR;
+    const mvar = tripped ? 0 : mw * Q_FACTOR; // tách lưới → không phát công suất phản kháng
     const statorTarget = STATOR_AMB + STATOR_RISE * (mw / MW_GROSS);
     this.statorTemp += (statorTarget - this.statorTemp) * (dt / TAU_STATOR);
 

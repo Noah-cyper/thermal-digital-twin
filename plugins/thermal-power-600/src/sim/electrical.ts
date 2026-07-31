@@ -40,6 +40,7 @@ export class ElectricalModel implements ISimModel {
     // Chiều sâu SCADA: 2 phân đoạn thanh cái tự dùng 6,6 kV (A/B, mỗi board 50% qua 2×UAT 50 MVA).
     'ELEC_AUX_A_MW_01',
     'ELEC_AUX_B_MW_01',
+    'ELEC_BREAKER_01', // trạng thái máy cắt máy phát (1 = đóng/hoà lưới · 0 = mở/tách lưới do trip)
   ];
 
   init(_ctx?: ISimModelContext, _config?: unknown): void {
@@ -49,22 +50,26 @@ export class ElectricalModel implements ISimModel {
   step(ctx: ISimModelContext): ISimStepResult {
     const mw = Math.max(0, ctx.getTag('GEN_MW_01')); // MW gộp
     const mvar = Math.max(0, ctx.getTag('GEN_MVAR_01')); // MVAr
-    const online = mw > 1; // máy phát mang tải
+    // Máy cắt máy phát MỞ do C&E (turbine trip → tách lưới). Tách lưới → không xuất lưới, không phát MVA;
+    // tổ máy VẪN cần tự dùng nền (dầu bôi trơn, turning gear, bơm phụ) → NHẬP từ lưới qua MBA khởi động.
+    const breakerOpen = ctx.getTag('GEN_BREAKER_TRIP') > 0;
+    const online = mw > 1 && !breakerOpen; // máy phát mang tải & hoà lưới
     const loadFrac = clamp(mw / MW_GROSS, 0, 1.1);
 
-    // Tự dùng: nền + biến thiên theo tải → công suất TINH = gộp − tự dùng.
-    const aux = online ? AUX_BASE_MW + AUX_VAR_MW * loadFrac : 0; // ngừng máy → không tự dùng qua UAT tổ máy
-    const netMw = mw - aux;
+    // Tự dùng: nền + biến thiên theo tải khi hoà lưới; tách lưới → chỉ còn tự dùng nền (nhập từ lưới).
+    const aux = online ? AUX_BASE_MW + AUX_VAR_MW * loadFrac : breakerOpen ? AUX_BASE_MW : 0;
+    // Công suất TINH = gộp − tự dùng khi hoà lưới; tách lưới → net ÂM (nhập tự dùng nền từ lưới).
+    const netMw = online ? mw - aux : breakerOpen ? -aux : 0;
 
-    // Công suất biểu kiến & hệ số công suất từ P/Q; dòng stator ở 20 kV (3 pha).
-    const mva = Math.sqrt(mw * mw + mvar * mvar);
+    // Công suất biểu kiến & hệ số công suất từ P/Q; dòng stator ở 20 kV (3 pha). Tách lưới → máy phát 0.
+    const mva = online ? Math.sqrt(mw * mw + mvar * mvar) : 0;
     const pf = mva > 1e-3 ? clamp(mw / mva, 0, 1) : 1;
     const current = online ? (mva * 1e6) / (Math.sqrt(3) * GEN_KV * 1000) / 1000 : 0; // kA
 
-    // Xuất lưới sau tổn thất GSU; tải các máy biến áp.
-    const gridMw = netMw > 0 ? netMw * (1 - GSU_LOSS_FRAC) : 0;
+    // Xuất lưới sau tổn thất GSU (0 khi tách lưới); tải các máy biến áp.
+    const gridMw = online && netMw > 0 ? netMw * (1 - GSU_LOSS_FRAC) : 0;
     const gsuLoading = (mva / GSU_MVA_RATED) * 100;
-    const auxLoading = online ? (aux / AUX_PF / UAT_MVA_RATED) * 100 : 0;
+    const auxLoading = aux > 0 ? (aux / AUX_PF / UAT_MVA_RATED) * 100 : 0;
 
     return {
       outputs: [
@@ -78,6 +83,7 @@ export class ElectricalModel implements ISimModel {
         { tagId: 'ELEC_AUX_LOADING_01', value: auxLoading, quality: 'Good' },
         { tagId: 'ELEC_AUX_A_MW_01', value: aux / 2, quality: 'Good' },
         { tagId: 'ELEC_AUX_B_MW_01', value: aux / 2, quality: 'Good' },
+        { tagId: 'ELEC_BREAKER_01', value: breakerOpen ? 0 : 1, quality: 'Good' },
       ],
     };
   }

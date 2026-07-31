@@ -67,4 +67,23 @@ describe('thermal-runtime — OTS/điều khiển: interlock permissive + trip t
     expect(rt.value('COND_CWP_A_FLOW_01')).toBe(0); // bơm A dừng
     expect(rt.value('COND_CW_RISE_01')).toBeGreaterThan(rise0 * 1.5); // ΔT tăng mạnh
   });
+
+  it('turbine trip tay → C&E: turbine coast-down + MỞ máy cắt máy phát (tách lưới, xuất lưới 0, net âm)', () => {
+    const rt = createThermalRuntime();
+    for (let i = 0; i < 300; i++) rt.step();
+    const spd0 = rt.value('TRB_SPEED_01');
+    expect(spd0).toBeGreaterThan(2900); // ~3000 rpm hoà lưới
+    expect(rt.value('ELEC_BREAKER_01')).toBe(1); // máy cắt đóng
+    expect(rt.value('ELEC_GRID_MW_01')).toBeGreaterThan(100); // đang xuất lưới
+
+    rt.manualTrip('turbine');
+    for (let i = 0; i < 300; i++) rt.step();
+    // Turbine đọc TRB_TRIP → MSV đóng → coast-down (tốc độ tụt khỏi 3000 + Stodola về 0).
+    expect(rt.value('TRB_SPEED_01')).toBeLessThan(spd0 - 200);
+    expect(rt.value('TRB_STODOLA_FLOW')).toBeLessThan(50);
+    // C&E mở máy cắt máy phát → tách lưới: xuất lưới 0, tổ máy NHẬP tự dùng nền (net âm).
+    expect(rt.value('ELEC_BREAKER_01')).toBe(0);
+    expect(rt.value('ELEC_GRID_MW_01')).toBe(0);
+    expect(rt.value('ELEC_NET_MW_01')).toBeLessThan(0);
+  });
 });
