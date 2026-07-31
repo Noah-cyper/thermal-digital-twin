@@ -27,6 +27,12 @@ const K_H2_VALVE_MPA = 0.4; // đóng góp áp toàn hành trình van cấp H₂
 const T_STATOR_CW_AMB_C = 38; // nhiệt nước làm mát stator vào (từ hệ nước làm mát khép kín CCW)
 const K_STATOR_HEAT_C = 20; // °C tăng do I²R stator theo tải
 const K_STATOR_COOL_C = 15; // °C giảm toàn hành trình van nước làm mát stator
+/* ── Hoàn thiện hệ H₂ máy phát (gas temp + seal oil dP) — GĐ-88 ── */
+const T_H2_GAS_MIN_C = 30; // nhiệt khí H₂ nền (approach tới cooler)
+const K_H2_HEAT_C = 22; // °C tăng khí H₂ theo tải (nhiệt máy phát)
+const K_H2_COOL_C = 18; // °C giảm toàn hành trình van CW cooler H₂
+const DP_SEAL_MIN_MPA = 0.02; // dP seal oil nền
+const K_SEAL_OIL_MPA = 0.12; // dP toàn hành trình van seal oil → giữ 0,08 MPa ở ~50%
 
 function clamp(x: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, x));
@@ -49,6 +55,8 @@ export class ElectricalModel implements ISimModel {
     'ELEC_BREAKER_01', // trạng thái máy cắt máy phát (1 = đóng/hoà lưới · 0 = mở/tách lưới do trip)
     'ELEC_H2_PRESS_01', // MPa — áp khí H₂ làm mát máy phát (van cấp giữ 0,4 MPa)
     'ELEC_STATOR_CW_TEMP_01', // °C — nhiệt nước làm mát stator (van nước làm mát giữ 45 °C)
+    'ELEC_H2_TEMP_01', // °C — nhiệt khí H₂ làm mát (van CW cooler H₂ giữ 40 °C)
+    'ELEC_SEAL_OIL_DP_01', // MPa — chênh áp seal oil − H₂ (van seal oil giữ 0,08 MPa chống rò H₂)
   ];
 
   init(_ctx?: ISimModelContext, _config?: unknown): void {
@@ -86,6 +94,12 @@ export class ElectricalModel implements ISimModel {
     const h2Press = P_H2_MIN_MPA + (h2Valve / 100) * K_H2_VALVE_MPA;
     const statorCwValve = clamp(ctx.getTag('ELEC_STATOR_CW_VALVE_01'), 0, 100);
     const statorCwTemp = T_STATOR_CW_AMB_C + K_STATOR_HEAT_C * loadFrac - K_STATOR_COOL_C * (statorCwValve / 100);
+    // Hoàn thiện hệ H₂: (3) nhiệt khí H₂ — máy phát nóng theo tải, van CW cooler H₂ hạ (reverse) giữ 40 °C;
+    // (4) chênh áp seal oil − H₂ giữ 0,08 MPa bằng van seal oil (direct) để dầu chèn ép H₂ không rò ra ngoài.
+    const h2CwValve = clamp(ctx.getTag('ELEC_H2_CW_VALVE_01'), 0, 100);
+    const h2Temp = T_H2_GAS_MIN_C + K_H2_HEAT_C * loadFrac - K_H2_COOL_C * (h2CwValve / 100);
+    const sealOilValve = clamp(ctx.getTag('ELEC_SEAL_OIL_VALVE_01'), 0, 100);
+    const sealOilDp = DP_SEAL_MIN_MPA + (sealOilValve / 100) * K_SEAL_OIL_MPA;
 
     return {
       outputs: [
@@ -102,6 +116,8 @@ export class ElectricalModel implements ISimModel {
         { tagId: 'ELEC_BREAKER_01', value: breakerOpen ? 0 : 1, quality: 'Good' },
         { tagId: 'ELEC_H2_PRESS_01', value: h2Press, quality: 'Good' },
         { tagId: 'ELEC_STATOR_CW_TEMP_01', value: statorCwTemp, quality: 'Good' },
+        { tagId: 'ELEC_H2_TEMP_01', value: h2Temp, quality: 'Good' },
+        { tagId: 'ELEC_SEAL_OIL_DP_01', value: sealOilDp, quality: 'Good' },
       ],
     };
   }

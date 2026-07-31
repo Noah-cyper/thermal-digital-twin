@@ -20,6 +20,11 @@ const CP_CW_KJKGK = 4.18; // nhiệt dung riêng nước làm mát
 const TAU_CW_S = 20; // quán tính nhiệt vòng CW
 const HOTWELL_STORAGE_T = 250; // sức chứa hotwell (t) — quy mô mức % [GIẢ ĐỊNH] GĐ-80
 const CEP_MAX_TPH = 2200; // lưu lượng bơm ngưng (CEP) tối đa (LCV 100%)
+/* ── Nước làm mát khép kín phụ trợ (closed cooling water — CCW) — GĐ-88 ── */
+const MW_GROSS = 600;
+const T_CCW_MIN_C = 30; // nhiệt CCW nền (approach tới CW chính)
+const K_CCW_HEAT_C = 18; // °C tăng CCW theo tải (tải nhiệt phụ trợ: dầu, H₂, stator, mẫu)
+const K_CCW_COOL_C = 15; // °C giảm toàn hành trình van CW cấp bộ trao đổi nhiệt CCW
 
 const CW_KGS = (CW_FLOW_TPH * 1000) / 3600; // ~17.778 kg/s
 
@@ -45,6 +50,7 @@ export class CondenserCWModel implements ISimModel {
     'COND_CWP_A_FLOW_01',
     'COND_CWP_B_FLOW_01',
     'COND_HOTWELL_LEVEL_01', // % — mức hotwell (điều khiển bằng bơm ngưng CEP)
+    'COND_CCW_TEMP_01', // °C — nhiệt nước làm mát khép kín phụ trợ (van CW bộ trao đổi CCW giữ 38 °C)
   ];
 
   private tCwOut = 31;
@@ -87,6 +93,12 @@ export class CondenserCWModel implements ISimModel {
     this.tCwOut += (outTarget - this.tCwOut) * (dt / TAU_CW_S);
     this.tCwIn += (inTarget - this.tCwIn) * (dt / TAU_CW_S);
 
+    // Nước làm mát khép kín phụ trợ (CCW): thu nhiệt các cooler phụ (dầu bôi trơn, H₂, stator, mẫu) ∝ tải →
+    // thải qua bộ trao đổi nhiệt về CW chính. Loop 'closed-cooling-water-temp' điều van CW cấp cho bộ trao
+    // đổi (reverse: CCW nóng → mở thêm) giữ 38 °C. Derived thuần (gain nhỏ ổn định, không cần quán tính).
+    const ccwValve = clamp(ctx.getTag('COND_CCW_CW_VALVE_01'), 0, 100);
+    const ccwTemp = T_CCW_MIN_C + K_CCW_HEAT_C * clamp(mw / MW_GROSS, 0, 1) - K_CCW_COOL_C * (ccwValve / 100);
+
     return {
       outputs: [
         { tagId: 'COND_DUTY_01', value: qRejMw, quality: 'Good' },
@@ -100,6 +112,7 @@ export class CondenserCWModel implements ISimModel {
         { tagId: 'COND_CWP_A_FLOW_01', value: this.cwPumpTripped ? 0 : CW_FLOW_TPH / 2, quality: 'Good' },
         { tagId: 'COND_CWP_B_FLOW_01', value: CW_FLOW_TPH / 2, quality: 'Good' },
         { tagId: 'COND_HOTWELL_LEVEL_01', value: this.hotwellLevel, quality: 'Good' },
+        { tagId: 'COND_CCW_TEMP_01', value: ccwTemp, quality: 'Good' },
       ],
     };
   }

@@ -321,6 +321,11 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       equip('gn-h2v', 'box', 'Van H₂', 'ELEC_H2_VALVE_01', '%', '', 158, 314, 110, 54),
       equip('gn-scw', 'box', 'Nước mát stator (loop)', 'ELEC_STATOR_CW_TEMP_01', '°C', '', 276, 314, 180, 54, [{ when: 'gt', value: 50, sev: 2 }]),
       equip('gn-scwv', 'box', 'Van nước mát', 'ELEC_STATOR_CW_VALVE_01', '%', '', 464, 314, 140, 54),
+      // Hoàn thiện hệ H₂ máy phát (loop C-6): nhiệt khí H₂ (van CW cooler) + chênh áp seal oil chống rò H₂.
+      equip('gn-h2t', 'box', 'Nhiệt khí H₂ (loop)', 'ELEC_H2_TEMP_01', '°C', '', 20, 378, 150, 54, [{ when: 'gt', value: 46, sev: 2 }]),
+      equip('gn-h2cw', 'box', 'Van CW H₂', 'ELEC_H2_CW_VALVE_01', '%', '', 178, 378, 110, 54),
+      equip('gn-seal', 'box', 'dP seal oil (loop)', 'ELEC_SEAL_OIL_DP_01', 'MPa', '', 296, 378, 150, 54, [{ when: 'lt', value: 0.04, sev: 2 }]),
+      equip('gn-sealv', 'box', 'Van seal oil', 'ELEC_SEAL_OIL_VALVE_01', '%', '', 454, 378, 120, 54),
     ],
   },
   {
@@ -514,6 +519,9 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       equip('cd-ttd', 'box', 'TTD', 'COND_TTD_01', '°C', '', 392, 250, 100, 54),
       equip('cd-cwflow', 'box', 'Tổng CW', 'COND_CW_FLOW_01', 't/h', '', 504, 250, 120, 54),
       equip('cd-rise', 'box', 'Tăng nhiệt CW', 'COND_CW_RISE_01', '°C', '', 636, 250, 130, 54),
+      // Nước làm mát khép kín phụ trợ CCW (loop C-6): nhiệt CCW + van CW bộ trao đổi thải nhiệt phụ trợ.
+      equip('cd-ccw', 'box', 'Nhiệt CCW (loop)', 'COND_CCW_TEMP_01', '°C', '', 250, 314, 160, 54, [{ when: 'gt', value: 44, sev: 2 }]),
+      equip('cd-ccwv', 'box', 'Van CW→CCW', 'COND_CCW_CW_VALVE_01', '%', '', 420, 314, 140, 54),
     ],
   },
   {
