@@ -12,11 +12,11 @@ const STEAM_TO_FWCV = 100 / 2100; // steam flow (t/h) → FW CV feedforward (%)
 const STEAM_TO_DEALCV = 100 / 2200; // steam flow (t/h) → deaerator condensate LCV feedforward (%)
 const STEAM_TO_CEPLCV = 100 / 2200; // steam flow (t/h) → condensate extraction pump LCV feedforward (%)
 
-/** 17 control loop Boiler Island + môi trường + phụ trợ (doc 09): governor · boiler master (sliding
- *  pressure) · fuel master · air/O₂ · furnace draft · SH temp · drum level 3-element · deaerator level ·
- *  hotwell level · reheat temp (gas-biasing) · BFP min-flow recirc · SCR deNOx (NH₃) · FGD SO₂ (slurry) ·
- *  deaerator pressure (pegging steam) · gland steam pressure · mill outlet temp · PA header pressure.
- *  Coordinated master = boiler-follow + setpoint áp trượt. */
+/** 19 control loop Boiler Island + môi trường + phụ trợ + máy phát (doc 09): governor · boiler master
+ *  (sliding pressure) · fuel master · air/O₂ · furnace draft · SH temp · drum level 3-element · deaerator
+ *  level · hotwell level · reheat temp (gas-biasing) · BFP min-flow recirc · SCR deNOx (NH₃) · FGD SO₂
+ *  (slurry) · deaerator pressure (pegging steam) · gland steam pressure · mill outlet temp · PA header
+ *  pressure · generator H₂ pressure · stator cooling water temp. Coordinated master = boiler-follow + áp trượt. */
 export const boilerControlLoops: ReadonlyArray<ControlLoopDef> = [
   {
     id: 'governor',
@@ -240,6 +240,31 @@ export const boilerControlLoops: ReadonlyArray<ControlLoopDef> = [
     outHi: 100,
     outTag: 'COAL_PA_FAN_VANE_01',
   },
+  {
+    id: 'generator-h2-pressure',
+    desc: 'Áp khí H₂ làm mát máy phát: giữ 0,4 MPa bằng van cấp H₂ (bù rò seal, direct)',
+    pvTag: 'ELEC_H2_PRESS_01',
+    sp: 0.4,
+    kp: 150,
+    ki: 15,
+    kd: 0,
+    outLo: 0,
+    outHi: 100,
+    outTag: 'ELEC_H2_VALVE_01',
+  },
+  {
+    id: 'stator-cooling-temp',
+    desc: 'Nhiệt nước làm mát stator: giữ 45 °C bằng van nước làm mát (I²R theo tải, reverse)',
+    pvTag: 'ELEC_STATOR_CW_TEMP_01',
+    sp: 45,
+    kp: 2,
+    ki: 0.2,
+    kd: 0,
+    outLo: 0,
+    outHi: 100,
+    reverse: true,
+    outTag: 'ELEC_STATOR_CW_VALVE_01',
+  },
 ];
 
 /** Điểm vận hành khởi động (~1500 t/h hơi / ~448 MW) — nạp bumpless MAN→AUTO để khởi động êm.
@@ -262,4 +287,6 @@ export const boilerLoopSeeds: Readonly<Record<string, number>> = {
   'gland-steam-pressure': 33.5, // TRB_GLAND_VALVE_01 (%) — van chèn bù tự chèn 3→5 kPag tại điểm vận hành
   'mill-outlet-temp': 31, // COAL_HOT_AIR_DMPR_01 (%) — gió nóng giữ nhiệt ra mill ~70 °C
   'pa-header-pressure': 70, // COAL_PA_FAN_VANE_01 (%) — quạt PA giữ header ~9 kPa tại điểm vận hành
+  'generator-h2-pressure': 50, // ELEC_H2_VALVE_01 (%) — van H₂ giữ áp 0,4 MPa (0,2 + 0,5·0,4)
+  'stator-cooling-temp': 52.9, // ELEC_STATOR_CW_VALVE_01 (%) — van nước làm mát giữ stator CW ~45 °C
 };

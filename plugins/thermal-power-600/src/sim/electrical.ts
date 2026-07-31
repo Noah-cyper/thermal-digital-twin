@@ -21,6 +21,12 @@ const AUX_BASE_MW = 12; // tự dùng nền (điều khiển, chiếu sáng, bơ
 const AUX_VAR_MW = 30; // tự dùng biến thiên theo tải (mill, quạt, BFP, bơm CW)
 const AUX_PF = 0.9; // hệ số công suất tải tự dùng
 const GSU_LOSS_FRAC = 0.004; // tổn thất máy biến áp chính ~0,4 %
+/* ── Làm mát máy phát (H₂ pressure + stator cooling water temp) — GĐ-86 ── */
+const P_H2_MIN_MPA = 0.2; // áp khí H₂ nền khi van cấp đóng
+const K_H2_VALVE_MPA = 0.4; // đóng góp áp toàn hành trình van cấp H₂ (bù rò seal) → giữ 0,4 MPa ở ~50%
+const T_STATOR_CW_AMB_C = 38; // nhiệt nước làm mát stator vào (từ hệ nước làm mát khép kín CCW)
+const K_STATOR_HEAT_C = 20; // °C tăng do I²R stator theo tải
+const K_STATOR_COOL_C = 15; // °C giảm toàn hành trình van nước làm mát stator
 
 function clamp(x: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, x));
@@ -41,6 +47,8 @@ export class ElectricalModel implements ISimModel {
     'ELEC_AUX_A_MW_01',
     'ELEC_AUX_B_MW_01',
     'ELEC_BREAKER_01', // trạng thái máy cắt máy phát (1 = đóng/hoà lưới · 0 = mở/tách lưới do trip)
+    'ELEC_H2_PRESS_01', // MPa — áp khí H₂ làm mát máy phát (van cấp giữ 0,4 MPa)
+    'ELEC_STATOR_CW_TEMP_01', // °C — nhiệt nước làm mát stator (van nước làm mát giữ 45 °C)
   ];
 
   init(_ctx?: ISimModelContext, _config?: unknown): void {
@@ -71,6 +79,14 @@ export class ElectricalModel implements ISimModel {
     const gsuLoading = (mva / GSU_MVA_RATED) * 100;
     const auxLoading = aux > 0 ? (aux / AUX_PF / UAT_MVA_RATED) * 100 : 0;
 
+    // Làm mát máy phát (chạy liên tục, độc lập hoà lưới): (1) áp khí H₂ giữ 0,4 MPa bù rò seal (van cấp
+    // ELEC_H2_VALVE_01, direct); (2) nhiệt nước làm mát stator giữ 45 °C — I²R theo tải làm nóng, van nước
+    // làm mát ELEC_STATOR_CW_VALVE_01 hạ nhiệt (reverse). Derived thuần (gain nhỏ → ổn định, không quán tính).
+    const h2Valve = clamp(ctx.getTag('ELEC_H2_VALVE_01'), 0, 100);
+    const h2Press = P_H2_MIN_MPA + (h2Valve / 100) * K_H2_VALVE_MPA;
+    const statorCwValve = clamp(ctx.getTag('ELEC_STATOR_CW_VALVE_01'), 0, 100);
+    const statorCwTemp = T_STATOR_CW_AMB_C + K_STATOR_HEAT_C * loadFrac - K_STATOR_COOL_C * (statorCwValve / 100);
+
     return {
       outputs: [
         { tagId: 'ELEC_AUX_POWER_01', value: aux, quality: 'Good' },
@@ -84,6 +100,8 @@ export class ElectricalModel implements ISimModel {
         { tagId: 'ELEC_AUX_A_MW_01', value: aux / 2, quality: 'Good' },
         { tagId: 'ELEC_AUX_B_MW_01', value: aux / 2, quality: 'Good' },
         { tagId: 'ELEC_BREAKER_01', value: breakerOpen ? 0 : 1, quality: 'Good' },
+        { tagId: 'ELEC_H2_PRESS_01', value: h2Press, quality: 'Good' },
+        { tagId: 'ELEC_STATOR_CW_TEMP_01', value: statorCwTemp, quality: 'Good' },
       ],
     };
   }

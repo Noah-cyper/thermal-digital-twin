@@ -311,6 +311,11 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       equip('gn-stator', 'box', 'Nhiệt stator', 'GEN_STATOR_TEMP_01', '°C', '', 272, 250, 112, 54, [{ when: 'gt', value: 120, sev: 2 }]),
       equip('gn-cur', 'box', 'Dòng stator', 'ELEC_GEN_CURRENT_01', 'kA', '', 398, 250, 112, 54),
       equip('gn-pf', 'box', 'Hệ số cs (cosφ)', 'ELEC_PF_01', '', '', 524, 250, 112, 54, [{ when: 'lt', value: 0.85, sev: 3 }]),
+      // Làm mát máy phát (loop C-4): áp khí H₂ (van cấp) + nhiệt nước làm mát stator (van nước làm mát).
+      equip('gn-h2', 'box', 'Áp H₂ (loop)', 'ELEC_H2_PRESS_01', 'MPa', '', 20, 314, 130, 54, [{ when: 'lt', value: 0.3, sev: 2 }]),
+      equip('gn-h2v', 'box', 'Van H₂', 'ELEC_H2_VALVE_01', '%', '', 158, 314, 110, 54),
+      equip('gn-scw', 'box', 'Nước mát stator (loop)', 'ELEC_STATOR_CW_TEMP_01', '°C', '', 276, 314, 180, 54, [{ when: 'gt', value: 50, sev: 2 }]),
+      equip('gn-scwv', 'box', 'Van nước mát', 'ELEC_STATOR_CW_VALVE_01', '%', '', 464, 314, 140, 54),
     ],
   },
   {
