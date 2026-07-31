@@ -214,6 +214,8 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   put('BLR_PRESS_SP', 17.5); // setpoint áp hơi (coordinated master ghi lại mỗi bước — trượt theo tải)
   put('TRB_RH_BIAS_01', boilerLoopSeeds['reheat-temp'] ?? 0);
   put('BLR_BFP_RECIRC_01', boilerLoopSeeds['bfp-recirc'] ?? 0);
+  put('EMI_NH3_INJ_01', boilerLoopSeeds['scr-nox'] ?? 0); // lệnh phun NH₃ SCR (bumpless MAN→AUTO)
+  put('EMI_FGD_SLURRY_01', boilerLoopSeeds['fgd-so2'] ?? 0); // lệnh cấp slurry FGD (bumpless MAN→AUTO)
 
   const host = new SimulationHost(DT_MS, {
     now: () => nowIso(),

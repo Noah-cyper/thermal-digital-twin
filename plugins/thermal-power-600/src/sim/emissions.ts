@@ -21,9 +21,16 @@ const ESP_EFF = 0.9977; // độ khử bụi ESP (hiệu chỉnh để đạt < 
 const ESP_FIELD_PASS = Math.pow(1 - ESP_EFF, 1 / 4); // phần bụi lọt qua MỖI trường (4 trường nối tiếp)
 const FGD_EFF = 0.95; // độ khử SO₂ của FGD ướt
 const FG_DENSITY_KG_NM3 = 1.3; // khối lượng riêng khói
-const NOX_BASE_MG = 320; // NOₓ nền ở O₂ danh định
+const NOX_BASE_MG = 320; // NOₓ nền ở O₂ danh định (vào SCR, trước khử)
 const MW_SO2_S = 64 / 32; // kg SO₂ / kg S
 const MW_CO2_C = 44 / 12; // kg CO₂ / kg C
+
+/* ── SCR deNOx + điều khiển hiệu suất FGD (GĐ-83) — [GIẢ ĐỊNH] ──
+ * SCR + slurry đá vôi biến hiệu suất khử NOₓ/SO₂ từ HẰNG SỐ → CÓ ĐIỀU KHIỂN (2 vòng CCS mới). Khi tag
+ * lệnh vắng/=0 (standalone/bypass) → giữ NGUYÊN hành vi cũ (SCR 0 khử; FGD 0,95 thiết kế) → 0 hồi quy. */
+const SCR_MAX_EFF = 0.85; // độ khử NOₓ tối đa của SCR khi NH₃ đủ stoichiometry
+const FGD_MIN_EFF = 0.9; // sàn hiệu suất FGD khi slurry thấp
+const FGD_MAX_EFF = 0.99; // trần hiệu suất FGD khi slurry cao
 
 function clamp(x: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, x));
@@ -38,7 +45,9 @@ export class EmissionsModel implements ISimModel {
     'EMI_NOX_STACK_01', // mg/Nm³ — NOₓ ra ống khói
     'EMI_CO2_RATE_01', // t/h — phát thải CO₂
     'EMI_ESP_EFF_01', // % — độ khử bụi ESP
-    'EMI_FGD_EFF_01', // % — độ khử SO₂ FGD
+    'EMI_FGD_EFF_01', // % — độ khử SO₂ FGD (điều khiển theo slurry đá vôi)
+    'EMI_NOX_SCR_IN_01', // mg/Nm³ — NOₓ vào SCR (nền cháy, trước khử)
+    'EMI_SCR_EFF_01', // % — độ khử NOₓ của SCR (theo NH₃ phun)
     // Chiều sâu SCADA: nồng độ bụi qua TỪNG trường ESP (4 trường nối tiếp). Mỗi trường cho qua
     // (1−ESP_EFF)^(1/4) phần bụi → giảm dần từ đầu vào tới < 30 mg/Nm³ ở trường cuối (KHÔNG bịa: cùng
     // ESP_EFF tổng, chỉ khai triển theo tầng). Không thêm trạng thái.
@@ -57,6 +66,8 @@ export class EmissionsModel implements ISimModel {
     const coalTph = Math.max(0, ctx.getTag('BLR_COAL_FLOW_01')); // t/h
     const fgTph = Math.max(0, ctx.getTag('FG_FLOW_01')); // t/h khói
     const excess = Math.max(0, ctx.getTag('FG_EXCESS_AIR_01')); // %
+    const nh3 = Math.max(0, ctx.getTag('EMI_NH3_INJ_01')); // % — lệnh phun NH₃ (SCR deNOx)
+    const slurry = Math.max(0, ctx.getTag('EMI_FGD_SLURRY_01')); // % — lệnh cấp slurry đá vôi (FGD)
     const firing = coalTph > 5;
 
     const coalKgh = coalTph * 1000;
@@ -70,13 +81,19 @@ export class EmissionsModel implements ISimModel {
     const dustInConc = vFgNm3h > 1 ? (flyAshKgh * 1e6) / vFgNm3h : 0; // mg/Nm³ trước ESP
     const espField = (k: number): number => dustInConc * Math.pow(ESP_FIELD_PASS, k);
 
-    // SO₂: từ S trong than → sau FGD → nồng độ.
+    // SO₂: từ S trong than → sau FGD → nồng độ. FGD ướt: slurry đá vôi điều khiển hiệu suất khử; KHÔNG
+    // cấp slurry (=0, standalone/bypass) → dùng hiệu suất thiết kế FGD_EFF (0,95) — giữ hành vi cũ.
+    const fgdEff = slurry > 0 ? clamp(FGD_MIN_EFF + (FGD_MAX_EFF - FGD_MIN_EFF) * (slurry / 100), 0, FGD_MAX_EFF) : FGD_EFF;
     const so2RawKgh = coalKgh * S_FRAC * MW_SO2_S;
-    const so2StackKgh = so2RawKgh * (1 - FGD_EFF);
+    const so2StackKgh = so2RawKgh * (1 - fgdEff);
     const so2Conc = vFgNm3h > 1 ? (so2StackKgh * 1e6) / vFgNm3h : 0; // mg/Nm³
 
-    // NOₓ: nền theo tải, tăng nhẹ khi gió thừa cao (nhiều O₂ → nhiều NOₓ nhiệt) [GIẢ ĐỊNH].
-    const noxConc = firing ? NOX_BASE_MG * clamp(1 + (excess - 18) / 120, 0.7, 1.4) : 0;
+    // NOₓ vào SCR (nền cháy): theo tải, tăng nhẹ khi gió thừa cao (nhiều O₂ → nhiều NOₓ nhiệt) [GIẢ ĐỊNH].
+    const noxRaw = firing ? NOX_BASE_MG * clamp(1 + (excess - 18) / 120, 0.7, 1.4) : 0;
+    // SCR deNOx: NH₃ phun khử NOₓ (điều khiển phản hồi outlet-NOx). KHÔNG phun (=0, standalone/bypass) →
+    // 0 khử → NOₓ ống khói = nền cháy (giữ hành vi cũ). Độ khử bão hoà ở SCR_MAX_EFF khi NH₃ đủ.
+    const scrEff = nh3 > 0 ? clamp(SCR_MAX_EFF * (nh3 / 100), 0, SCR_MAX_EFF) : 0;
+    const noxConc = noxRaw * (1 - scrEff); // NOₓ ống khói sau SCR
 
     // CO₂: từ carbon trong than (không khử) → tấn/h.
     const co2Tph = (coalKgh * C_FRAC * MW_CO2_C) / 1000;
@@ -89,7 +106,9 @@ export class EmissionsModel implements ISimModel {
         { tagId: 'EMI_NOX_STACK_01', value: noxConc, quality: 'Good' },
         { tagId: 'EMI_CO2_RATE_01', value: co2Tph, quality: 'Good' },
         { tagId: 'EMI_ESP_EFF_01', value: firing ? ESP_EFF * 100 : 0, quality: 'Good' },
-        { tagId: 'EMI_FGD_EFF_01', value: firing ? FGD_EFF * 100 : 0, quality: 'Good' },
+        { tagId: 'EMI_FGD_EFF_01', value: firing ? fgdEff * 100 : 0, quality: 'Good' },
+        { tagId: 'EMI_NOX_SCR_IN_01', value: noxRaw, quality: 'Good' },
+        { tagId: 'EMI_SCR_EFF_01', value: firing ? scrEff * 100 : 0, quality: 'Good' },
         { tagId: 'EMI_ESP_IN_DUST_01', value: dustInConc, quality: 'Good' },
         { tagId: 'EMI_ESP_F1_DUST_01', value: espField(1), quality: 'Good' },
         { tagId: 'EMI_ESP_F2_DUST_01', value: espField(2), quality: 'Good' },
