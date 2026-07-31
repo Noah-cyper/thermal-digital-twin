@@ -18,6 +18,8 @@ const VACUUM_NOM_KPA = 5.4;
 const TTD_NOM_C = 2.8; // terminal temperature difference bình ngưng
 const CP_CW_KJKGK = 4.18; // nhiệt dung riêng nước làm mát
 const TAU_CW_S = 20; // quán tính nhiệt vòng CW
+const HOTWELL_STORAGE_T = 250; // sức chứa hotwell (t) — quy mô mức % [GIẢ ĐỊNH] GĐ-80
+const CEP_MAX_TPH = 2200; // lưu lượng bơm ngưng (CEP) tối đa (LCV 100%)
 
 const CW_KGS = (CW_FLOW_TPH * 1000) / 3600; // ~17.778 kg/s
 
@@ -42,16 +44,19 @@ export class CondenserCWModel implements ISimModel {
     // Chiều sâu SCADA: 2 bơm nước tuần hoàn (A/B, mỗi bơm 50% lưu lượng CW) — chia đôi tổng đã tính.
     'COND_CWP_A_FLOW_01',
     'COND_CWP_B_FLOW_01',
+    'COND_HOTWELL_LEVEL_01', // % — mức hotwell (điều khiển bằng bơm ngưng CEP)
   ];
 
   private tCwOut = 31;
   private tCwIn = 19;
   private cwPumpTripped = false; // malfunction: trip 1 bơm CW → còn 50% lưu lượng → độ tăng nhiệt gấp đôi
+  private hotwellLevel = 50; // % — mức hotwell (tích phân ngưng tụ vào − bơm ngưng ra)
 
   init(_ctx?: ISimModelContext, _config?: unknown): void {
     this.tCwOut = 31;
     this.tCwIn = 19;
     this.cwPumpTripped = false;
+    this.hotwellLevel = 50;
   }
 
   step(ctx: ISimModelContext): ISimStepResult {
@@ -63,6 +68,12 @@ export class CondenserCWModel implements ISimModel {
     // Cân bằng năng lượng bình ngưng: nhiệt CẤP cho chu trình = HR·gross; nhiệt THẢI = cấp − công suất.
     const qInMw = (hr * mw) / 3600; // MWth (= HR[kJ/kWh]·mw[MW]·1000/3600/1000)
     const qRejMw = Math.max(0, qInMw - mw);
+
+    // Mức hotwell: tích phân (ngưng tụ VÀO ≈ hơi − bơm ngưng CEP RA). Loop 'hotwell-level' điều CEP LCV
+    // giữ mức 50%. Ở ổn định: ngưng tụ vào = bơm ngưng ra = hơi → mức đứng yên.
+    const steam = Math.max(0, ctx.getTag('BLR_STEAM_FLOW_01'));
+    const cepFlow = (clamp(ctx.getTag('COND_CEP_LCV_01'), 0, 100) / 100) * CEP_MAX_TPH;
+    this.hotwellLevel = clamp(this.hotwellLevel + ((steam - cepFlow) / HOTWELL_STORAGE_T) * 100 * (dt / 3600), 0, 100);
 
     // Độ tăng nhiệt CW từ nhiệt thải và lưu lượng CW: ΔT = Q/(ṁ·cp). Trip 1 bơm → còn 50% lưu lượng.
     const cwFlowTph = this.cwPumpTripped ? CW_FLOW_TPH / 2 : CW_FLOW_TPH;
@@ -88,17 +99,19 @@ export class CondenserCWModel implements ISimModel {
         // Trip 1 bơm → bơm A dừng (0), bơm B gánh 50% tổng; bình thường mỗi bơm 50%.
         { tagId: 'COND_CWP_A_FLOW_01', value: this.cwPumpTripped ? 0 : CW_FLOW_TPH / 2, quality: 'Good' },
         { tagId: 'COND_CWP_B_FLOW_01', value: CW_FLOW_TPH / 2, quality: 'Good' },
+        { tagId: 'COND_HOTWELL_LEVEL_01', value: this.hotwellLevel, quality: 'Good' },
       ],
     };
   }
 
   snapshot(): ISimSnapshot {
-    return { state: { tCwOut: this.tCwOut, tCwIn: this.tCwIn, cwPumpTripped: this.cwPumpTripped ? 1 : 0 } };
+    return { state: { tCwOut: this.tCwOut, tCwIn: this.tCwIn, cwPumpTripped: this.cwPumpTripped ? 1 : 0, hotwellLevel: this.hotwellLevel } };
   }
   restore(snapshot: ISimSnapshot): void {
     this.tCwOut = snapshot.state.tCwOut ?? 31;
     this.tCwIn = snapshot.state.tCwIn ?? 19;
     this.cwPumpTripped = (snapshot.state.cwPumpTripped ?? 0) > 0;
+    this.hotwellLevel = snapshot.state.hotwellLevel ?? 50;
   }
   injectMalfunction(m: IMalfunction): void {
     if (m.id === 'cw-pump-trip') this.cwPumpTripped = true;

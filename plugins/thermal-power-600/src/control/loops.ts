@@ -9,9 +9,11 @@ const FIRING_TO_COAL = 3.0; // firing % → coal SP (t/h) = firing × COAL_MAX/1
 const DRAW_TO_FIRING = 100 / 2008; // steam draw (t/h) → firing base (%)
 const FIRING_TO_AIR = 0.83; // firing % → FD damper base (%)
 const STEAM_TO_FWCV = 100 / 2100; // steam flow (t/h) → FW CV feedforward (%)
+const STEAM_TO_DEALCV = 100 / 2200; // steam flow (t/h) → deaerator condensate LCV feedforward (%)
+const STEAM_TO_CEPLCV = 100 / 2200; // steam flow (t/h) → condensate extraction pump LCV feedforward (%)
 
-/** 7 control loop Boiler Island (doc 09: boiler master · fuel master · air/O₂ · furnace draft ·
- *  main steam pressure · SH temp · drum level 3-element + governor tải). */
+/** 9 control loop Boiler Island (doc 09: boiler master · fuel master · air/O₂ · furnace draft ·
+ *  main steam pressure · SH temp · drum level 3-element + governor tải + deaerator level + hotwell level). */
 export const boilerControlLoops: ReadonlyArray<ControlLoopDef> = [
   {
     id: 'governor',
@@ -108,6 +110,35 @@ export const boilerControlLoops: ReadonlyArray<ControlLoopDef> = [
     ffGain: STEAM_TO_FWCV,
     outTag: 'BLR_FW_CV_01',
   },
+  {
+    id: 'deaerator-level',
+    desc: 'Deaerator level: giữ 50%, FF theo hơi (condensate ≈ hơi, cân bằng khối lượng) → van mức condensate (LCV)',
+    pvTag: 'FW_DEAERATOR_LEVEL_01',
+    sp: 50,
+    kp: 0.8,
+    ki: 0.05,
+    kd: 0,
+    outLo: 0,
+    outHi: 100,
+    ffTag: 'BLR_STEAM_FLOW_01',
+    ffGain: STEAM_TO_DEALCV,
+    outTag: 'FW_DEA_LCV_01',
+  },
+  {
+    id: 'hotwell-level',
+    desc: 'Hotwell level: giữ 50%, reverse (mức cao → bơm ngưng ra nhiều), FF theo hơi → van bơm ngưng (CEP LCV)',
+    pvTag: 'COND_HOTWELL_LEVEL_01',
+    sp: 50,
+    kp: 0.8,
+    ki: 0.05,
+    kd: 0,
+    outLo: 0,
+    outHi: 100,
+    ffTag: 'BLR_STEAM_FLOW_01',
+    ffGain: STEAM_TO_CEPLCV,
+    reverse: true,
+    outTag: 'COND_CEP_LCV_01',
+  },
 ];
 
 /** Điểm vận hành khởi động (~1500 t/h hơi / ~448 MW) — nạp bumpless MAN→AUTO để khởi động êm.
@@ -120,4 +151,6 @@ export const boilerLoopSeeds: Readonly<Record<string, number>> = {
   'furnace-draft': 62, // BLR_ID_VANE_01 (%)
   'sh-temp': 21, // BLR_SH_SPRAY_CV_01 (%) — 541 °C
   'drum-level': 71, // BLR_FW_CV_01 (%)
+  'deaerator-level': 68, // FW_DEA_LCV_01 (%) — condensate ~1500 t/h giữ mức 50%
+  'hotwell-level': 68, // COND_CEP_LCV_01 (%) — bơm ngưng ~1500 t/h giữ mức 50%
 };

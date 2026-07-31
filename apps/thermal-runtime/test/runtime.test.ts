@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { createThermalRuntime } from '../src/runtime';
 
-describe('thermal-runtime — CCS closed loop (7 control loops quanh BoilerIslandModel)', () => {
+describe('thermal-runtime — CCS closed loop (9 control loops quanh BoilerIslandModel)', () => {
   it('khởi động & giữ điểm vận hành: áp ~17,5 MPa · O₂ ~3,2% · SH ~541 °C · mức bao hơi bám 0', () => {
     const rt = createThermalRuntime();
     for (let i = 0; i < 3000; i++) rt.step();
