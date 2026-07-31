@@ -50,11 +50,13 @@ export class FlueGasAirModel implements ISimModel {
   private tGasIn = T_AH_GAS_IN_NOM_C;
   private tStack = T_STACK_NOM_C;
   private tAirOut = 290;
+  private ahFouling = false; // malfunction: sấy gió bẩn → giảm thu hồi nhiệt → khói ra nóng, gió ra nguội, η giảm
 
   init(_ctx?: ISimModelContext, _config?: unknown): void {
     this.tGasIn = T_AH_GAS_IN_NOM_C;
     this.tStack = T_STACK_NOM_C;
     this.tAirOut = 290;
+    this.ahFouling = false;
   }
 
   step(ctx: ISimModelContext): ISimStepResult {
@@ -76,10 +78,12 @@ export class FlueGasAirModel implements ISimModel {
 
     // Nhiệt đường khói bám mục tiêu theo tải (lag air heater). Không cháy → nguội về môi trường.
     const gasInTarget = firing ? T_AMB_C + (T_AH_GAS_IN_NOM_C - T_AMB_C) * (0.6 + 0.4 * clamp(loadFrac, 0, 1)) : T_AMB_C;
-    const stackTarget = firing ? T_AMB_C + (T_STACK_NOM_C - T_AMB_C) * (0.6 + 0.4 * clamp(loadFrac, 0, 1)) : T_AMB_C;
+    // Sấy gió bẩn (ah-fouling) → thu hồi nhiệt kém: khói ra NÓNG hơn (×1,6 phần chênh), gió ra NGUỘI hơn (η×0,6).
+    const stackTarget = firing ? T_AMB_C + (T_STACK_NOM_C - T_AMB_C) * (0.6 + 0.4 * clamp(loadFrac, 0, 1)) * (this.ahFouling ? 1.6 : 1) : T_AMB_C;
     this.tGasIn += (gasInTarget - this.tGasIn) * (dt / TAU_FG_S);
     this.tStack += (stackTarget - this.tStack) * (dt / TAU_FG_S);
-    const airOutTarget = T_AMB_C + AH_EFF * (this.tGasIn - T_AMB_C); // gió nhận nhiệt từ khói
+    const ahEff = this.ahFouling ? AH_EFF * 0.6 : AH_EFF;
+    const airOutTarget = T_AMB_C + ahEff * (this.tGasIn - T_AMB_C); // gió nhận nhiệt từ khói
     this.tAirOut += (airOutTarget - this.tAirOut) * (dt / TAU_FG_S);
 
     // Hiệu suất lò (trực tiếp): nhiệt vào hơi / nhiệt nhiên liệu.
@@ -109,18 +113,19 @@ export class FlueGasAirModel implements ISimModel {
   }
 
   snapshot(): ISimSnapshot {
-    return { state: { tGasIn: this.tGasIn, tStack: this.tStack, tAirOut: this.tAirOut } };
+    return { state: { tGasIn: this.tGasIn, tStack: this.tStack, tAirOut: this.tAirOut, ahFouling: this.ahFouling ? 1 : 0 } };
   }
   restore(snapshot: ISimSnapshot): void {
     this.tGasIn = snapshot.state.tGasIn ?? T_AH_GAS_IN_NOM_C;
     this.tStack = snapshot.state.tStack ?? T_STACK_NOM_C;
     this.tAirOut = snapshot.state.tAirOut ?? 290;
+    this.ahFouling = (snapshot.state.ahFouling ?? 0) > 0;
   }
-  injectMalfunction(_m: IMalfunction): void {
-    // model không có malfunction riêng ở v1.21
+  injectMalfunction(m: IMalfunction): void {
+    if (m.id === 'ah-fouling') this.ahFouling = true;
   }
-  clearMalfunction(_id: string): void {
-    // không giữ trạng thái malfunction
+  clearMalfunction(id: string): void {
+    if (id === 'ah-fouling') this.ahFouling = false;
   }
   dispose(): void {
     // không giữ tài nguyên ngoài

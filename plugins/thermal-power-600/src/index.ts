@@ -26,5 +26,6 @@ export { thermalSeedSpec } from './seed/spec';
 export { thermalSequences } from './sequences/defs';
 export { thermalScenarios } from './scenarios/defs';
 export { thermalCauseEffect } from './cause-effect/matrices';
+export { thermalInterlocks } from './interlocks/interlocks';
 export { thermalKnowledge, thermalKnowledgeSource } from './ai/knowledge';
 export { thermalReportSections } from './report/sections';

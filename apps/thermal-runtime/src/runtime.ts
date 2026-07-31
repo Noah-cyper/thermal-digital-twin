@@ -2,7 +2,7 @@
 // khép kín với ĐỒNG HỒ SIM tiến theo dt (Time Service, không Date.now trong vòng process).
 // Sim→control→alarm→tag không dùng Math.random. App tổ hợp import engines/kernel/plugin; plugin
 // runtime vẫn chỉ import @idtp/sdk.
-import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian, KpiEngine, historianKpiInput, MaintenanceEngine, FaceplateEngine, NavigationEngine, generateRegistry, generateScreens, generateControlLoops, SequenceEngine, executeScenario, CauseEffectEngine, AiAdvisor, PredictiveMaintenance, RegistrySimModel, ReportEngine, EventJournal } from '@idtp/engines';
+import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian, KpiEngine, historianKpiInput, MaintenanceEngine, FaceplateEngine, NavigationEngine, generateRegistry, generateScreens, generateControlLoops, SequenceEngine, executeScenario, CauseEffectEngine, InterlockEngine, AiAdvisor, PredictiveMaintenance, RegistrySimModel, ReportEngine, EventJournal } from '@idtp/engines';
 import type { AlarmKpi, FaceplateResolvers, FaceplateOverview, FaceplateAlarmRow, FaceplateDetail, Advice, Report, JournalEntry, JournalQuery, JournalSummary, JournalCategory, JournalSeverity } from '@idtp/engines';
 import { TimeService } from '@idtp/kernel';
 import {
@@ -30,6 +30,7 @@ import {
   thermalSequences,
   thermalScenarios,
   thermalCauseEffect,
+  thermalInterlocks,
   thermalKnowledge,
   thermalPredictiveRules,
   thermalReportSections,
@@ -52,6 +53,7 @@ import type {
   ScenarioPhaseResult,
   CauseEffectMatrix,
   CeState,
+  InterlockCheck,
   PredictiveAdvisory,
   ScreenDef,
   IReportContext,
@@ -128,6 +130,9 @@ export interface ThermalRuntime {
   setLoadDemand(mw: number): void;
   injectMalfunction(m: IMalfunction): void;
   clearMalfunction(id: string): void;
+  manualTrip(kind: 'mft' | 'turbine'): void;
+  interlockCheck(target: string): InterlockCheck;
+  activeInterlocks(): ReadonlyArray<{ id: string; target: string; message: string }>;
   setLoopMode(loopId: string, mode: LoopMode): void;
   ackAlarm(alarmId: string, user: string): AlarmEvent;
   activeAlarms(): ReadonlyArray<AlarmEvent>;
@@ -312,6 +317,12 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
     }
   });
 
+  // Interlock/permissive (W6 DoD: first-class object, lệnh bị chặn HIỆN LÝ DO). Engine READ-ONLY đánh
+  // giá luật khai báo của plugin theo tag hiện tại → chặn lệnh có target + trả lý do. assetId faceplate
+  // (PID-DRUM-LEVEL) ánh xạ về target loop (drum-level) để faceplate hiện đúng permissive.
+  const interlocks = new InterlockEngine(thermalInterlocks);
+  const assetToTarget = (assetId: string): string => assetId.replace(/^PID-/, '').toLowerCase();
+
   // Faceplate: ráp 4 tab từ Tag/Loop/Alarm/Maintenance; Trend từ Historian.
   const faceplateEngine = new FaceplateEngine(thermalFaceplates);
   const alarmDefById = new Map(boilerAlarms.map((a) => [a.alarmId, a] as const));
@@ -331,7 +342,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
       const r = maintenance.allRuntime().find((x) => x.assetId === assetId);
       return r ? { runningHours: r.runningHours, startCount: r.startCount } : undefined;
     },
-    blockedReason: () => null, // interlock model để pha sau; lệnh bị chặn hiện qua Control/Security
+    blockedReason: (assetId) => {
+      const r = interlocks.check(assetToTarget(assetId), (id) => num(id));
+      return r.blocked ? r.reasons.join('; ') : null;
+    },
   };
 
   // Navigation: cây điều hướng khai báo + index alarm→D3 (từ tag của alarm & tag màn hình hiển thị).
@@ -539,13 +553,21 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
       logEvent('command', 'info', `Đặt tải: BLR_MW_DEMAND = ${mw} MW`, undefined, 'BLR_MW_DEMAND');
     },
     injectMalfunction: (m) => {
-      host.inject(model.id, m);
+      host.injectAll(m); // malfunction có thể thuộc bất kỳ model con; mỗi model tự lọc theo id
       logEvent('system', 'warn', `Tiêm malfunction (OTS): ${m.id}`, undefined, m.id);
     },
     clearMalfunction: (id) => {
-      host.clear(model.id, id);
+      host.clearAll(id);
       logEvent('system', 'info', `Gỡ malfunction (OTS): ${id}`, undefined, id);
     },
+    manualTrip: (kind) => {
+      // Nút trip tay của operator: ghi tag nút nhấn (cause C&E) → CauseEffectEngine CHỐT → sim trip THẬT.
+      const pb = kind === 'mft' ? 'BLR_MFT_PB' : 'TRB_TRIP_PB';
+      put(pb, 1);
+      logEvent('command', 'critical', kind === 'mft' ? 'MFT tay: cắt toàn bộ nhiên liệu' : 'Trip turbine tay', undefined, pb);
+    },
+    interlockCheck: (target) => interlocks.check(target, (id) => num(id)),
+    activeInterlocks: () => interlocks.active((id) => num(id)),
     setLoopMode: (loopId, mode) => {
       loops.setMode(loopId, mode);
       logEvent('command', 'info', `Đổi mode loop '${loopId}' → ${mode}`, undefined, loopId);
@@ -715,7 +737,13 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
     causeEffectState: (matrixId) => ceById.get(matrixId)?.state(),
     resetCauseEffect: (matrixId) => {
       const eng = ceById.get(matrixId);
-      if (!eng || !eng.reset()) return false;
+      if (!eng) return false;
+      // Nhả nút nhấn trip tay trước (nếu còn giữ) rồi ĐÁNH GIÁ LẠI → nguyên nhân 'manual' hết active; nếu
+      // vẫn còn nguyên nhân quá trình (vd drum HH) thì reset() vẫn trả false (an toàn, không reset ép).
+      put('BLR_MFT_PB', 0);
+      put('TRB_TRIP_PB', 0);
+      eng.evaluate((id) => num(id));
+      if (!eng.reset()) return false;
       // Xoá luôn flag hiệu ứng đã ghi → sim thấy trip hết → nhà máy phục hồi (OTS: trip → reset → restart).
       const m = thermalCauseEffect.find((x) => x.matrixId === matrixId);
       for (const e of m?.effects ?? []) put(e.tag, 0);
