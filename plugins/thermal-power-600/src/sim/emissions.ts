@@ -18,6 +18,7 @@ const ESP_DUST_LIMIT_MG = 30; // bụi ra thiết kế < 30 mg/Nm³
 const C_FRAC = 0.62; // carbon trong than bituminous
 const FLYASH_FRAC = 0.85; // phần tro bay (tới ESP); còn lại tro đáy
 const ESP_EFF = 0.9977; // độ khử bụi ESP (hiệu chỉnh để đạt < 30 mg/Nm³)
+const ESP_FIELD_PASS = Math.pow(1 - ESP_EFF, 1 / 4); // phần bụi lọt qua MỖI trường (4 trường nối tiếp)
 const FGD_EFF = 0.95; // độ khử SO₂ của FGD ướt
 const FG_DENSITY_KG_NM3 = 1.3; // khối lượng riêng khói
 const NOX_BASE_MG = 320; // NOₓ nền ở O₂ danh định
@@ -38,6 +39,14 @@ export class EmissionsModel implements ISimModel {
     'EMI_CO2_RATE_01', // t/h — phát thải CO₂
     'EMI_ESP_EFF_01', // % — độ khử bụi ESP
     'EMI_FGD_EFF_01', // % — độ khử SO₂ FGD
+    // Chiều sâu SCADA: nồng độ bụi qua TỪNG trường ESP (4 trường nối tiếp). Mỗi trường cho qua
+    // (1−ESP_EFF)^(1/4) phần bụi → giảm dần từ đầu vào tới < 30 mg/Nm³ ở trường cuối (KHÔNG bịa: cùng
+    // ESP_EFF tổng, chỉ khai triển theo tầng). Không thêm trạng thái.
+    'EMI_ESP_IN_DUST_01',
+    'EMI_ESP_F1_DUST_01',
+    'EMI_ESP_F2_DUST_01',
+    'EMI_ESP_F3_DUST_01',
+    'EMI_ESP_F4_DUST_01',
   ];
 
   init(_ctx?: ISimModelContext, _config?: unknown): void {
@@ -57,6 +66,9 @@ export class EmissionsModel implements ISimModel {
     const flyAshKgh = coalKgh * ASH_FRAC * FLYASH_FRAC;
     const dustStackKgh = flyAshKgh * (1 - ESP_EFF);
     const dustConc = vFgNm3h > 1 ? (dustStackKgh * 1e6) / vFgNm3h : 0; // mg/Nm³
+    // Nồng độ bụi vào ESP + sau từng trường (4 trường nối tiếp, mỗi trường cho qua ESP_FIELD_PASS).
+    const dustInConc = vFgNm3h > 1 ? (flyAshKgh * 1e6) / vFgNm3h : 0; // mg/Nm³ trước ESP
+    const espField = (k: number): number => dustInConc * Math.pow(ESP_FIELD_PASS, k);
 
     // SO₂: từ S trong than → sau FGD → nồng độ.
     const so2RawKgh = coalKgh * S_FRAC * MW_SO2_S;
@@ -78,6 +90,11 @@ export class EmissionsModel implements ISimModel {
         { tagId: 'EMI_CO2_RATE_01', value: co2Tph, quality: 'Good' },
         { tagId: 'EMI_ESP_EFF_01', value: firing ? ESP_EFF * 100 : 0, quality: 'Good' },
         { tagId: 'EMI_FGD_EFF_01', value: firing ? FGD_EFF * 100 : 0, quality: 'Good' },
+        { tagId: 'EMI_ESP_IN_DUST_01', value: dustInConc, quality: 'Good' },
+        { tagId: 'EMI_ESP_F1_DUST_01', value: espField(1), quality: 'Good' },
+        { tagId: 'EMI_ESP_F2_DUST_01', value: espField(2), quality: 'Good' },
+        { tagId: 'EMI_ESP_F3_DUST_01', value: espField(3), quality: 'Good' },
+        { tagId: 'EMI_ESP_F4_DUST_01', value: espField(4), quality: 'Good' },
       ],
     };
   }

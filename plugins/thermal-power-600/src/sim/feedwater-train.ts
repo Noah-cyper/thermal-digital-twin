@@ -42,6 +42,16 @@ export class FeedwaterTrainModel implements ISimModel {
     'FW_ECON_INLET_TEMP_01', // °C — nước cấp vào economizer (neo DB 283)
     'FW_REGEN_DUTY_01', // MWth — nhiệt hồi nhiệt cấp cho nước cấp
     'PLANT_CYCLE_HR_01', // kJ/kWh — heat rate chu trình turbine (khác heat rate đơn vị)
+    // Chiều sâu SCADA: nhiệt đầu ra TỪNG bình gia nhiệt — 4 LP heater (condensate→deaerator) + 3 HP
+    // heater (deaerator→economizer). Chia bậc theo enthalpy đều [GIẢ ĐỊNH] GĐ-74 — cùng physics hồi
+    // nhiệt, chỉ tính ở nhiều nút hơn (KHÔNG bịa: nội suy tuyến tính giữa các nút vật lý đã có).
+    'FW_LPH1_TEMP_01',
+    'FW_LPH2_TEMP_01',
+    'FW_LPH3_TEMP_01',
+    'FW_LPH4_TEMP_01',
+    'FW_HPH1_TEMP_01',
+    'FW_HPH2_TEMP_01',
+    'FW_HPH3_TEMP_01',
   ];
 
   private tCond = T_COND_NOM_C;
@@ -81,6 +91,11 @@ export class FeedwaterTrainModel implements ISimModel {
     const boilerDutyKw = mdot * DH_BOILER_KJKG + reheatDuty * 1000; // kW
     const cycleHr = mw > 1 ? (boilerDutyKw * 3600) / (mw * 1000) : 0; // kJ/kWh
 
+    // Nhiệt đầu ra từng bình gia nhiệt — bậc đều giữa hai nút vật lý đã lag (đơn điệu tăng, tất định):
+    // 4 LP heater chia condensate→deaerator; 3 HP heater chia deaerator→economizer.
+    const lp = (k: number): number => this.tCond + ((this.tDea - this.tCond) * k) / 4;
+    const hp = (k: number): number => this.tDea + ((this.tEcon - this.tDea) * k) / 3;
+
     return {
       outputs: [
         { tagId: 'FW_FLOW_01', value: steam, quality: 'Good' },
@@ -89,6 +104,13 @@ export class FeedwaterTrainModel implements ISimModel {
         { tagId: 'FW_ECON_INLET_TEMP_01', value: this.tEcon, quality: 'Good' },
         { tagId: 'FW_REGEN_DUTY_01', value: regenDuty, quality: 'Good' },
         { tagId: 'PLANT_CYCLE_HR_01', value: cycleHr, quality: 'Good' },
+        { tagId: 'FW_LPH1_TEMP_01', value: lp(1), quality: 'Good' },
+        { tagId: 'FW_LPH2_TEMP_01', value: lp(2), quality: 'Good' },
+        { tagId: 'FW_LPH3_TEMP_01', value: lp(3), quality: 'Good' },
+        { tagId: 'FW_LPH4_TEMP_01', value: lp(4), quality: 'Good' },
+        { tagId: 'FW_HPH1_TEMP_01', value: hp(1), quality: 'Good' },
+        { tagId: 'FW_HPH2_TEMP_01', value: hp(2), quality: 'Good' },
+        { tagId: 'FW_HPH3_TEMP_01', value: hp(3), quality: 'Good' },
       ],
     };
   }

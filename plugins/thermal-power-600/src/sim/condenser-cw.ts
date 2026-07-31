@@ -39,6 +39,9 @@ export class CondenserCWModel implements ISimModel {
     'COND_CW_IN_TEMP_01', // °C — CW vào (từ tháp làm mát)
     'COND_CW_OUT_TEMP_01', // °C — CW ra (về tháp làm mát)
     'COND_CW_RISE_01', // °C — độ tăng nhiệt CW qua bình ngưng
+    // Chiều sâu SCADA: 2 bơm nước tuần hoàn (A/B, mỗi bơm 50% lưu lượng CW) — chia đôi tổng đã tính.
+    'COND_CWP_A_FLOW_01',
+    'COND_CWP_B_FLOW_01',
   ];
 
   private tCwOut = 31;
@@ -78,6 +81,8 @@ export class CondenserCWModel implements ISimModel {
         { tagId: 'COND_CW_IN_TEMP_01', value: this.tCwIn, quality: 'Good' },
         { tagId: 'COND_CW_OUT_TEMP_01', value: this.tCwOut, quality: 'Good' },
         { tagId: 'COND_CW_RISE_01', value: rise, quality: 'Good' },
+        { tagId: 'COND_CWP_A_FLOW_01', value: CW_FLOW_TPH / 2, quality: 'Good' },
+        { tagId: 'COND_CWP_B_FLOW_01', value: CW_FLOW_TPH / 2, quality: 'Good' },
       ],
     };
   }
