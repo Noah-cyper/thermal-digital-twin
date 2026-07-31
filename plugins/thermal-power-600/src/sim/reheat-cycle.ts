@@ -23,6 +23,8 @@ const PR_HP = P_CRH_NOM_MPA / P_MSTM_NOM_MPA; // ~0,24 — tỷ số áp qua t�
 const RH_DP_MPA = P_CRH_NOM_MPA - P_HRH_NOM_MPA; // 0,4 — sụt áp qua reheater
 const DT_HP_C = T_MSTM_NOM_C - T_CRH_NOM_C; // 211 — chênh nhiệt qua tầng HP
 const HRH_DROOP_C = 60; // droop nhiệt hot reheat ở non tải (điều nhiệt gas-side không tới đích khi tải thấp)
+const K_RH_BIAS_C = 30; // °C nâng hot reheat ở 100% gas-biasing (burner tilt / gas recirc) — bù droop non tải
+const T_HRH_MAX_C = 565; // giới hạn nhiệt kim loại hot reheat
 // Phân bổ công suất trục theo enthalpy drop xấp xỉ (HP ~380, IP+LP ~1200 kJ/kg từ bảng hơi ở áp/nhiệt DB):
 const F_HP = 0.28; // tầng cao áp
 const F_IP = 0.30; // trung áp (sau reheat)
@@ -69,9 +71,13 @@ export class ReheatCycleModel implements ISimModel {
     const crhPress = pin * PR_HP;
     const hrhPress = Math.max(0, crhPress - RH_DP_MPA);
 
-    // Nhiệt: CRH bám (hơi chính − ΔT_HP); HRH điều về ~541 (min với hơi chính, droop khi non tải).
+    // Nhiệt: CRH bám (hơi chính − ΔT_HP); HRH có droop non tải, được BÙ bằng gas-biasing (loop reheat-temp
+    // điều TRB_RH_BIAS_01 để giữ 541 °C trên dải tải). Không cấp gió biasing → droop như cũ (mặc định 0).
     const crhTarget = hasFlow ? Math.max(IDLE_TEMP_C, shTemp - DT_HP_C) : IDLE_TEMP_C;
-    const hrhTarget = hasFlow ? Math.min(T_HRH_NOM_C, shTemp) - HRH_DROOP_C * (1 - clamp(flowRatio, 0, 1)) : IDLE_TEMP_C;
+    const rhBias = clamp(ctx.getTag('TRB_RH_BIAS_01'), 0, 100);
+    const hrhTarget = hasFlow
+      ? clamp(Math.min(T_HRH_NOM_C, shTemp) - HRH_DROOP_C * (1 - clamp(flowRatio, 0, 1)) + K_RH_BIAS_C * (rhBias / 100), IDLE_TEMP_C, T_HRH_MAX_C)
+      : IDLE_TEMP_C;
     this.crhTemp += (crhTarget - this.crhTemp) * (dt / TAU_RH_S);
     this.hrhTemp += (hrhTarget - this.hrhTemp) * (dt / TAU_RH_S);
 

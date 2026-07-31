@@ -257,6 +257,7 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       ], 30, 60),
       equip('rh-crhp', 'box', 'Áp cold reheat', 'TRB_CRH_PRESS_01', 'MPa', '', 590, 242, 140, 56),
       equip('rh-hrhp', 'box', 'Áp hot reheat', 'TRB_HRH_PRESS_01', 'MPa', '', 590, 310, 140, 56),
+      equip('rh-bias', 'box', 'Gas-biasing RH (loop)', 'TRB_RH_BIAS_01', '%', '', 590, 150, 140, 54),
     ],
   },
   {
@@ -463,6 +464,7 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       equip('fw-regen', 'box', 'Nhiệt hồi nhiệt', 'FW_REGEN_DUTY_01', 'MWth', '', 14, 250, 180, 54),
       equip('fw-hr', 'box', 'Heat rate chu trình', 'PLANT_CYCLE_HR_01', 'kJ/kWh', '', 210, 250, 200, 54, [{ when: 'gt', value: 9500, sev: 2 }]),
       equip('fw-dealvl', 'box', 'Mức khử khí (loop)', 'FW_DEAERATOR_LEVEL_01', '%', '', 424, 250, 170, 54, [{ when: 'gt', value: 80, sev: 2 }, { when: 'lt', value: 20, sev: 2 }]),
+      equip('fw-recirc', 'box', 'BFP recirc (loop)', 'BLR_BFP_RECIRC_01', '%', '', 604, 250, 150, 54),
     ],
   },
   {

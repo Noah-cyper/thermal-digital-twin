@@ -12,8 +12,9 @@ const STEAM_TO_FWCV = 100 / 2100; // steam flow (t/h) → FW CV feedforward (%)
 const STEAM_TO_DEALCV = 100 / 2200; // steam flow (t/h) → deaerator condensate LCV feedforward (%)
 const STEAM_TO_CEPLCV = 100 / 2200; // steam flow (t/h) → condensate extraction pump LCV feedforward (%)
 
-/** 9 control loop Boiler Island (doc 09: boiler master · fuel master · air/O₂ · furnace draft ·
- *  main steam pressure · SH temp · drum level 3-element + governor tải + deaerator level + hotwell level). */
+/** 11 control loop Boiler Island (doc 09): governor · boiler master (sliding pressure) · fuel master ·
+ *  air/O₂ · furnace draft · SH temp · drum level 3-element · deaerator level · hotwell level ·
+ *  reheat temp (gas-biasing) · BFP min-flow recirc. Coordinated master = boiler-follow + setpoint áp trượt. */
 export const boilerControlLoops: ReadonlyArray<ControlLoopDef> = [
   {
     id: 'governor',
@@ -29,9 +30,9 @@ export const boilerControlLoops: ReadonlyArray<ControlLoopDef> = [
   },
   {
     id: 'boiler-master-pressure',
-    desc: 'Boiler master / main steam pressure: giữ 17,5 MPa, FF theo hơi lấy đi → firing demand',
+    desc: 'Boiler master / main steam pressure: bám setpoint TRƯỢT theo tải (coordinated master, BLR_PRESS_SP), FF theo hơi lấy đi → firing demand',
     pvTag: 'BLR_MSTM_SH_PRESS_01',
-    sp: 17.5,
+    spTag: 'BLR_PRESS_SP',
     kp: 2,
     ki: 0.03,
     kd: 0,
@@ -139,6 +140,30 @@ export const boilerControlLoops: ReadonlyArray<ControlLoopDef> = [
     reverse: true,
     outTag: 'COND_CEP_LCV_01',
   },
+  {
+    id: 'reheat-temp',
+    desc: 'Reheat steam temp: giữ hot reheat 541 °C bằng gas-biasing (bù droop non tải) → TRB_RH_BIAS',
+    pvTag: 'TRB_HRH_TEMP_01',
+    sp: 541,
+    kp: 1.2,
+    ki: 0.05,
+    kd: 0,
+    outLo: 0,
+    outHi: 100,
+    outTag: 'TRB_RH_BIAS_01',
+  },
+  {
+    id: 'bfp-recirc',
+    desc: 'BFP minimum-flow recirc: bảo vệ bơm nước cấp — mở recirc khi lưu lượng < ~350 t/h (direct)',
+    pvTag: 'BLR_FW_FLOW_01',
+    sp: 350,
+    kp: 0.4,
+    ki: 0.05,
+    kd: 0,
+    outLo: 0,
+    outHi: 100,
+    outTag: 'BLR_BFP_RECIRC_01',
+  },
 ];
 
 /** Điểm vận hành khởi động (~1500 t/h hơi / ~448 MW) — nạp bumpless MAN→AUTO để khởi động êm.
@@ -153,4 +178,6 @@ export const boilerLoopSeeds: Readonly<Record<string, number>> = {
   'drum-level': 71, // BLR_FW_CV_01 (%)
   'deaerator-level': 68, // FW_DEA_LCV_01 (%) — condensate ~1500 t/h giữ mức 50%
   'hotwell-level': 68, // COND_CEP_LCV_01 (%) — bơm ngưng ~1500 t/h giữ mức 50%
+  'reheat-temp': 50, // TRB_RH_BIAS_01 (%) — gas-biasing giữ hot reheat 541 °C
+  'bfp-recirc': 0, // BLR_BFP_RECIRC_01 (%) — recirc đóng ở tải (lưu lượng cao)
 };
