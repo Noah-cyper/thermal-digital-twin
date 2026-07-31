@@ -291,6 +291,11 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       // Hơi chèn trục (loop gland steam): áp header + độ mở van cấp giữ dương ~5 kPag chống lọt khí.
       equip('tb-gland', 'box', 'Áp hơi chèn', 'TRB_GLAND_PRESS_01', 'kPag', '', 314, 314, 150, 54, [{ when: 'lt', value: 2, sev: 2 }]),
       equip('tb-glandv', 'box', 'Van hơi chèn', 'TRB_GLAND_VALVE_01', '%', '', 474, 314, 150, 54),
+      // Dầu bôi trơn gối trục (loop C-5): nhiệt dầu (van CW cooler) + áp header dầu (bơm/van).
+      equip('tb-oiltemp', 'box', 'Nhiệt dầu bôi trơn', 'TRB_LUBE_OIL_TEMP_01', '°C', '', 14, 378, 150, 54, [{ when: 'gt', value: 55, sev: 2 }]),
+      equip('tb-oilcw', 'box', 'Van CW dầu', 'TRB_OIL_CW_VALVE_01', '%', '', 174, 378, 120, 54),
+      equip('tb-oilpress', 'box', 'Áp dầu bôi trơn', 'TRB_LUBE_OIL_PRESS_01', 'MPa', '', 304, 378, 150, 54, [{ when: 'lt', value: 0.12, sev: 1 }]),
+      equip('tb-oilpump', 'box', 'Bơm dầu', 'TRB_OIL_PUMP_CMD_01', '%', '', 464, 378, 120, 54),
     ],
   },
   {
@@ -480,6 +485,9 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       // Áp bình khử khí (loop pegging steam): áp + độ mở van pegging bù hơi trích non tải.
       equip('fw-deapress', 'box', 'Áp khử khí (loop)', 'FW_DEA_PRESS_01', 'MPa', '', 424, 310, 170, 54, [{ when: 'lt', value: 0.6, sev: 2 }]),
       equip('fw-peg', 'box', 'Van pegging (loop)', 'FW_DEA_PEG_VALVE_01', '%', '', 604, 310, 150, 54),
+      // Header hơi phụ trợ (loop C-5, PRDS): cấp hơi cho pegging deaerator / thổi bụi / phun sương dầu.
+      equip('fw-auxpress', 'box', 'Áp hơi phụ trợ (loop)', 'FW_AUX_STEAM_PRESS_01', 'MPa', '', 424, 370, 170, 54, [{ when: 'lt', value: 0.9, sev: 2 }]),
+      equip('fw-prds', 'box', 'Van PRDS (loop)', 'FW_AUX_PRDS_VALVE_01', '%', '', 604, 370, 150, 54),
     ],
   },
   {

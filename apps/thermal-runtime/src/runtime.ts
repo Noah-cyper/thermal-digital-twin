@@ -222,6 +222,9 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   put('COAL_PA_FAN_VANE_01', boilerLoopSeeds['pa-header-pressure'] ?? 0); // van hướng quạt PA (bumpless)
   put('ELEC_H2_VALVE_01', boilerLoopSeeds['generator-h2-pressure'] ?? 0); // van cấp H₂ máy phát (bumpless)
   put('ELEC_STATOR_CW_VALVE_01', boilerLoopSeeds['stator-cooling-temp'] ?? 0); // van nước làm mát stator (bumpless)
+  put('TRB_OIL_CW_VALVE_01', boilerLoopSeeds['lube-oil-temp'] ?? 0); // van CW cooler dầu bôi trơn (bumpless)
+  put('TRB_OIL_PUMP_CMD_01', boilerLoopSeeds['lube-oil-pressure'] ?? 0); // bơm/van dầu bôi trơn (bumpless)
+  put('FW_AUX_PRDS_VALVE_01', boilerLoopSeeds['aux-steam-header'] ?? 0); // van PRDS hơi phụ trợ (bumpless)
 
   const host = new SimulationHost(DT_MS, {
     now: () => nowIso(),

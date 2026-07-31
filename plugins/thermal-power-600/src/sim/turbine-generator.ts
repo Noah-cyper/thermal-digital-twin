@@ -32,6 +32,12 @@ const VIB_BASE_MMS = 1.8; // mm/s rung nền ở tốc độ định mức
 const VIB_SPIKE_MMS = 9; // mm/s đỉnh rung khi qua tốc độ tới hạn
 const CRIT_RPM = 1500; // tốc độ tới hạn (rung cộng hưởng khi coast-down qua đây)
 const CRIT_WIDTH_RPM = 350; // bề rộng dải cộng hưởng
+/* ── Dầu bôi trơn gối trục (lube oil temp/pressure) — GĐ-87 ── */
+const T_OIL_AMB_C = 40; // °C nhiệt dầu nền (sau cooler)
+const K_OIL_HEAT_C = 15; // °C tăng do ma sát gối theo tải
+const K_OIL_COOL_C = 12; // °C giảm toàn hành trình van nước làm mát cooler dầu
+const P_OIL_MIN_MPA = 0.1; // MPa áp header dầu nền
+const K_OIL_PUMP_MPA = 0.2; // MPa đóng góp áp toàn hành trình bơm/van dầu → giữ 0,2 MPa ở ~50%
 /* ── Hơi chèn trục (gland/seal steam) — GĐ-84 ── */
 const GLAND_SP_KPAG = 5; // setpoint áp header hơi chèn trục (kPa gauge, dương nhẹ chống lọt khí)
 const GLAND_SELF_SEAL_MAX = 4; // kPag tự chèn từ leak-off HP ∝ tải (đầy tải turbine tự chèn)
@@ -52,6 +58,8 @@ export class TurbineGeneratorModel implements ISimModel {
     'TRB_BRG_TEMP_01', // °C — nhiệt gối trục turbine (metal)
     'TRB_VIB_01', // mm/s — rung trục (đỉnh khi qua tốc độ tới hạn lúc coast-down)
     'TRB_GLAND_PRESS_01', // kPag — áp header hơi chèn trục (tự chèn theo tải + van cấp giữ 5 kPag)
+    'TRB_LUBE_OIL_TEMP_01', // °C — nhiệt dầu bôi trơn gối trục (van CW cooler dầu giữ 45 °C)
+    'TRB_LUBE_OIL_PRESS_01', // MPa — áp header dầu bôi trơn gối (bơm/van giữ 0,2 MPa)
   ];
 
   private speed = RATED_RPM;
@@ -101,6 +109,13 @@ export class TurbineGeneratorModel implements ISimModel {
     const glandValve = clamp(ctx.getTag('TRB_GLAND_VALVE_01'), 0, 100);
     const glandPress = GLAND_SELF_SEAL_MAX * clamp(mw / MW_GROSS, 0, 1) + (glandValve / 100) * K_GLAND_VALVE;
 
+    // Dầu bôi trơn gối trục: (1) nhiệt dầu — ma sát gối theo tải làm nóng, van CW cooler dầu hạ (reverse)
+    // giữ 45 °C; (2) áp header dầu — bơm/van giữ 0,2 MPa (bảo vệ màng dầu gối). Derived thuần, gain nhỏ ổn định.
+    const oilCwValve = clamp(ctx.getTag('TRB_OIL_CW_VALVE_01'), 0, 100);
+    const lubeOilTemp = T_OIL_AMB_C + K_OIL_HEAT_C * clamp(mw / MW_GROSS, 0, 1) - K_OIL_COOL_C * (oilCwValve / 100);
+    const oilPumpCmd = clamp(ctx.getTag('TRB_OIL_PUMP_CMD_01'), 0, 100);
+    const lubeOilPress = P_OIL_MIN_MPA + (oilPumpCmd / 100) * K_OIL_PUMP_MPA;
+
     return {
       outputs: [
         { tagId: 'TRB_STODOLA_FLOW', value: stodola, quality: 'Good' },
@@ -111,6 +126,8 @@ export class TurbineGeneratorModel implements ISimModel {
         { tagId: 'TRB_BRG_TEMP_01', value: this.brgTemp, quality: 'Good' },
         { tagId: 'TRB_VIB_01', value: vib, quality: 'Good' },
         { tagId: 'TRB_GLAND_PRESS_01', value: glandPress, quality: 'Good' },
+        { tagId: 'TRB_LUBE_OIL_TEMP_01', value: lubeOilTemp, quality: 'Good' },
+        { tagId: 'TRB_LUBE_OIL_PRESS_01', value: lubeOilPress, quality: 'Good' },
       ],
     };
   }

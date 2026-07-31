@@ -31,6 +31,9 @@ const COND_SUPPLY_MAX_TPH = 2200; // lưu lượng condensate tối đa qua van 
 const P_DEA_SP_MPA = 0.9; // setpoint áp deaerator (Design Basis 0,9 MPa/178 °C)
 const P_DEA_EXTRACT_MAX_MPA = 1.0; // áp hơi trích (extraction) ở đầy tải — tụt theo tải xuống non tải
 const K_PEG_MPA = 0.5; // đóng góp áp toàn hành trình van pegging steam (bù khi hơi trích thiếu)
+/* ── Áp header hơi phụ trợ (auxiliary steam header — PRDS) — GĐ-87 ── */
+const P_AUX_MIN_MPA = 0.5; // áp header phụ trợ nền khi van PRDS đóng
+const K_AUX_PRDS_MPA = 1.6; // đóng góp áp toàn hành trình van giảm áp PRDS → giữ 1,3 MPa ở ~50%
 
 function clamp(x: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, x));
@@ -61,6 +64,7 @@ export class FeedwaterTrainModel implements ISimModel {
     'FW_HPH3_TEMP_01',
     'FW_DEAERATOR_LEVEL_01', // % — mức bể khử khí (điều khiển bằng LCV condensate)
     'FW_DEA_PRESS_01', // MPa — áp bể khử khí (hơi trích + pegging steam giữ 0,9 MPa)
+    'FW_AUX_STEAM_PRESS_01', // MPa — áp header hơi phụ trợ (PRDS giữ 1,3 MPa: pegging/sootblow/atomizing)
   ];
 
   private tCond = T_COND_NOM_C;
@@ -124,6 +128,11 @@ export class FeedwaterTrainModel implements ISimModel {
     const pExtract = clamp(P_DEA_EXTRACT_MAX_MPA * loadFrac, 0, P_DEA_EXTRACT_MAX_MPA);
     const deaPress = pExtract + (peg / 100) * K_PEG_MPA;
 
+    // Áp header hơi PHỤ TRỢ (PRDS): van giảm áp từ hơi chính/tái nhiệt lạnh → giữ 1,3 MPa cấp cho pegging
+    // deaerator, thổi bụi (sootblow), phun sương dầu khởi động. Loop 'aux-steam-header' (direct) giữ header.
+    const prds = clamp(ctx.getTag('FW_AUX_PRDS_VALVE_01'), 0, 100);
+    const auxSteamPress = P_AUX_MIN_MPA + (prds / 100) * K_AUX_PRDS_MPA;
+
     return {
       outputs: [
         { tagId: 'FW_FLOW_01', value: steam, quality: 'Good' },
@@ -141,6 +150,7 @@ export class FeedwaterTrainModel implements ISimModel {
         { tagId: 'FW_HPH3_TEMP_01', value: hp(3), quality: 'Good' },
         { tagId: 'FW_DEAERATOR_LEVEL_01', value: this.deaLevel, quality: 'Good' },
         { tagId: 'FW_DEA_PRESS_01', value: deaPress, quality: 'Good' },
+        { tagId: 'FW_AUX_STEAM_PRESS_01', value: auxSteamPress, quality: 'Good' },
       ],
     };
   }
