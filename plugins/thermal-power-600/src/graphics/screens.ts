@@ -288,6 +288,9 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       equip('tb-speed', 'box', 'Tốc độ trục', 'TRB_SPEED_01', 'rpm', '', 14, 250, 180, 54, [{ when: 'gt', value: 3120, sev: 1 }]),
       equip('tb-brg', 'box', 'Nhiệt gối trục', 'TRB_BRG_TEMP_01', '°C', '', 14, 314, 140, 54, [{ when: 'gt', value: 110, sev: 2 }]),
       equip('tb-vib', 'box', 'Rung trục', 'TRB_VIB_01', 'mm/s', '', 164, 314, 140, 54, [{ when: 'gt', value: 7, sev: 2 }]),
+      // Hơi chèn trục (loop gland steam): áp header + độ mở van cấp giữ dương ~5 kPag chống lọt khí.
+      equip('tb-gland', 'box', 'Áp hơi chèn', 'TRB_GLAND_PRESS_01', 'kPag', '', 314, 314, 150, 54, [{ when: 'lt', value: 2, sev: 2 }]),
+      equip('tb-glandv', 'box', 'Van hơi chèn', 'TRB_GLAND_VALVE_01', '%', '', 474, 314, 150, 54),
     ],
   },
   {
@@ -469,6 +472,9 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       equip('fw-hr', 'box', 'Heat rate chu trình', 'PLANT_CYCLE_HR_01', 'kJ/kWh', '', 210, 250, 200, 54, [{ when: 'gt', value: 9500, sev: 2 }]),
       equip('fw-dealvl', 'box', 'Mức khử khí (loop)', 'FW_DEAERATOR_LEVEL_01', '%', '', 424, 250, 170, 54, [{ when: 'gt', value: 80, sev: 2 }, { when: 'lt', value: 20, sev: 2 }]),
       equip('fw-recirc', 'box', 'BFP recirc (loop)', 'BLR_BFP_RECIRC_01', '%', '', 604, 250, 150, 54),
+      // Áp bình khử khí (loop pegging steam): áp + độ mở van pegging bù hơi trích non tải.
+      equip('fw-deapress', 'box', 'Áp khử khí (loop)', 'FW_DEA_PRESS_01', 'MPa', '', 424, 310, 170, 54, [{ when: 'lt', value: 0.6, sev: 2 }]),
+      equip('fw-peg', 'box', 'Van pegging (loop)', 'FW_DEA_PEG_VALVE_01', '%', '', 604, 310, 150, 54),
     ],
   },
   {

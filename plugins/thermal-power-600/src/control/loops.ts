@@ -12,10 +12,10 @@ const STEAM_TO_FWCV = 100 / 2100; // steam flow (t/h) → FW CV feedforward (%)
 const STEAM_TO_DEALCV = 100 / 2200; // steam flow (t/h) → deaerator condensate LCV feedforward (%)
 const STEAM_TO_CEPLCV = 100 / 2200; // steam flow (t/h) → condensate extraction pump LCV feedforward (%)
 
-/** 13 control loop Boiler Island + môi trường (doc 09): governor · boiler master (sliding pressure) ·
- *  fuel master · air/O₂ · furnace draft · SH temp · drum level 3-element · deaerator level · hotwell
- *  level · reheat temp (gas-biasing) · BFP min-flow recirc · SCR deNOx (NH₃) · FGD SO₂ (slurry).
- *  Coordinated master = boiler-follow + setpoint áp trượt. */
+/** 15 control loop Boiler Island + môi trường + phụ trợ (doc 09): governor · boiler master (sliding
+ *  pressure) · fuel master · air/O₂ · furnace draft · SH temp · drum level 3-element · deaerator level ·
+ *  hotwell level · reheat temp (gas-biasing) · BFP min-flow recirc · SCR deNOx (NH₃) · FGD SO₂ (slurry) ·
+ *  deaerator pressure (pegging steam) · gland steam pressure. Coordinated master = boiler-follow + áp trượt. */
 export const boilerControlLoops: ReadonlyArray<ControlLoopDef> = [
   {
     id: 'governor',
@@ -191,6 +191,30 @@ export const boilerControlLoops: ReadonlyArray<ControlLoopDef> = [
     reverse: true,
     outTag: 'EMI_FGD_SLURRY_01',
   },
+  {
+    id: 'deaerator-pressure',
+    desc: 'Áp bể khử khí: giữ 0,9 MPa bằng van pegging steam (bù khi hơi trích non tải thiếu, direct)',
+    pvTag: 'FW_DEA_PRESS_01',
+    sp: 0.9,
+    kp: 150,
+    ki: 15,
+    kd: 0,
+    outLo: 0,
+    outHi: 100,
+    outTag: 'FW_DEA_PEG_VALVE_01',
+  },
+  {
+    id: 'gland-steam-pressure',
+    desc: 'Áp hơi chèn trục: giữ 5 kPag bằng van cấp hơi chèn (bù khi tải thấp chưa tự chèn, direct)',
+    pvTag: 'TRB_GLAND_PRESS_01',
+    sp: 5,
+    kp: 8,
+    ki: 1,
+    kd: 0,
+    outLo: 0,
+    outHi: 100,
+    outTag: 'TRB_GLAND_VALVE_01',
+  },
 ];
 
 /** Điểm vận hành khởi động (~1500 t/h hơi / ~448 MW) — nạp bumpless MAN→AUTO để khởi động êm.
@@ -209,4 +233,6 @@ export const boilerLoopSeeds: Readonly<Record<string, number>> = {
   'bfp-recirc': 0, // BLR_BFP_RECIRC_01 (%) — recirc đóng ở tải (lưu lượng cao)
   'scr-nox': 62.5, // EMI_NH3_INJ_01 (%) — NH₃ khử NOₓ 320→150 (scrEff ~0,53) tại điểm vận hành
   'fgd-so2': 55.6, // EMI_FGD_SLURRY_01 (%) — slurry giữ FGD 0,95 (SO₂ ~61) tại điểm vận hành
+  'deaerator-pressure': 30.6, // FW_DEA_PEG_VALVE_01 (%) — pegging bù hơi trích 0,75→0,9 MPa
+  'gland-steam-pressure': 33.5, // TRB_GLAND_VALVE_01 (%) — van chèn bù tự chèn 3→5 kPag tại điểm vận hành
 };

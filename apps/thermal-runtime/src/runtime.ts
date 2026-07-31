@@ -216,6 +216,8 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   put('BLR_BFP_RECIRC_01', boilerLoopSeeds['bfp-recirc'] ?? 0);
   put('EMI_NH3_INJ_01', boilerLoopSeeds['scr-nox'] ?? 0); // lệnh phun NH₃ SCR (bumpless MAN→AUTO)
   put('EMI_FGD_SLURRY_01', boilerLoopSeeds['fgd-so2'] ?? 0); // lệnh cấp slurry FGD (bumpless MAN→AUTO)
+  put('FW_DEA_PEG_VALVE_01', boilerLoopSeeds['deaerator-pressure'] ?? 0); // van pegging deaerator (bumpless)
+  put('TRB_GLAND_VALVE_01', boilerLoopSeeds['gland-steam-pressure'] ?? 0); // van hơi chèn trục (bumpless)
 
   const host = new SimulationHost(DT_MS, {
     now: () => nowIso(),
