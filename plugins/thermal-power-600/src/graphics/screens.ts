@@ -532,14 +532,21 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
         { id: 'em-f3', shape: 'box', label: 'ESP trường 3', tag: 'EMI_ESP_F3_DUST_01', unit: 'mg/Nm³', w: 96, h: 64 },
         { id: 'em-f4', shape: 'box', label: 'ESP trường 4', tag: 'EMI_ESP_F4_DUST_01', unit: 'mg/Nm³', w: 96, h: 64, alarms: [{ when: 'gt', value: 30, sev: 2 }] },
         { id: 'em-fgd', shape: 'box', label: 'FGD (khử SO₂)', tag: 'EMI_FGD_EFF_01', unit: '%', w: 110, h: 64 },
-        { id: 'em-stack', shape: 'stack', label: 'Ống khói', tag: 'EMI_FG_VOLUME_01', unit: 'Nm³/h', w: 64, h: 150 },
       ], 14, 16),
-      pipe('em-up', 'flue', [{ x: 732, y: 35 }, { x: 732, y: 12 }]),
+      // Ống khói tách khỏi chuỗi flow, giãn thêm (gap ~40) để số thể tích 7 chữ số không đè hộp FGD.
+      pipe('em-stack-in', 'flue', [{ x: 684, y: 110 }, { x: 724, y: 110 }]),
+      equip('em-stack', 'stack', 'Ống khói', 'EMI_FG_VOLUME_01', 'Nm³/h', '', 724, 35, 64, 150),
+      pipe('em-up', 'flue', [{ x: 756, y: 35 }, { x: 756, y: 12 }]),
       equip('em-so2', 'box', 'SO₂ ra ống khói', 'EMI_SO2_STACK_01', 'mg/Nm³', '', 14, 230, 140, 54, [{ when: 'gt', value: 200, sev: 2 }]),
       equip('em-nox', 'box', 'NOₓ ra ống khói', 'EMI_NOX_STACK_01', 'mg/Nm³', '', 166, 230, 140, 54, [{ when: 'gt', value: 500, sev: 2 }]),
       equip('em-co2', 'box', 'CO₂', 'EMI_CO2_RATE_01', 't/h', '', 318, 230, 140, 54),
       equip('em-espeff', 'box', 'Hiệu suất ESP', 'EMI_ESP_EFF_01', '%', '', 470, 230, 140, 54),
       equip('em-dust', 'box', 'Bụi ra ống khói', 'EMI_DUST_STACK_01', 'mg/Nm³', '', 622, 230, 150, 54, [{ when: 'gt', value: 30, sev: 2 }]),
+      // Điều khiển môi trường (CCS): SCR deNOx (NH₃) hạ NOₓ vào→ra; FGD deSO₂ (slurry) giữ hiệu suất khử.
+      equip('em-scrin', 'box', 'NOₓ vào SCR', 'EMI_NOX_SCR_IN_01', 'mg/Nm³', '', 14, 300, 140, 54),
+      equip('em-screff', 'box', 'Hiệu suất SCR', 'EMI_SCR_EFF_01', '%', '', 166, 300, 140, 54),
+      equip('em-nh3', 'box', 'NH₃ phun (SCR)', 'EMI_NH3_INJ_01', '%', '', 318, 300, 140, 54),
+      equip('em-slurry', 'box', 'Slurry FGD', 'EMI_FGD_SLURRY_01', '%', '', 470, 300, 140, 54),
     ],
   },
   {

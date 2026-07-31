@@ -12,9 +12,10 @@ const STEAM_TO_FWCV = 100 / 2100; // steam flow (t/h) → FW CV feedforward (%)
 const STEAM_TO_DEALCV = 100 / 2200; // steam flow (t/h) → deaerator condensate LCV feedforward (%)
 const STEAM_TO_CEPLCV = 100 / 2200; // steam flow (t/h) → condensate extraction pump LCV feedforward (%)
 
-/** 11 control loop Boiler Island (doc 09): governor · boiler master (sliding pressure) · fuel master ·
- *  air/O₂ · furnace draft · SH temp · drum level 3-element · deaerator level · hotwell level ·
- *  reheat temp (gas-biasing) · BFP min-flow recirc. Coordinated master = boiler-follow + setpoint áp trượt. */
+/** 13 control loop Boiler Island + môi trường (doc 09): governor · boiler master (sliding pressure) ·
+ *  fuel master · air/O₂ · furnace draft · SH temp · drum level 3-element · deaerator level · hotwell
+ *  level · reheat temp (gas-biasing) · BFP min-flow recirc · SCR deNOx (NH₃) · FGD SO₂ (slurry).
+ *  Coordinated master = boiler-follow + setpoint áp trượt. */
 export const boilerControlLoops: ReadonlyArray<ControlLoopDef> = [
   {
     id: 'governor',
@@ -164,6 +165,32 @@ export const boilerControlLoops: ReadonlyArray<ControlLoopDef> = [
     outHi: 100,
     outTag: 'BLR_BFP_RECIRC_01',
   },
+  {
+    id: 'scr-nox',
+    desc: 'SCR deNOx: giữ NOₓ ống khói ~150 mg/Nm³ bằng phun NH₃ (phản hồi outlet-NOx, reverse)',
+    pvTag: 'EMI_NOX_STACK_01',
+    sp: 150,
+    kp: 0.2,
+    ki: 0.02,
+    kd: 0,
+    outLo: 0,
+    outHi: 100,
+    reverse: true,
+    outTag: 'EMI_NH3_INJ_01',
+  },
+  {
+    id: 'fgd-so2',
+    desc: 'FGD SO₂: giữ SO₂ ống khói ~61 mg/Nm³ bằng cấp slurry đá vôi (reverse)',
+    pvTag: 'EMI_SO2_STACK_01',
+    sp: 61,
+    kp: 0.3,
+    ki: 0.03,
+    kd: 0,
+    outLo: 0,
+    outHi: 100,
+    reverse: true,
+    outTag: 'EMI_FGD_SLURRY_01',
+  },
 ];
 
 /** Điểm vận hành khởi động (~1500 t/h hơi / ~448 MW) — nạp bumpless MAN→AUTO để khởi động êm.
@@ -180,4 +207,6 @@ export const boilerLoopSeeds: Readonly<Record<string, number>> = {
   'hotwell-level': 68, // COND_CEP_LCV_01 (%) — bơm ngưng ~1500 t/h giữ mức 50%
   'reheat-temp': 50, // TRB_RH_BIAS_01 (%) — gas-biasing giữ hot reheat 541 °C
   'bfp-recirc': 0, // BLR_BFP_RECIRC_01 (%) — recirc đóng ở tải (lưu lượng cao)
+  'scr-nox': 62.5, // EMI_NH3_INJ_01 (%) — NH₃ khử NOₓ 320→150 (scrEff ~0,53) tại điểm vận hành
+  'fgd-so2': 55.6, // EMI_FGD_SLURRY_01 (%) — slurry giữ FGD 0,95 (SO₂ ~61) tại điểm vận hành
 };
