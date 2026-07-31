@@ -12,4 +12,5 @@ export * from './registry';
 export * from './sequence';
 export * from './scenario';
 export * from './cause-effect';
+export * from './interlock';
 export * from './predictive';

@@ -57,11 +57,13 @@ export class FeedwaterTrainModel implements ISimModel {
   private tCond = T_COND_NOM_C;
   private tDea = T_DEA_NOM_C;
   private tEcon = T_ECON_NOM_C;
+  private hpHeaterTrip = false; // malfunction: bypass đoàn gia nhiệt cao áp → nước cấp vào econ nguội đi → heat rate xấu
 
   init(_ctx?: ISimModelContext, _config?: unknown): void {
     this.tCond = T_COND_NOM_C;
     this.tDea = T_DEA_NOM_C;
     this.tEcon = T_ECON_NOM_C;
+    this.hpHeaterTrip = false;
   }
 
   step(ctx: ISimModelContext): ISimStepResult {
@@ -76,7 +78,8 @@ export class FeedwaterTrainModel implements ISimModel {
     // Nhiệt các mốc đoàn gia nhiệt bám mục tiêu (lag quán tính nhiệt).
     const condTarget = T_COND_NOM_C + (vacuum - VACUUM_NOM_KPA) * K_VAC_C_PER_KPA;
     const deaTarget = condTarget + (T_DEA_NOM_C - T_COND_NOM_C) * reg;
-    const econTarget = condTarget + (T_ECON_NOM_C - T_COND_NOM_C) * reg;
+    // Bypass HP heater → nước cấp vào economizer chỉ còn nhiệt sau deaerator (mất phần gia nhiệt cao áp).
+    const econTarget = this.hpHeaterTrip ? deaTarget : condTarget + (T_ECON_NOM_C - T_COND_NOM_C) * reg;
     this.tCond += (condTarget - this.tCond) * (dt / TAU_FW_S);
     this.tDea += (deaTarget - this.tDea) * (dt / TAU_FW_S);
     this.tEcon += (econTarget - this.tEcon) * (dt / TAU_FW_S);
@@ -116,18 +119,19 @@ export class FeedwaterTrainModel implements ISimModel {
   }
 
   snapshot(): ISimSnapshot {
-    return { state: { tCond: this.tCond, tDea: this.tDea, tEcon: this.tEcon } };
+    return { state: { tCond: this.tCond, tDea: this.tDea, tEcon: this.tEcon, hpHeaterTrip: this.hpHeaterTrip ? 1 : 0 } };
   }
   restore(snapshot: ISimSnapshot): void {
     this.tCond = snapshot.state.tCond ?? T_COND_NOM_C;
     this.tDea = snapshot.state.tDea ?? T_DEA_NOM_C;
     this.tEcon = snapshot.state.tEcon ?? T_ECON_NOM_C;
+    this.hpHeaterTrip = (snapshot.state.hpHeaterTrip ?? 0) > 0;
   }
-  injectMalfunction(_m: IMalfunction): void {
-    // model không có malfunction riêng ở v1.19
+  injectMalfunction(m: IMalfunction): void {
+    if (m.id === 'hp-heater-trip') this.hpHeaterTrip = true;
   }
-  clearMalfunction(_id: string): void {
-    // không giữ trạng thái malfunction
+  clearMalfunction(id: string): void {
+    if (id === 'hp-heater-trip') this.hpHeaterTrip = false;
   }
   dispose(): void {
     // không giữ tài nguyên ngoài

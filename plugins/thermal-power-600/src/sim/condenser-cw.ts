@@ -46,10 +46,12 @@ export class CondenserCWModel implements ISimModel {
 
   private tCwOut = 31;
   private tCwIn = 19;
+  private cwPumpTripped = false; // malfunction: trip 1 bơm CW → còn 50% lưu lượng → độ tăng nhiệt gấp đôi
 
   init(_ctx?: ISimModelContext, _config?: unknown): void {
     this.tCwOut = 31;
     this.tCwIn = 19;
+    this.cwPumpTripped = false;
   }
 
   step(ctx: ISimModelContext): ISimStepResult {
@@ -62,8 +64,10 @@ export class CondenserCWModel implements ISimModel {
     const qInMw = (hr * mw) / 3600; // MWth (= HR[kJ/kWh]·mw[MW]·1000/3600/1000)
     const qRejMw = Math.max(0, qInMw - mw);
 
-    // Độ tăng nhiệt CW từ nhiệt thải và lưu lượng CW Design Basis: ΔT = Q/(ṁ·cp).
-    const rise = qRejMw > 0 ? (qRejMw * 1000) / (CW_KGS * CP_CW_KJKGK) : 0;
+    // Độ tăng nhiệt CW từ nhiệt thải và lưu lượng CW: ΔT = Q/(ṁ·cp). Trip 1 bơm → còn 50% lưu lượng.
+    const cwFlowTph = this.cwPumpTripped ? CW_FLOW_TPH / 2 : CW_FLOW_TPH;
+    const cwKgs = (cwFlowTph * 1000) / 3600;
+    const rise = qRejMw > 0 ? (qRejMw * 1000) / (cwKgs * CP_CW_KJKGK) : 0;
 
     // Nhiệt bão hoà ứng chân không hiện tại; CW ra = sat − TTD; CW vào = ra − ΔT.
     const tSat = satTempC(vacuum > 0 ? vacuum : VACUUM_NOM_KPA);
@@ -77,28 +81,30 @@ export class CondenserCWModel implements ISimModel {
         { tagId: 'COND_DUTY_01', value: qRejMw, quality: 'Good' },
         { tagId: 'COND_SAT_TEMP_01', value: tSat, quality: 'Good' },
         { tagId: 'COND_TTD_01', value: TTD_NOM_C, quality: 'Good' },
-        { tagId: 'COND_CW_FLOW_01', value: CW_FLOW_TPH, quality: 'Good' },
+        { tagId: 'COND_CW_FLOW_01', value: cwFlowTph, quality: 'Good' },
         { tagId: 'COND_CW_IN_TEMP_01', value: this.tCwIn, quality: 'Good' },
         { tagId: 'COND_CW_OUT_TEMP_01', value: this.tCwOut, quality: 'Good' },
         { tagId: 'COND_CW_RISE_01', value: rise, quality: 'Good' },
-        { tagId: 'COND_CWP_A_FLOW_01', value: CW_FLOW_TPH / 2, quality: 'Good' },
+        // Trip 1 bơm → bơm A dừng (0), bơm B gánh 50% tổng; bình thường mỗi bơm 50%.
+        { tagId: 'COND_CWP_A_FLOW_01', value: this.cwPumpTripped ? 0 : CW_FLOW_TPH / 2, quality: 'Good' },
         { tagId: 'COND_CWP_B_FLOW_01', value: CW_FLOW_TPH / 2, quality: 'Good' },
       ],
     };
   }
 
   snapshot(): ISimSnapshot {
-    return { state: { tCwOut: this.tCwOut, tCwIn: this.tCwIn } };
+    return { state: { tCwOut: this.tCwOut, tCwIn: this.tCwIn, cwPumpTripped: this.cwPumpTripped ? 1 : 0 } };
   }
   restore(snapshot: ISimSnapshot): void {
     this.tCwOut = snapshot.state.tCwOut ?? 31;
     this.tCwIn = snapshot.state.tCwIn ?? 19;
+    this.cwPumpTripped = (snapshot.state.cwPumpTripped ?? 0) > 0;
   }
-  injectMalfunction(_m: IMalfunction): void {
-    // model không có malfunction riêng ở v1.20
+  injectMalfunction(m: IMalfunction): void {
+    if (m.id === 'cw-pump-trip') this.cwPumpTripped = true;
   }
-  clearMalfunction(_id: string): void {
-    // không giữ trạng thái malfunction
+  clearMalfunction(id: string): void {
+    if (id === 'cw-pump-trip') this.cwPumpTripped = false;
   }
   dispose(): void {
     // không giữ tài nguyên ngoài

@@ -49,6 +49,16 @@ export class SimulationHost {
     this.models.get(modelId)?.clearMalfunction(malfId);
   }
 
+  /** Tiêm malfunction vào MỌI model — model tự lọc theo id (bỏ qua id không thuộc mình). Dùng khi
+   *  malfunction có thể thuộc bất kỳ hệ nào (OTS panel không cần biết model đích). */
+  injectAll(m: IMalfunction): void {
+    for (const model of this.models.values()) model.injectMalfunction(m);
+  }
+
+  clearAll(malfId: string): void {
+    for (const model of this.models.values()) model.clearMalfunction(malfId);
+  }
+
   snapshotAll(): Map<string, ISimSnapshot> {
     const out = new Map<string, ISimSnapshot>();
     for (const [id, m] of this.models) out.set(id, m.snapshot());

@@ -183,6 +183,9 @@ export class BoilerIslandModel implements ISimModel {
   private vacuumTarget = VACUUM_NOM_KPA;
   private fdFanTripped = false; // malfunction: trip quạt gió FD → thiếu gió cháy → O₂ sập
   private idFanTripped = false; // malfunction: trip quạt khói ID → mất hút → áp buồng lửa dương
+  private paFanTripped = false; // malfunction: trip quạt sơ cấp PA → mất tải bột than → nhiên liệu tụt
+  private shSprayFail = false; // malfunction: van giảm ôn kẹt đóng → mất phun → nhiệt hơi SH leo cao
+  private bfpTripped = false; // malfunction: trip 1 bơm nước cấp → công suất cấp nước giảm → mức tụt
 
   private readonly steam = new Foptd(TAU_STEAM, TH_STEAM, 0.1);
   private readonly o2 = new Foptd(TAU_O2, TH_O2, 0.1);
@@ -201,6 +204,9 @@ export class BoilerIslandModel implements ISimModel {
     this.vacuumTarget = VACUUM_NOM_KPA;
     this.fdFanTripped = false;
     this.idFanTripped = false;
+    this.paFanTripped = false;
+    this.shSprayFail = false;
+    this.bfpTripped = false;
     this.steam.reset(ws.steamGen);
     this.o2.reset(ws.o2);
     this.shTemp.reset(ws.shTemp);
@@ -232,7 +238,8 @@ export class BoilerIslandModel implements ISimModel {
     //    SFC mill-a-stop (BLR_MILL_A_STOP_CMD) → bớt 1 mill công suất (mill-a-start xoá cờ) ──
     const millAStopped = ctx.getTag('BLR_MILL_A_STOP_CMD') > 0;
     const coalCap = Math.max(0, this.millsAvailable - (millAStopped ? 1 : 0)) * MILL_TPH;
-    const coalTarget = fuelTripped ? 0 : clamp((fuelDem / 100) * COAL_MAX_TPH, 0, coalCap);
+    const paFactor = this.paFanTripped ? 0.4 : 1; // trip quạt PA → chỉ tải được ~40% bột than tới vòi đốt
+    const coalTarget = fuelTripped ? 0 : clamp((fuelDem / 100) * COAL_MAX_TPH * paFactor, 0, coalCap);
     this.coalFlow += (dtSec / TAU_COAL_ACT) * (coalTarget - this.coalFlow);
 
     // ── Gió & O₂ (air/fuel ratio → excess air) ──
@@ -254,7 +261,8 @@ export class BoilerIslandModel implements ISimModel {
 
     // ── Feedwater & cân bằng khối lượng bao hơi; SFC feedwater-fill (BLR_FW_FILL_CMD) bơm điền thêm ──
     const fillFlow = ctx.getTag('BLR_FW_FILL_CMD') > 0 ? FILL_TPH : 0;
-    const fw = Math.max(0, (fwCv / 100) * FW_MAX_TPH - this.leak) + fillFlow;
+    const fwCap = this.bfpTripped ? FW_MAX_TPH * 0.5 : FW_MAX_TPH; // trip 1 bơm nước cấp → còn ~50% công suất
+    const fw = Math.max(0, (fwCv / 100) * fwCap - this.leak) + fillFlow;
     const dtH = dtSec / 3600;
     this.massLevel += (fw - steamGen) * dtH * K_AREA;
 
@@ -266,8 +274,9 @@ export class BoilerIslandModel implements ISimModel {
     const dPdt = (this.pressure - prevP) / dtSec;
     const level = this.massLevel + K_SWELL_P * -dPdt;
 
-    // ── Nhiệt độ hơi SH (spray attemperator) ──
-    const tTarget = T_FIRE_BASE + T_FIRE_SPAN * loadFrac - K_SPRAY * (sprayCv / 100);
+    // ── Nhiệt độ hơi SH (spray attemperator); van giảm ôn kẹt đóng → mất phun → nhiệt leo ──
+    const effSpray = this.shSprayFail ? 0 : sprayCv;
+    const tTarget = T_FIRE_BASE + T_FIRE_SPAN * loadFrac - K_SPRAY * (effSpray / 100);
     const shTempNow = this.shTemp.step(tTarget, dtSec);
 
     // ── Áp buồng lửa (balanced draft: FD đẩy vào, ID hút ra) ──
@@ -310,6 +319,9 @@ export class BoilerIslandModel implements ISimModel {
       vacuumTarget: this.vacuumTarget,
       fdFanTripped: this.fdFanTripped ? 1 : 0,
       idFanTripped: this.idFanTripped ? 1 : 0,
+      paFanTripped: this.paFanTripped ? 1 : 0,
+      shSprayFail: this.shSprayFail ? 1 : 0,
+      bfpTripped: this.bfpTripped ? 1 : 0,
       rng: this.rng.state,
     };
     this.steam.dump(state, 'steam');
@@ -329,6 +341,9 @@ export class BoilerIslandModel implements ISimModel {
     this.vacuum = s.vacuum ?? VACUUM_NOM_KPA;
     this.fdFanTripped = (s.fdFanTripped ?? 0) > 0;
     this.idFanTripped = (s.idFanTripped ?? 0) > 0;
+    this.paFanTripped = (s.paFanTripped ?? 0) > 0;
+    this.shSprayFail = (s.shSprayFail ?? 0) > 0;
+    this.bfpTripped = (s.bfpTripped ?? 0) > 0;
     this.vacuumTarget = s.vacuumTarget ?? VACUUM_NOM_KPA;
     this.rng.state = s.rng ?? SIM_SEED;
     this.steam.load(s, 'steam');
@@ -343,6 +358,9 @@ export class BoilerIslandModel implements ISimModel {
     else if (mf.id === 'loss-of-vacuum') this.vacuumTarget = mf.params?.kpa ?? LOSS_VAC_KPA;
     else if (mf.id === 'fd-fan-trip') this.fdFanTripped = true;
     else if (mf.id === 'id-fan-trip') this.idFanTripped = true;
+    else if (mf.id === 'pa-fan-trip') this.paFanTripped = true;
+    else if (mf.id === 'sh-spray-fail') this.shSprayFail = true;
+    else if (mf.id === 'feedwater-pump-trip') this.bfpTripped = true;
   }
 
   clearMalfunction(id: string): void {
@@ -351,6 +369,9 @@ export class BoilerIslandModel implements ISimModel {
     else if (id === 'loss-of-vacuum') this.vacuumTarget = VACUUM_NOM_KPA;
     else if (id === 'fd-fan-trip') this.fdFanTripped = false;
     else if (id === 'id-fan-trip') this.idFanTripped = false;
+    else if (id === 'pa-fan-trip') this.paFanTripped = false;
+    else if (id === 'sh-spray-fail') this.shSprayFail = false;
+    else if (id === 'feedwater-pump-trip') this.bfpTripped = false;
   }
 
   dispose(): void {

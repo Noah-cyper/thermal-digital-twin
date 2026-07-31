@@ -191,6 +191,14 @@
         <button data-leak="0">Clear leak</button>
         <button class="warn" data-vacuum="30">Loss of vacuum</button>
         <button data-vacuum="0">Clear vacuum</button>
+        <button class="warn" data-cmd="mft" title="Master Fuel Trip (NFPA 85) — nút tay: cắt toàn bộ nhiên liệu qua Cause&amp;Effect">🛑 MFT</button>
+        <button class="warn" data-cmd="turbine-trip" title="Trip turbine tay — đóng van stop chính, MW về 0">🛑 Trip turbine</button>
+        <button class="warn" data-malf="pa-fan-trip" title="Trip quạt sơ cấp PA — mất tải bột than">Trip quạt PA</button>
+        <button class="warn" data-malf="sh-spray-fail" title="Van giảm ôn kẹt đóng — nhiệt hơi SH leo">Kẹt van giảm ôn</button>
+        <button class="warn" data-malf="feedwater-pump-trip" title="Trip 1 bơm nước cấp — mức bao hơi tụt">Trip bơm nước cấp</button>
+        <button class="warn" data-malf="cw-pump-trip" title="Trip 1 bơm nước tuần hoàn — độ tăng nhiệt CW gấp đôi">Trip bơm CW</button>
+        <button class="warn" data-malf="ah-fouling" title="Sấy gió bẩn — khói ra nóng, hiệu suất lò giảm">Bẩn sấy gió (AH)</button>
+        <button class="warn" data-malf="hp-heater-trip" title="Bypass gia nhiệt cao áp — nước cấp vào lò nguội, heat rate xấu">Bypass gia nhiệt HP</button>
         <button data-rstart="1">▶ Replay lịch sử</button>
         <button data-resim="loss-of-vacuum">🟠 What-if: mất chân không</button>
         <button data-resim="load:600">🟠 What-if: tải 600 MW</button>
@@ -209,6 +217,7 @@
       </div>
       <div class="controls" id="sfcBar" title="Chạy chuỗi SFC live (điều khiển OTS)"></div>
       <div class="controls" id="ceBar" title="Cause & Effect: trạng thái trip + reset"></div>
+      <div class="controls" id="permBar" title="Permissive / Interlock đang chặn lệnh (W6 DoD)"></div>
       <div class="note">Màn hình là JSON khai báo của plugin (/screen/&lt;id&gt;); client render generic
       theo symbol + áp binding {property,tag,transform,condition}. Dữ liệu từ mô hình vật lý qua vòng
       CCS khép kín (không Math.random). Giá trị trung tính, chỉ đổi màu khi bất thường (ISA-101).</div>
@@ -552,6 +561,17 @@
       if (t.length){ const b = document.createElement('button'); b.textContent = 'Reset'; b.onclick = () => send({ cmd: 'ce-reset', matrixId: mx.matrixId }); bar.appendChild(b); }
     }
   }
+  function onPerm(active){
+    const bar = $('permBar');
+    if (!active.length){ bar.innerHTML = '<b style="margin-right:6px">Permissive:</b><span style="opacity:.65">✓ Không có interlock chặn</span>'; return; }
+    bar.innerHTML = '<b style="margin-right:6px;color:var(--alarm-2)">⛔ Interlock đang chặn:</b>';
+    for (const p of active){
+      const s = document.createElement('span');
+      s.style.cssText = 'margin-right:12px;color:var(--alarm-2);font-weight:600';
+      s.textContent = '[' + p.target + '] ' + p.message;
+      bar.appendChild(s);
+    }
+  }
   function onReport(r){
     if (!r) return;
     $('reportTitle').textContent = '📋 ' + (r.title ? r.title.vi : 'Báo cáo') + ' · ' + (r.from ? r.from.slice(0, 16).replace('T', ' ') : '') + ' → ' + (r.to ? r.to.slice(11, 16) : '');
@@ -687,7 +707,7 @@
       if (m.type === 'delta'){ Object.assign(state, m.values); refresh(); if (m.mode === 'REPLAY' && m.replay) updateReplay(m.replay); }
       else if (m.type === 'alarms'){ renderAlarms(m.active || []); }
       else if (m.type === 'mode'){ setMode(m.mode); }
-      else if (m.type === 'blocked'){ flashBlocked(m.reason); showToast('⛔ ' + m.reason, false); }
+      else if (m.type === 'blocked'){ const r = (m.reasons && m.reasons.join('; ')) || m.reason || 'bị chặn'; flashBlocked(r); showToast('⛔ ' + (m.target ? '[' + m.target + '] ' : '') + r, false); }
       else if (m.type === 'auth'){ onAuth(m); }
       else if (m.type === 'denied'){ showToast('⛔ Từ chối: ' + m.reason, false); }
       else if (m.type === 'confirm-needed'){ onConfirmNeeded(m); }
@@ -702,6 +722,7 @@
       else if (m.type === 'seq-list'){ onSeqList(m.items || []); }
       else if (m.type === 'seq-live'){ onSeqLive(m.active || []); }
       else if (m.type === 'ce'){ onCe(m.matrices || []); }
+      else if (m.type === 'permissives'){ onPerm(m.active || []); }
       else if (m.type === 'advice'){ onAdvice(m.advice); }
       else if (m.type === 'resim'){ onResim(m); }
       else if (m.type === 'built-screen'){ if (m.def){ openScreen(m.def.screenId); showToast('🧩 Đã tạo & mở màn hình: ' + m.def.screenId, true); } }
@@ -740,7 +761,7 @@
   function onConfirmNeeded(m){
     const desc = (m.target || '') + (m.value != null ? ' = ' + m.value : '') + (m.mode ? ' → ' + m.mode : '');
     const ok = confirm('Xác nhận 2 bước (' + m.action + '): ' + desc + ' ?');
-    if (ok) send({ cmd: m.cmd, value: m.value, alarmId: m.alarmId, loopId: m.loopId, mode: m.mode, confirm: true });
+    if (ok) send({ cmd: m.cmd, value: m.value, alarmId: m.alarmId, loopId: m.loopId, mode: m.mode, malf: m.malf, confirm: true });
   }
 
   // ── Faceplate popup (doc 05-15) ──
@@ -915,7 +936,7 @@
   function setMode(mode){
     replayMode = (mode === 'REPLAY');
     $('replaybar').classList.toggle('on', replayMode);
-    document.querySelectorAll('.controls button[data-load],.controls button[data-leak],.controls button[data-vacuum],.controls button[data-cmd],.controls button[data-rstart]')
+    document.querySelectorAll('.controls button[data-load],.controls button[data-leak],.controls button[data-vacuum],.controls button[data-cmd],.controls button[data-malf],.controls button[data-rstart]')
       .forEach(b => b.disabled = replayMode);
     if (!replayMode){ $('rMsg').textContent = ''; if (current) subscribe(current); } // về LIVE → làm mới snapshot
   }
@@ -972,6 +993,16 @@
     b.onclick = () => ws && ws.readyState === 1 && ws.send(JSON.stringify({ cmd: b.dataset.cmd })));
   document.querySelectorAll('.controls button[data-leak]').forEach(b =>
     b.onclick = () => ws && ws.readyState === 1 && ws.send(JSON.stringify({ cmd: 'leak', value: Number(b.dataset.leak) })));
+  // Malfunction toggle (OTS): bấm bật/tắt sự cố; viền đỏ = đang tiêm.
+  const malfOn = new Set();
+  document.querySelectorAll('.controls button[data-malf]').forEach(b =>
+    b.onclick = () => {
+      if (!(ws && ws.readyState === 1)) return;
+      const id = b.dataset.malf, on = !malfOn.has(id);
+      if (on) malfOn.add(id); else malfOn.delete(id);
+      b.style.outline = on ? '2px solid var(--alarm-1)' : '';
+      ws.send(JSON.stringify({ cmd: 'malf', malf: id, value: on ? 1 : 0 }));
+    });
 
   // Cây điều hướng đến từ WS ('nav' — Navigation Engine); onNav dựng nav + mở D1.
   connect();

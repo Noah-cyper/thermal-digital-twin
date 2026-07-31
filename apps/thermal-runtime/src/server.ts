@@ -25,7 +25,7 @@ const DEMO_USERS: ReadonlyArray<{ user: string; roles: Role[] }> = [
   { user: 'admin', roles: ['Admin'] },
 ];
 // Ánh xạ lệnh WS → hành động RBAC (doc 05-07). load = setpoint; leak/mill-trip = override (OTS nguy hiểm).
-const CMD_ACTION: Record<string, PermissionAction> = { load: 'setpoint', ack: 'ack', leak: 'override', 'mill-trip': 'override', vacuum: 'override' };
+const CMD_ACTION: Record<string, PermissionAction> = { load: 'setpoint', ack: 'ack', leak: 'override', 'mill-trip': 'override', vacuum: 'override', mft: 'override', 'turbine-trip': 'override', malf: 'override' };
 const LIVE_OTS = new Set(['ots-freeze', 'ots-snapshot', 'ots-restore']); // OTS: action 'engineer'
 // 4 KPI trên banner (MW · hơi · áp · O₂) là trạng thái TOÀN CỤC — luôn stream dù đang xem màn nào.
 const BANNER_TAGS = ['GEN_MW_01', 'BLR_STEAM_FLOW_01', 'BLR_MSTM_SH_PRESS_01', 'BLR_FLUE_O2_01'];
@@ -60,7 +60,7 @@ interface Command {
   tags?: ReadonlyArray<string>;
 }
 
-const LIVE_CMDS = new Set(['load', 'leak', 'mill-trip', 'vacuum', 'ack', 'set-mode', 'seq-live-start', 'ce-reset']); // lệnh ra thiết bị — chặn khi replay
+const LIVE_CMDS = new Set(['load', 'leak', 'mill-trip', 'vacuum', 'ack', 'set-mode', 'seq-live-start', 'ce-reset', 'mft', 'turbine-trip', 'malf']); // lệnh ra thiết bị — chặn khi replay
 const MODES: ReadonlySet<string> = new Set(['MAN', 'AUTO', 'CASCADE']);
 
 export interface RunningServer {
@@ -154,15 +154,25 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
       ws.send(JSON.stringify({ type: 'denied', reason: 'chưa đăng nhập' }));
       return;
     }
+    // Interlock/permissive (W6 DoD): chặn TRƯỚC RBAC/2-step nếu điều kiện quá trình không cho phép — HIỆN LÝ DO.
+    if (cmd === 'load') {
+      const il = rt.interlockCheck('load');
+      if (il.blocked) {
+        ws.send(JSON.stringify({ type: 'blocked', target: 'load', reasons: il.reasons }));
+        rt.logEvent('command', 'warn', `Lệnh tải bị interlock chặn: ${il.reasons.join('; ')}`, undefined, 'load');
+        return;
+      }
+    }
     const action = CMD_ACTION[cmd] as PermissionAction;
-    const target = cmd === 'ack' ? m.alarmId ?? '' : cmd === 'load' ? 'BLR_MW_DEMAND' : cmd === 'leak' ? 'tube-leak' : cmd === 'vacuum' ? 'loss-of-vacuum' : 'mill';
+    const target =
+      cmd === 'ack' ? m.alarmId ?? '' : cmd === 'load' ? 'BLR_MW_DEMAND' : cmd === 'leak' ? 'tube-leak' : cmd === 'vacuum' ? 'loss-of-vacuum' : cmd === 'mft' ? 'BLR_MFT_PB' : cmd === 'turbine-trip' ? 'TRB_TRIP_PB' : cmd === 'malf' ? m.malf ?? 'malf' : 'mill';
     const oldVal = cmd === 'load' ? rt.value('BLR_MW_DEMAND') : undefined;
-    const newVal = cmd === 'load' ? m.value : cmd === 'leak' || cmd === 'vacuum' ? m.value : cmd === 'ack' ? m.alarmId : 'trip';
+    const newVal = cmd === 'load' ? m.value : cmd === 'leak' || cmd === 'vacuum' || cmd === 'malf' ? m.value : cmd === 'ack' ? m.alarmId : 'trip';
 
     let confirmToken: string | undefined;
     if (sec.requiresTwoStep(action)) {
       if (m.confirm !== true) {
-        ws.send(JSON.stringify({ type: 'confirm-needed', cmd, value: m.value, alarmId: m.alarmId, action, target }));
+        ws.send(JSON.stringify({ type: 'confirm-needed', cmd, value: m.value, alarmId: m.alarmId, malf: m.malf, action, target }));
         return;
       }
       const ctx = sec.resolve(access);
@@ -176,7 +186,12 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
     }
     if (cmd === 'load' && typeof m.value === 'number') rt.setLoadDemand(m.value);
     else if (cmd === 'mill-trip') rt.injectMalfunction({ id: 'mill-trip' });
-    else if (cmd === 'leak') {
+    else if (cmd === 'mft') rt.manualTrip('mft'); // nút MFT tay → cause C&E → sim cắt nhiên liệu
+    else if (cmd === 'turbine-trip') rt.manualTrip('turbine'); // nút trip turbine tay → C&E → MW = 0
+    else if (cmd === 'malf' && typeof m.malf === 'string') {
+      if (typeof m.value === 'number' && m.value <= 0) rt.clearMalfunction(m.malf);
+      else rt.injectMalfunction({ id: m.malf });
+    } else if (cmd === 'leak') {
       if (typeof m.value === 'number' && m.value > 0) rt.injectMalfunction({ id: 'tube-leak', params: { rate: m.value } });
       else rt.clearMalfunction('tube-leak');
     } else if (cmd === 'vacuum') {
@@ -194,6 +209,7 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
   const ceStates = (): Array<{ matrixId: string; title: { vi: string; en: string }; state: unknown }> =>
     rt.causeEffectMatrices().map((mx) => ({ matrixId: mx.matrixId, title: mx.title, state: rt.causeEffectState(mx.matrixId) }));
   const ceMsg = (): string => JSON.stringify({ type: 'ce', matrices: ceStates() });
+  const permMsg = (): string => JSON.stringify({ type: 'permissives', active: rt.activeInterlocks() }); // interlock đang chặn
 
   // Chạy SFC "live" (điều khiển OTS, cùng lớp với freeze) — action 'engineer' (Engineer+), audit, không 2 bước.
   const handleSeqLive = (ws: WebSocket, m: Command): void => {
@@ -203,6 +219,12 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
       return;
     }
     const id = m.sequenceId ?? '';
+    const il = rt.interlockCheck(id); // permissive khởi động chuỗi (vd mill-a-start cần đủ gió cháy)
+    if (il.blocked) {
+      ws.send(JSON.stringify({ type: 'blocked', target: id, reasons: il.reasons }));
+      rt.logEvent('command', 'warn', `SFC '${id}' bị interlock chặn: ${il.reasons.join('; ')}`, undefined, id);
+      return;
+    }
     const res = sec.guardedWrite(access, 'engineer', id, undefined, 'start', `SFC live ${id}`);
     if (!res.allow) {
       ws.send(JSON.stringify({ type: 'denied', reason: res.reason }));
@@ -287,6 +309,15 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
       ws.send(JSON.stringify({ type: 'denied', reason: 'mode không hợp lệ' }));
       return;
     }
+    // Permissive: chuyển AUTO/CASCADE cần điều kiện quá trình cho phép (vd loop mức khi bao hơi không HH/LL).
+    if (mode !== 'MAN') {
+      const il = rt.interlockCheck(loopId);
+      if (il.blocked) {
+        ws.send(JSON.stringify({ type: 'blocked', target: loopId, reasons: il.reasons }));
+        rt.logEvent('command', 'warn', `Chuyển ${mode} loop '${loopId}' bị interlock chặn: ${il.reasons.join('; ')}`, undefined, loopId);
+        return;
+      }
+    }
     if (m.confirm !== true) {
       ws.send(JSON.stringify({ type: 'confirm-needed', cmd: 'set-mode', loopId, mode, action: 'mode', target: loopId }));
       return;
@@ -334,6 +365,7 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
     ws.send(registryMsg());
     ws.send(seqListMsg());
     ws.send(ceMsg());
+    ws.send(permMsg());
     ws.send(tagsMsg());
 
     ws.on('message', (data) => {
@@ -381,6 +413,8 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
         handleCreateWo(ws, m);
       } else if (m.cmd === 'nav-query') {
         ws.send(navMsg());
+      } else if (m.cmd === 'permissive-query') {
+        ws.send(permMsg());
       } else if (m.cmd === 'faceplate-list') {
         ws.send(JSON.stringify({ type: 'fp-list', items: rt.faceplateList() }));
       } else if (m.cmd === 'faceplate-open' && m.assetId !== undefined) {
@@ -477,6 +511,15 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
     }
   };
 
+  // Broadcast interlock/permissive đang chặn khi đổi (report-by-exception) — HMI hiện đèn/panel permissive.
+  let lastPermSig = '';
+  const broadcastPermissives = (): void => {
+    const sig = JSON.stringify(rt.activeInterlocks());
+    if (sig === lastPermSig) return;
+    lastPermSig = sig;
+    broadcast(permMsg());
+  };
+
   const sendReplayFrame = (ws: WebSocket, clockMs: number, sess: ReplaySession): void => {
     const sub = subs.get(ws);
     if (!sub) return;
@@ -499,6 +542,7 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
       for (const ws of wss.clients) if (ws.readyState === WebSocket.OPEN) sendScreen(ws, false);
       broadcastAlarms();
       broadcastSeqCe();
+      broadcastPermissives();
       if (++kpiTick % 50 === 0) {
         void rt.computeKpis().then((results) => broadcast(JSON.stringify({ type: 'kpi', results })));
         rt.evaluatePredictive(); // cập nhật cảnh báo bảo trì dự đoán trước khi broadcast
