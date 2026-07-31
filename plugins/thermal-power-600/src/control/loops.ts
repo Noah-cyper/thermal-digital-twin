@@ -12,12 +12,13 @@ const STEAM_TO_FWCV = 100 / 2100; // steam flow (t/h) → FW CV feedforward (%)
 const STEAM_TO_DEALCV = 100 / 2200; // steam flow (t/h) → deaerator condensate LCV feedforward (%)
 const STEAM_TO_CEPLCV = 100 / 2200; // steam flow (t/h) → condensate extraction pump LCV feedforward (%)
 
-/** 22 control loop Boiler Island + môi trường + phụ trợ + máy phát + dầu/hơi phụ trợ (doc 09): governor ·
- *  boiler master (sliding pressure) · fuel master · air/O₂ · furnace draft · SH temp · drum level 3-element ·
- *  deaerator level · hotwell level · reheat temp (gas-biasing) · BFP min-flow recirc · SCR deNOx (NH₃) ·
- *  FGD SO₂ (slurry) · deaerator pressure (pegging steam) · gland steam pressure · mill outlet temp · PA
- *  header pressure · generator H₂ pressure · stator cooling water temp · lube oil temp · lube oil pressure ·
- *  aux steam header pressure. Coordinated master = boiler-follow + setpoint áp trượt. */
+/** 25 control loop CCS đầy đủ (doc 09) — Boiler Island + môi trường + phụ trợ + máy phát + làm mát:
+ *  governor · boiler master (sliding pressure) · fuel master · air/O₂ · furnace draft · SH temp · drum
+ *  level 3-element · deaerator level · hotwell level · reheat temp (gas-biasing) · BFP min-flow recirc ·
+ *  SCR deNOx (NH₃) · FGD SO₂ (slurry) · deaerator pressure (pegging steam) · gland steam pressure · mill
+ *  outlet temp · PA header pressure · generator H₂ pressure · stator cooling water temp · lube oil temp ·
+ *  lube oil pressure · aux steam header pressure · generator H₂ gas temp · seal oil dP · closed cooling
+ *  water temp. Coordinated master = boiler-follow + setpoint áp trượt. */
 export const boilerControlLoops: ReadonlyArray<ControlLoopDef> = [
   {
     id: 'governor',
@@ -303,6 +304,44 @@ export const boilerControlLoops: ReadonlyArray<ControlLoopDef> = [
     outHi: 100,
     outTag: 'FW_AUX_PRDS_VALVE_01',
   },
+  {
+    id: 'generator-h2-temp',
+    desc: 'Nhiệt khí H₂ làm mát máy phát: giữ 40 °C bằng van CW cooler H₂ (nhiệt máy phát theo tải, reverse)',
+    pvTag: 'ELEC_H2_TEMP_01',
+    sp: 40,
+    kp: 2,
+    ki: 0.2,
+    kd: 0,
+    outLo: 0,
+    outHi: 100,
+    reverse: true,
+    outTag: 'ELEC_H2_CW_VALVE_01',
+  },
+  {
+    id: 'seal-oil-dp',
+    desc: 'Chênh áp seal oil − H₂: giữ 0,08 MPa bằng van seal oil (dầu chèn chống rò H₂, direct)',
+    pvTag: 'ELEC_SEAL_OIL_DP_01',
+    sp: 0.08,
+    kp: 300,
+    ki: 30,
+    kd: 0,
+    outLo: 0,
+    outHi: 100,
+    outTag: 'ELEC_SEAL_OIL_VALVE_01',
+  },
+  {
+    id: 'closed-cooling-water-temp',
+    desc: 'Nhiệt nước làm mát khép kín CCW: giữ 38 °C bằng van CW bộ trao đổi (tải nhiệt phụ trợ, reverse)',
+    pvTag: 'COND_CCW_TEMP_01',
+    sp: 38,
+    kp: 2,
+    ki: 0.2,
+    kd: 0,
+    outLo: 0,
+    outHi: 100,
+    reverse: true,
+    outTag: 'COND_CCW_CW_VALVE_01',
+  },
 ];
 
 /** Điểm vận hành khởi động (~1500 t/h hơi / ~448 MW) — nạp bumpless MAN→AUTO để khởi động êm.
@@ -330,4 +369,7 @@ export const boilerLoopSeeds: Readonly<Record<string, number>> = {
   'lube-oil-temp': 51.6, // TRB_OIL_CW_VALVE_01 (%) — van CW cooler dầu giữ dầu bôi trơn ~45 °C
   'lube-oil-pressure': 50, // TRB_OIL_PUMP_CMD_01 (%) — bơm/van dầu giữ áp header 0,2 MPa
   'aux-steam-header': 50, // FW_AUX_PRDS_VALVE_01 (%) — van PRDS giữ header phụ trợ 1,3 MPa (0,5 + 0,5·1,6)
+  'generator-h2-temp': 35.7, // ELEC_H2_CW_VALVE_01 (%) — van CW cooler H₂ giữ khí H₂ ~40 °C
+  'seal-oil-dp': 50, // ELEC_SEAL_OIL_VALVE_01 (%) — van seal oil giữ dP 0,08 MPa (0,02 + 0,5·0,12)
+  'closed-cooling-water-temp': 36, // COND_CCW_CW_VALVE_01 (%) — van CW bộ trao đổi giữ CCW ~38 °C
 };

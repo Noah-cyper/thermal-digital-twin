@@ -225,6 +225,9 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   put('TRB_OIL_CW_VALVE_01', boilerLoopSeeds['lube-oil-temp'] ?? 0); // van CW cooler dầu bôi trơn (bumpless)
   put('TRB_OIL_PUMP_CMD_01', boilerLoopSeeds['lube-oil-pressure'] ?? 0); // bơm/van dầu bôi trơn (bumpless)
   put('FW_AUX_PRDS_VALVE_01', boilerLoopSeeds['aux-steam-header'] ?? 0); // van PRDS hơi phụ trợ (bumpless)
+  put('ELEC_H2_CW_VALVE_01', boilerLoopSeeds['generator-h2-temp'] ?? 0); // van CW cooler H₂ máy phát (bumpless)
+  put('ELEC_SEAL_OIL_VALVE_01', boilerLoopSeeds['seal-oil-dp'] ?? 0); // van seal oil máy phát (bumpless)
+  put('COND_CCW_CW_VALVE_01', boilerLoopSeeds['closed-cooling-water-temp'] ?? 0); // van CW bộ trao đổi CCW (bumpless)
 
   const host = new SimulationHost(DT_MS, {
     now: () => nowIso(),
