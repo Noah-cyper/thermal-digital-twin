@@ -24,6 +24,9 @@ const K_VAC_C_PER_KPA = 2; // condensate nóng lên khi mất chân không
 const CP_WATER_KJKGK = 4.4; // nhiệt dung riêng nước cấp trung bình (dải 34–283 °C)
 const DH_BOILER_KJKG = 2145; // h(hơi chính 17,5/541) − h(nước cấp 283 °C) ≈ 3395 − 1250
 const TAU_FW_S = 40; // quán tính nhiệt đoàn gia nhiệt
+/* ── Mức bình khử khí (deaerator level control) — GĐ-80 ── */
+const DEA_STORAGE_T = 300; // sức chứa bể deaerator (t) — quy mô mức % [GIẢ ĐỊNH]
+const COND_SUPPLY_MAX_TPH = 2200; // lưu lượng condensate tối đa qua van mức deaerator (LCV 100%)
 
 function clamp(x: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, x));
@@ -52,18 +55,21 @@ export class FeedwaterTrainModel implements ISimModel {
     'FW_HPH1_TEMP_01',
     'FW_HPH2_TEMP_01',
     'FW_HPH3_TEMP_01',
+    'FW_DEAERATOR_LEVEL_01', // % — mức bể khử khí (điều khiển bằng LCV condensate)
   ];
 
   private tCond = T_COND_NOM_C;
   private tDea = T_DEA_NOM_C;
   private tEcon = T_ECON_NOM_C;
   private hpHeaterTrip = false; // malfunction: bypass đoàn gia nhiệt cao áp → nước cấp vào econ nguội đi → heat rate xấu
+  private deaLevel = 50; // % — mức bể khử khí (tích phân condensate vào − nước cấp ra)
 
   init(_ctx?: ISimModelContext, _config?: unknown): void {
     this.tCond = T_COND_NOM_C;
     this.tDea = T_DEA_NOM_C;
     this.tEcon = T_ECON_NOM_C;
     this.hpHeaterTrip = false;
+    this.deaLevel = 50;
   }
 
   step(ctx: ISimModelContext): ISimStepResult {
@@ -99,6 +105,13 @@ export class FeedwaterTrainModel implements ISimModel {
     const lp = (k: number): number => this.tCond + ((this.tDea - this.tCond) * k) / 4;
     const hp = (k: number): number => this.tDea + ((this.tEcon - this.tDea) * k) / 3;
 
+    // Mức bể khử khí: tích phân (condensate VÀO qua LCV − nước cấp RA = hơi, cân bằng khối lượng). Loop
+    // 'deaerator-level' điều LCV giữ mức 50%. Ở ổn định: condensate vào = nước cấp ra → mức đứng yên.
+    const lcv = clamp(ctx.getTag('FW_DEA_LCV_01'), 0, 100);
+    const condIn = (lcv / 100) * COND_SUPPLY_MAX_TPH; // t/h
+    const dLevel = ((condIn - steam) / DEA_STORAGE_T) * 100 * (dt / 3600); // %/bước
+    this.deaLevel = clamp(this.deaLevel + dLevel, 0, 100);
+
     return {
       outputs: [
         { tagId: 'FW_FLOW_01', value: steam, quality: 'Good' },
@@ -114,18 +127,20 @@ export class FeedwaterTrainModel implements ISimModel {
         { tagId: 'FW_HPH1_TEMP_01', value: hp(1), quality: 'Good' },
         { tagId: 'FW_HPH2_TEMP_01', value: hp(2), quality: 'Good' },
         { tagId: 'FW_HPH3_TEMP_01', value: hp(3), quality: 'Good' },
+        { tagId: 'FW_DEAERATOR_LEVEL_01', value: this.deaLevel, quality: 'Good' },
       ],
     };
   }
 
   snapshot(): ISimSnapshot {
-    return { state: { tCond: this.tCond, tDea: this.tDea, tEcon: this.tEcon, hpHeaterTrip: this.hpHeaterTrip ? 1 : 0 } };
+    return { state: { tCond: this.tCond, tDea: this.tDea, tEcon: this.tEcon, hpHeaterTrip: this.hpHeaterTrip ? 1 : 0, deaLevel: this.deaLevel } };
   }
   restore(snapshot: ISimSnapshot): void {
     this.tCond = snapshot.state.tCond ?? T_COND_NOM_C;
     this.tDea = snapshot.state.tDea ?? T_DEA_NOM_C;
     this.tEcon = snapshot.state.tEcon ?? T_ECON_NOM_C;
     this.hpHeaterTrip = (snapshot.state.hpHeaterTrip ?? 0) > 0;
+    this.deaLevel = snapshot.state.deaLevel ?? 50;
   }
   injectMalfunction(m: IMalfunction): void {
     if (m.id === 'hp-heater-trip') this.hpHeaterTrip = true;

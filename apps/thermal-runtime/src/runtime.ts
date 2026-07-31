@@ -209,6 +209,8 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   put('BLR_ID_VANE_01', boilerLoopSeeds['furnace-draft'] ?? 0);
   put('BLR_SH_SPRAY_CV_01', boilerLoopSeeds['sh-temp'] ?? 0);
   put('BLR_FW_CV_01', boilerLoopSeeds['drum-level'] ?? 0);
+  put('FW_DEA_LCV_01', boilerLoopSeeds['deaerator-level'] ?? 0);
+  put('COND_CEP_LCV_01', boilerLoopSeeds['hotwell-level'] ?? 0);
 
   const host = new SimulationHost(DT_MS, {
     now: () => nowIso(),

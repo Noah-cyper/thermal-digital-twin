@@ -462,6 +462,7 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       pipe('fw-ext8', 'steam', [{ x: 1040, y: 90 }, { x: 1040, y: 118 }]),
       equip('fw-regen', 'box', 'Nhiệt hồi nhiệt', 'FW_REGEN_DUTY_01', 'MWth', '', 14, 250, 180, 54),
       equip('fw-hr', 'box', 'Heat rate chu trình', 'PLANT_CYCLE_HR_01', 'kJ/kWh', '', 210, 250, 200, 54, [{ when: 'gt', value: 9500, sev: 2 }]),
+      equip('fw-dealvl', 'box', 'Mức khử khí (loop)', 'FW_DEAERATOR_LEVEL_01', '%', '', 424, 250, 170, 54, [{ when: 'gt', value: 80, sev: 2 }, { when: 'lt', value: 20, sev: 2 }]),
     ],
   },
   {
@@ -483,6 +484,7 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       equip('cd-cwpB', 'pump', 'Bơm CW B', 'COND_CWP_B_FLOW_01', 't/h', '', 100, 220, 64, 64),
       pipe('cd-pA', 'water', [{ x: 52, y: 220 }, { x: 52, y: 180 }, { x: 82, y: 180 }, { x: 82, y: 137 }]),
       pipe('cd-pB', 'water', [{ x: 132, y: 220 }, { x: 132, y: 180 }, { x: 82, y: 180 }]),
+      equip('cd-hotwell', 'box', 'Mức hotwell (loop)', 'COND_HOTWELL_LEVEL_01', '%', '', 305, 182, 150, 48, [{ when: 'gt', value: 80, sev: 2 }, { when: 'lt', value: 20, sev: 2 }]),
       equip('cd-sat', 'box', 'Nhiệt bão hoà', 'COND_SAT_TEMP_01', '°C', '', 250, 250, 130, 54, [{ when: 'gt', value: 45, sev: 2 }]),
       equip('cd-ttd', 'box', 'TTD', 'COND_TTD_01', '°C', '', 392, 250, 100, 54),
       equip('cd-cwflow', 'box', 'Tổng CW', 'COND_CW_FLOW_01', 't/h', '', 504, 250, 120, 54),
