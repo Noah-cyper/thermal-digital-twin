@@ -1,8 +1,12 @@
 // Plugin thermal-power-600 — FaceplateDef khai báo (doc 05-15). Dữ liệu thuần, chỉ import type từ
 // @idtp/sdk. 4 tab cố định; gắn control loop + tag PV/OP + alarm + trend. KKS neo Phụ lục A §10.1.
+// 3 faceplate CHI TIẾT (KKS + alarm + trend đa tag) cho các vòng trọng yếu; phần còn lại TỰ SINH từ
+// registry vòng điều khiển để MỌI vòng đều mở được faceplate (PV/SP/OP/mode/trend) — HMI polish v1.41.
 import type { FaceplateDef } from '@idtp/sdk';
+import { boilerControlLoops } from '../control/loops';
 
-export const thermalFaceplates: ReadonlyArray<FaceplateDef> = [
+/** Faceplate chi tiết cho vòng trọng yếu (đầy đủ KKS + alarm + trend nhiều tag). */
+const detailedFaceplates: ReadonlyArray<FaceplateDef> = [
   {
     faceplateId: 'fp-drum-level',
     assetId: 'PID-DRUM-LEVEL',
@@ -49,3 +53,37 @@ export const thermalFaceplates: ReadonlyArray<FaceplateDef> = [
     trendTags: ['BLR_MSTM_SH_TEMP_01'],
   },
 ];
+
+/** Suy đơn vị kỹ thuật (EU) từ tên tag PV — cosmetic, phục vụ tab Detail của faceplate tự sinh. */
+function euFor(tag: string): string {
+  if (/TEMP|DEWPOINT/.test(tag)) return '°C';
+  if (/NOX|SO2/.test(tag)) return 'mg/Nm³';
+  if (/GLAND_PRESS/.test(tag)) return 'kPag';
+  if (/PA_HEADER_PRESS/.test(tag)) return 'kPa';
+  if (/FURN_PRESS/.test(tag)) return 'Pa';
+  if (/^CA_|^FO_/.test(tag) && /PRESS/.test(tag)) return 'barg';
+  if (/PRESS|_DP_/.test(tag)) return 'MPa';
+  if (/LEVEL|_O2_/.test(tag)) return '%';
+  if (/FLOW/.test(tag)) return 't/h';
+  if (/GEN_MW|_MW_/.test(tag)) return 'MW';
+  return '';
+}
+
+/** Tự sinh faceplate cho vòng chưa có faceplate chi tiết → MỌI vòng đều mở được faceplate. */
+const detailedLoopIds = new Set(detailedFaceplates.map((f) => f.loopId));
+const autoFaceplates: FaceplateDef[] = boilerControlLoops
+  .filter((l) => !detailedLoopIds.has(l.id))
+  .map((l) => ({
+    faceplateId: `fp-${l.id}`,
+    assetId: `PID-${l.id.toUpperCase()}`,
+    title: { vi: ((l.desc ?? l.id).split(':')[0] ?? l.id).trim(), en: l.id },
+    loopId: l.id,
+    pvTag: l.pvTag,
+    ...(l.spTag !== undefined ? { spTag: l.spTag } : l.sp !== undefined ? { sp: l.sp } : {}),
+    opTag: l.outTag,
+    eu: euFor(l.pvTag),
+    trendTags: [l.pvTag, l.outTag],
+  }));
+
+/** 25 faceplate: 3 chi tiết + 22 tự sinh (một cho mỗi vòng điều khiển CCS). */
+export const thermalFaceplates: ReadonlyArray<FaceplateDef> = [...detailedFaceplates, ...autoFaceplates];
