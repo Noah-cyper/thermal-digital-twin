@@ -16,6 +16,9 @@ import {
   ElectricalModel,
   CoolingTowerModel,
   CoalHandlingModel,
+  CompressedAirModel,
+  FuelOilModel,
+  AshHandlingModel,
   PlantBalanceModel,
   boilerControlLoops,
   boilerLoopSeeds,
@@ -273,6 +276,14 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   // — không đổi BLR_COAL_FLOW_01. Có trạng thái mức bunker (nằm trong snapshot host cho OTS).
   const coalHandling = new CoalHandlingModel();
   host.register(coalHandling);
+  // Balance of Plant §10 (v1.40): khí nén/khí điều khiển · dầu đốt khởi động · thải tro. Đọc than/MW tươi
+  // → sinh tag BOP độc lập (CA_*/FO_*/ASH_*). Additive — không đổi tag hệ chính. Có trạng thái (snapshot).
+  const compressedAir = new CompressedAirModel();
+  host.register(compressedAir);
+  const fuelOil = new FuelOilModel();
+  host.register(fuelOil);
+  const ashHandling = new AshHandlingModel();
+  host.register(ashHandling);
   // CAPSTONE cân bằng khối lượng-năng lượng (v1.26): đăng ký CUỐI CÙNG để đọc đầu ra mọi mô hình con →
   // kiểm chứng bảo toàn năng lượng (khép ~100 %) + KPI toàn nhà máy. Additive — chỉ đọc, tổng hợp.
   const plantBalance = new PlantBalanceModel();

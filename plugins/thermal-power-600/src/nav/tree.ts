@@ -9,4 +9,8 @@ export const thermalNav: ReadonlyArray<NavNode> = [
   { screenId: 'D3-steam-drum', level: 'D3', parentId: 'D1-plant-overview', hotkey: 2, title: { vi: 'Bao hơi & cấp nước', en: 'Steam Drum & Feedwater' } },
   { screenId: 'D3-boiler-combustion', level: 'D3', parentId: 'D1-plant-overview', hotkey: 3, title: { vi: 'Đốt & gió', en: 'Combustion & Air' } },
   { screenId: 'D3-turbine-generator', level: 'D3', parentId: 'D1-plant-overview', hotkey: 4, title: { vi: 'Turbine & Máy phát', en: 'Turbine & Generator' } },
+  // Balance of Plant §10 (v1.40): các hệ phụ trợ có màn hình riêng, đưa vào cây điều hướng để truy cập trực tiếp.
+  { screenId: 'D3-compressed-air', level: 'D3', parentId: 'D1-plant-overview', hotkey: 7, title: { vi: 'Khí nén & khí điều khiển', en: 'Compressed & Instrument Air' } },
+  { screenId: 'D3-fuel-oil', level: 'D3', parentId: 'D1-plant-overview', hotkey: 8, title: { vi: 'Dầu đốt khởi động', en: 'Startup Fuel Oil' } },
+  { screenId: 'D3-ash-handling', level: 'D3', parentId: 'D1-plant-overview', hotkey: 9, title: { vi: 'Thải tro (đáy + bay)', en: 'Ash Handling' } },
 ];

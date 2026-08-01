@@ -682,6 +682,62 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       valueTile('air', 'PLANT_AIR_FLOW_01', 'Gió cháy', 't/h', 3, 1),
     ],
   },
+  {
+    screenId: 'D3-compressed-air',
+    level: 'D3',
+    title: { vi: 'Khí nén & Khí điều khiển — bố trí thiết bị', en: 'Compressed & Instrument Air Layout' },
+    elements: [
+      // 2 máy nén → bình chứa → sấy khí điều khiển → header khí điều khiển (IA) + khí dịch vụ (SA).
+      equip('ca-compA', 'pump', 'Máy nén A', 'CA_COMP_A_LOAD_01', '%', '', 20, 60, 90, 80),
+      equip('ca-compB', 'pump', 'Máy nén B', 'CA_COMP_B_LOAD_01', '%', '', 20, 170, 90, 80),
+      pipe('ca-pa', 'air', [{ x: 110, y: 100 }, { x: 200, y: 100 }, { x: 200, y: 130 }]),
+      pipe('ca-pb', 'air', [{ x: 110, y: 210 }, { x: 200, y: 210 }, { x: 200, y: 170 }]),
+      equip('ca-recv', 'drum', 'Bình chứa', 'CA_RECEIVER_PRESS_01', 'barg', '', 200, 100, 130, 100, [{ when: 'lt', value: 6, sev: 2 }]),
+      pipe('ca-pd', 'air', [{ x: 330, y: 102 }, { x: 400, y: 102 }]),
+      equip('ca-dryer', 'box', 'Sấy khí điều khiển', 'CA_IA_DEWPOINT_01', '°C', '', 400, 70, 140, 64, [{ when: 'gt', value: -20, sev: 2 }]),
+      pipe('ca-pi', 'air', [{ x: 540, y: 102 }, { x: 620, y: 102 }]),
+      equip('ca-ia', 'box', 'Header khí điều khiển', 'CA_IA_HEADER_PRESS_01', 'barg', '', 620, 70, 180, 64, [{ when: 'lt', value: 5.5, sev: 1 }]),
+      pipe('ca-ps', 'air', [{ x: 265, y: 200 }, { x: 265, y: 202 }, { x: 400, y: 202 }]),
+      equip('ca-sa', 'box', 'Header khí dịch vụ', 'CA_SA_HEADER_PRESS_01', 'barg', '', 400, 170, 180, 64),
+      equip('ca-run', 'box', 'Số máy nén chạy', 'CA_COMP_RUNNING_01', '', '', 620, 170, 160, 64),
+      equip('ca-dem', 'box', 'Nhu cầu khí', 'CA_DEMAND_01', 'Nm³/min', '', 140, 270, 160, 54),
+    ],
+  },
+  {
+    screenId: 'D3-fuel-oil',
+    level: 'D3',
+    title: { vi: 'Dầu đốt khởi động & đỡ tải — bố trí thiết bị', en: 'Startup Fuel Oil Layout' },
+    elements: [
+      // Bồn HFO/LDO → hâm HFO (độ nhớt phun) → bơm → header cấp → vòi đốt (chỉ khi khởi động/đỡ lửa).
+      equip('fo-hfotank', 'box', 'Bồn HFO', 'FO_HFO_TANK_LEVEL_01', '%', '', 20, 60, 140, 90, [{ when: 'lt', value: 15, sev: 2 }]),
+      equip('fo-ldotank', 'box', 'Bồn LDO (mồi)', 'FO_LDO_TANK_LEVEL_01', '%', '', 20, 180, 140, 90, [{ when: 'lt', value: 15, sev: 2 }]),
+      pipe('fo-p1', 'water', [{ x: 160, y: 105 }, { x: 200, y: 105 }]),
+      equip('fo-heater', 'box', 'Hâm HFO', 'FO_HFO_TEMP_01', '°C', '', 200, 70, 140, 70, [{ when: 'lt', value: 100, sev: 2 }]),
+      equip('fo-pump', 'pump', 'Bơm dầu', 'FO_PUMP_RUNNING_01', '', '', 220, 180, 80, 80),
+      pipe('fo-p2', 'water', [{ x: 340, y: 105 }, { x: 400, y: 105 }]),
+      equip('fo-supply', 'box', 'Áp cấp dầu', 'FO_SUPPLY_PRESS_01', 'barg', '', 400, 70, 160, 64),
+      equip('fo-flow', 'box', 'Lưu lượng dầu → vòi đốt', 'FO_FLOW_01', 't/h', 'D3-furnace', 400, 170, 220, 64),
+    ],
+  },
+  {
+    screenId: 'D3-ash-handling',
+    level: 'D3',
+    title: { vi: 'Thải tro — bố trí thiết bị (tro đáy + tro bay)', en: 'Ash Handling Layout' },
+    elements: [
+      // Tro đáy: buồng lửa → phễu SSC. Tro bay: phễu ESP theo trường → silo → xe bồn.
+      equip('ash-furn', 'box', 'Buồng lửa (tổng tro)', 'ASH_TOTAL_01', 't/h', 'D3-furnace', 20, 40, 160, 60),
+      equip('ash-bottom', 'box', 'Tro đáy (SSC)', 'ASH_BOTTOM_FLOW_01', 't/h', '', 20, 140, 160, 60),
+      equip('ash-bahop', 'box', 'Phễu tro đáy', 'ASH_BA_HOPPER_LEVEL_01', '%', '', 20, 230, 160, 54),
+      equip('ash-espA', 'box', 'Phễu ESP A', 'ASH_ESP_HOP_A_01', '%', '', 230, 40, 130, 56),
+      equip('ash-espB', 'box', 'Phễu ESP B', 'ASH_ESP_HOP_B_01', '%', '', 230, 112, 130, 56),
+      equip('ash-espC', 'box', 'Phễu ESP C', 'ASH_ESP_HOP_C_01', '%', '', 230, 184, 130, 56),
+      pipe('ash-pf', 'flue', [{ x: 360, y: 96 }, { x: 400, y: 96 }, { x: 400, y: 100 }]),
+      equip('ash-fly', 'box', 'Tro bay', 'ASH_FLY_FLOW_01', 't/h', '', 400, 70, 140, 60),
+      pipe('ash-ps', 'flue', [{ x: 540, y: 100 }, { x: 580, y: 100 }, { x: 580, y: 110 }]),
+      equip('ash-silo', 'drum', 'Silo tro bay', 'ASH_SILO_LEVEL_01', '%', '', 580, 60, 150, 110, [{ when: 'gt', value: 95, sev: 2 }]),
+      equip('ash-unload', 'box', 'Xả xe bồn', 'ASH_UNLOAD_RATE_01', 't/h', '', 580, 200, 150, 54),
+    ],
+  },
 ];
 
 /** Tất cả tag mà một screen tham chiếu (để subscribe theo màn hình — Tag/Realtime). */
