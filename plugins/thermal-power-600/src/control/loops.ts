@@ -12,7 +12,8 @@ const STEAM_TO_FWCV = 100 / 2100; // steam flow (t/h) → FW CV feedforward (%)
 const STEAM_TO_DEALCV = 100 / 2200; // steam flow (t/h) → deaerator condensate LCV feedforward (%)
 const STEAM_TO_CEPLCV = 100 / 2200; // steam flow (t/h) → condensate extraction pump LCV feedforward (%)
 
-/** 25 control loop CCS đầy đủ (doc 09) — Boiler Island + môi trường + phụ trợ + máy phát + làm mát:
+/** 27 control loop CCS (doc 09) — 25 vòng vận hành liên tục + 2 vòng bảo vệ/khởi động (SJAE hút khí ·
+ *  HP turbine bypass). Danh mục 25 lõi — Boiler Island + môi trường + phụ trợ + máy phát + làm mát:
  *  governor · boiler master (sliding pressure) · fuel master · air/O₂ · furnace draft · SH temp · drum
  *  level 3-element · deaerator level · hotwell level · reheat temp (gas-biasing) · BFP min-flow recirc ·
  *  SCR deNOx (NH₃) · FGD SO₂ (slurry) · deaerator pressure (pegging steam) · gland steam pressure · mill
@@ -342,6 +343,32 @@ export const boilerControlLoops: ReadonlyArray<ControlLoopDef> = [
     reverse: true,
     outTag: 'COND_CCW_CW_VALVE_01',
   },
+  {
+    id: 'sjae-air-removal',
+    desc: 'Hút khí bình ngưng (SJAE): giữ O₂ hoà tan ~7 ppb bằng van hút khí (O₂ cao → hút thêm, reverse)',
+    pvTag: 'COND_O2_01',
+    sp: 7,
+    kp: 3,
+    ki: 0.3,
+    kd: 0,
+    outLo: 0,
+    outHi: 100,
+    reverse: true,
+    outTag: 'COND_SJAE_VALVE_01',
+  },
+  {
+    id: 'hp-bypass-pressure',
+    desc: 'HP turbine bypass: xả hơi SH khi áp > 18,5 MPa (khởi động/trip, reverse); đóng ở tải bình thường',
+    pvTag: 'BLR_MSTM_SH_PRESS_01',
+    sp: 18.5,
+    kp: 5,
+    ki: 0.2,
+    kd: 0,
+    outLo: 0,
+    outHi: 100,
+    reverse: true,
+    outTag: 'BLR_HP_BYPASS_VALVE_01',
+  },
 ];
 
 /** Điểm vận hành khởi động (~1500 t/h hơi / ~448 MW) — nạp bumpless MAN→AUTO để khởi động êm.
@@ -372,4 +399,6 @@ export const boilerLoopSeeds: Readonly<Record<string, number>> = {
   'generator-h2-temp': 35.7, // ELEC_H2_CW_VALVE_01 (%) — van CW cooler H₂ giữ khí H₂ ~40 °C
   'seal-oil-dp': 50, // ELEC_SEAL_OIL_VALVE_01 (%) — van seal oil giữ dP 0,08 MPa (0,02 + 0,5·0,12)
   'closed-cooling-water-temp': 36, // COND_CCW_CW_VALVE_01 (%) — van CW bộ trao đổi giữ CCW ~38 °C
+  'sjae-air-removal': 72, // COND_SJAE_VALVE_01 (%) — van hút khí giữ O₂ hoà tan ~7 ppb
+  'hp-bypass-pressure': 0, // BLR_HP_BYPASS_VALVE_01 (%) — đóng ở tải (áp SH 17,5 < ngưỡng 18,5)
 };

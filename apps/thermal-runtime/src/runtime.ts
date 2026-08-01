@@ -19,6 +19,7 @@ import {
   CompressedAirModel,
   FuelOilModel,
   AshHandlingModel,
+  BypassAirRemovalModel,
   PlantBalanceModel,
   CalibrationModel,
   boilerControlLoops,
@@ -232,6 +233,8 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   put('ELEC_H2_CW_VALVE_01', boilerLoopSeeds['generator-h2-temp'] ?? 0); // van CW cooler H₂ máy phát (bumpless)
   put('ELEC_SEAL_OIL_VALVE_01', boilerLoopSeeds['seal-oil-dp'] ?? 0); // van seal oil máy phát (bumpless)
   put('COND_CCW_CW_VALVE_01', boilerLoopSeeds['closed-cooling-water-temp'] ?? 0); // van CW bộ trao đổi CCW (bumpless)
+  put('COND_SJAE_VALVE_01', boilerLoopSeeds['sjae-air-removal'] ?? 0); // van hút khí SJAE (bumpless)
+  put('BLR_HP_BYPASS_VALVE_01', boilerLoopSeeds['hp-bypass-pressure'] ?? 0); // van HP bypass (đóng ở tải)
 
   const host = new SimulationHost(DT_MS, {
     now: () => nowIso(),
@@ -285,6 +288,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   host.register(fuelOil);
   const ashHandling = new AshHandlingModel();
   host.register(ashHandling);
+  // HP turbine bypass + hút khí SJAE (v1.43): đọc áp SH + van (loop ghi) → O₂ hoà tan + lưu lượng xả bypass.
+  // Additive — bypass = 0 ở tải bình thường (0 hồi quy); mở khi trip đẩy áp SH lên.
+  const bypassAir = new BypassAirRemovalModel();
+  host.register(bypassAir);
   // CAPSTONE cân bằng khối lượng-năng lượng (v1.26): đăng ký CUỐI CÙNG để đọc đầu ra mọi mô hình con →
   // kiểm chứng bảo toàn năng lượng (khép ~100 %) + KPI toàn nhà máy. Additive — chỉ đọc, tổng hợp.
   const plantBalance = new PlantBalanceModel();
