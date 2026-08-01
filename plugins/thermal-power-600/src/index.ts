@@ -15,6 +15,7 @@ export { CompressedAirModel } from './sim/compressed-air';
 export { FuelOilModel } from './sim/fuel-oil';
 export { AshHandlingModel } from './sim/ash-handling';
 export { PlantBalanceModel } from './sim/plant-balance';
+export { CalibrationModel } from './sim/calibration';
 export { DrumModel } from './sim/drum';
 export { boilerControlLoops, boilerLoopSeeds } from './control/loops';
 export { boilerScreens, screenTags } from './graphics/screens';
