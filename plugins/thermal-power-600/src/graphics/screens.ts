@@ -738,6 +738,25 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       equip('ash-unload', 'box', 'Xả xe bồn', 'ASH_UNLOAD_RATE_01', 't/h', '', 580, 200, 150, 54),
     ],
   },
+  {
+    screenId: 'D2-calibration',
+    level: 'D2',
+    title: { vi: 'Hiệu chỉnh hiệu năng vs Design Basis', en: 'Performance Calibration vs Design Basis' },
+    elements: [
+      // Lượng hoá độ lệch KPI mô phỏng vs mốc Design Basis — bước ĐẦU của calibrate bằng heat-balance thật.
+      valueTile('cal-hr-sim', 'PLANT_UNIT_HR_NET_01', 'Heat rate net (sim)', 'kJ/kWh', 0, 0),
+      valueTile('cal-hr-tgt', 'PLANT_CAL_HR_TGT_01', 'Mốc Design Basis', 'kJ/kWh', 1, 0),
+      valueTile('cal-hr-dev', 'PLANT_CAL_HR_DEV_01', 'Độ lệch heat rate', '%', 2, 0, [{ when: 'gt', value: 5, sev: 2 }]),
+      valueTile('cal-eff-sim', 'PLANT_NET_EFF_01', 'Hiệu suất net (sim)', '%', 0, 1),
+      valueTile('cal-eff-tgt', 'PLANT_CAL_EFF_TGT_01', 'Mốc Design Basis', '%', 1, 1),
+      valueTile('cal-eff-dev', 'PLANT_CAL_EFF_DEV_01', 'Độ lệch hiệu suất', 'điểm%', 2, 1, [{ when: 'lt', value: -3, sev: 2 }]),
+      valueTile('cal-cw-sim', 'CT_CW_SUPPLY_01', 'Nhiệt CW cấp (sim)', '°C', 0, 2),
+      valueTile('cal-cw-tgt', 'PLANT_CAL_CW_TGT_01', 'Mốc thiết kế (ôn hoà)', '°C', 1, 2),
+      valueTile('cal-cw-dev', 'PLANT_CAL_CW_DEV_01', 'Độ lệch CW (nhiệt đới)', '°C', 2, 2, [{ when: 'gt', value: 5, sev: 2 }]),
+      valueTile('cal-clo-sim', 'PLANT_ENERGY_CLOSURE_01', 'Khép cân bằng NL', '%', 0, 3),
+      valueTile('cal-clo-dev', 'PLANT_CAL_CLOSURE_DEV_01', 'Độ lệch khép (≈0 tốt)', 'điểm%', 2, 3),
+    ],
+  },
 ];
 
 /** Tất cả tag mà một screen tham chiếu (để subscribe theo màn hình — Tag/Realtime). */

@@ -20,6 +20,7 @@ import {
   FuelOilModel,
   AshHandlingModel,
   PlantBalanceModel,
+  CalibrationModel,
   boilerControlLoops,
   boilerLoopSeeds,
   boilerAlarms,
@@ -288,6 +289,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   // kiểm chứng bảo toàn năng lượng (khép ~100 %) + KPI toàn nhà máy. Additive — chỉ đọc, tổng hợp.
   const plantBalance = new PlantBalanceModel();
   host.register(plantBalance);
+  // Hiệu chỉnh hiệu năng (v1.42): đăng ký SAU plant-balance để đọc KPI đã tính → lượng hoá độ lệch so với
+  // mốc Design Basis (heat rate / hiệu suất / nhiệt CW / khép cân bằng). ADDITIVE — chỉ đọc, không đổi vật lý.
+  const calibration = new CalibrationModel();
+  host.register(calibration);
 
   const loops = new ControlLoopEngine(boilerControlLoops);
   const ingestOut = (): void => {
