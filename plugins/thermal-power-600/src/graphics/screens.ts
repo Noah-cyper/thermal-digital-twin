@@ -296,6 +296,9 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       equip('tb-oilcw', 'box', 'Van CW dầu', 'TRB_OIL_CW_VALVE_01', '%', '', 174, 378, 120, 54),
       equip('tb-oilpress', 'box', 'Áp dầu bôi trơn', 'TRB_LUBE_OIL_PRESS_01', 'MPa', '', 304, 378, 150, 54, [{ when: 'lt', value: 0.12, sev: 1 }]),
       equip('tb-oilpump', 'box', 'Bơm dầu', 'TRB_OIL_PUMP_CMD_01', '%', '', 464, 378, 120, 54),
+      // HP turbine bypass (loop): xả hơi SH → cold reheat khi áp vượt ngưỡng (đóng ở tải, mở khi trip).
+      equip('tb-hpbp', 'box', 'HP bypass xả', 'BLR_HP_BYPASS_FLOW_01', 't/h', '', 14, 442, 160, 54),
+      equip('tb-hpbpo', 'box', 'Van HP bypass', 'BLR_HP_BYPASS_OPEN_01', '%', '', 184, 442, 140, 54),
     ],
   },
   {
@@ -522,6 +525,9 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       // Nước làm mát khép kín phụ trợ CCW (loop C-6): nhiệt CCW + van CW bộ trao đổi thải nhiệt phụ trợ.
       equip('cd-ccw', 'box', 'Nhiệt CCW (loop)', 'COND_CCW_TEMP_01', '°C', '', 250, 314, 160, 54, [{ when: 'gt', value: 44, sev: 2 }]),
       equip('cd-ccwv', 'box', 'Van CW→CCW', 'COND_CCW_CW_VALVE_01', '%', '', 420, 314, 140, 54),
+      // Hút khí bình ngưng (loop SJAE): O₂ hoà tan + độ mở van hút khí không ngưng.
+      equip('cd-o2', 'box', 'O₂ hoà tan (loop SJAE)', 'COND_O2_01', 'ppb', '', 250, 378, 160, 54, [{ when: 'gt', value: 15, sev: 2 }]),
+      equip('cd-sjae', 'box', 'Van hút khí SJAE', 'COND_SJAE_VALVE_01', '%', '', 420, 378, 140, 54),
     ],
   },
   {

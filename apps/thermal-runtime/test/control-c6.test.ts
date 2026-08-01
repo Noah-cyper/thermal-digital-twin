@@ -4,9 +4,9 @@ import { boilerControlLoops } from '@idtp/plugin-thermal-power-600';
 
 describe('thermal-runtime — CCS loop C6 (MỐC 25): H₂ gas temp · seal oil dP · closed cooling water temp', () => {
   it('MỐC: CCS đúng 25 vòng điều khiển, id duy nhất, mỗi vòng có outTag', () => {
-    expect(boilerControlLoops.length).toBe(25);
+    expect(boilerControlLoops.length).toBeGreaterThanOrEqual(25); // ≥ 25 (25 lõi + vòng bảo vệ/khởi động thêm sau)
     const ids = boilerControlLoops.map((l) => l.id);
-    expect(new Set(ids).size).toBe(25); // không trùng id
+    expect(new Set(ids).size).toBe(ids.length); // không trùng id
     expect(boilerControlLoops.every((l) => typeof l.outTag === 'string' && l.outTag.length > 0)).toBe(true);
     for (const id of ['generator-h2-temp', 'seal-oil-dp', 'closed-cooling-water-temp']) {
       expect(ids).toContain(id);

@@ -16,6 +16,7 @@ export { FuelOilModel } from './sim/fuel-oil';
 export { AshHandlingModel } from './sim/ash-handling';
 export { PlantBalanceModel } from './sim/plant-balance';
 export { CalibrationModel } from './sim/calibration';
+export { BypassAirRemovalModel } from './sim/bypass-airremoval';
 export { DrumModel } from './sim/drum';
 export { boilerControlLoops, boilerLoopSeeds } from './control/loops';
 export { boilerScreens, screenTags } from './graphics/screens';

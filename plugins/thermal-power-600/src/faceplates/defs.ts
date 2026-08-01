@@ -69,11 +69,16 @@ function euFor(tag: string): string {
   return '';
 }
 
-/** Tự sinh faceplate cho vòng chưa có faceplate chi tiết → MỌI vòng đều mở được faceplate. */
+/** Tự sinh faceplate cho vòng chưa có faceplate chi tiết → MỌI tag PV của vòng đều mở được faceplate.
+ *  Khử trùng theo pvTag: nếu 2 vòng dùng chung 1 PV (vd hp-bypass giám sát áp SH cùng boiler-master), tag
+ *  đó chỉ có 1 faceplate (của vòng điều khiển chính) — giữ click-map pvTag→assetId sạch. */
 const detailedLoopIds = new Set(detailedFaceplates.map((f) => f.loopId));
-const autoFaceplates: FaceplateDef[] = boilerControlLoops
-  .filter((l) => !detailedLoopIds.has(l.id))
-  .map((l) => ({
+const seenPvTags = new Set<string>(detailedFaceplates.map((f) => f.pvTag));
+const autoFaceplates: FaceplateDef[] = [];
+for (const l of boilerControlLoops) {
+  if (detailedLoopIds.has(l.id) || seenPvTags.has(l.pvTag)) continue;
+  seenPvTags.add(l.pvTag);
+  autoFaceplates.push({
     faceplateId: `fp-${l.id}`,
     assetId: `PID-${l.id.toUpperCase()}`,
     title: { vi: ((l.desc ?? l.id).split(':')[0] ?? l.id).trim(), en: l.id },
@@ -83,7 +88,8 @@ const autoFaceplates: FaceplateDef[] = boilerControlLoops
     opTag: l.outTag,
     eu: euFor(l.pvTag),
     trendTags: [l.pvTag, l.outTag],
-  }));
+  });
+}
 
 /** 25 faceplate: 3 chi tiết + 22 tự sinh (một cho mỗi vòng điều khiển CCS). */
 export const thermalFaceplates: ReadonlyArray<FaceplateDef> = [...detailedFaceplates, ...autoFaceplates];
