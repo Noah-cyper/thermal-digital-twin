@@ -25,6 +25,27 @@ describe('thermal-runtime — hiệu chỉnh hiệu năng (c, v1.42): lượng h
     expect(Math.abs(rt.value('PLANT_CAL_CLOSURE_DEV_01'))).toBeLessThan(3);
   });
 
+  it('điều kiện hơi/chân không ĐƯỢC ĐIỀU KHIỂN ở đúng điểm thiết kế (độ lệch ≈ 0) → khu biệt gap heat-rate KHÔNG do sai điều kiện hơi', () => {
+    const rt = createThermalRuntime();
+    for (let i = 0; i < 600; i++) rt.step();
+
+    // Mốc thiết kế phát ra đúng hằng số.
+    expect(rt.value('PLANT_CAL_MST_TGT_01')).toBe(541);
+    expect(rt.value('PLANT_CAL_HRH_TGT_01')).toBe(541);
+    expect(rt.value('PLANT_CAL_MSP_TGT_01')).toBe(17.5);
+    expect(rt.value('PLANT_CAL_VAC_TGT_01')).toBe(5.4);
+
+    // Các biến ĐƯỢC ĐIỀU KHIỂN bám sát điểm thiết kế → độ lệch nhỏ (chứng minh sim ở đúng điều kiện hơi).
+    expect(Math.abs(rt.value('PLANT_CAL_MST_DEV_01'))).toBeLessThan(2); // °C
+    expect(Math.abs(rt.value('PLANT_CAL_HRH_DEV_01'))).toBeLessThan(3); // °C
+    expect(Math.abs(rt.value('PLANT_CAL_MSP_DEV_01'))).toBeLessThan(0.3); // MPa
+    expect(Math.abs(rt.value('PLANT_CAL_VAC_DEV_01'))).toBeLessThan(1); // kPa
+
+    // Tương phản: heat rate/η vẫn lệch LỚN (gap thực chất) trong khi điều kiện hơi ĐÚNG →
+    // gap KHÔNG do sai điều kiện hơi mà do hằng số coal→steam→MW (đúng chẩn đoán M-06, cần số vận hành thật).
+    expect(rt.value('PLANT_CAL_HR_DEV_01')).toBeGreaterThan(10);
+  });
+
   it('màn hình + nav hiệu chỉnh có mặt', () => {
     const ids = new Set(boilerScreens.map((s) => s.screenId));
     const navIds = new Set(thermalNav.map((n) => n.screenId));

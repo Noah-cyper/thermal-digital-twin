@@ -786,6 +786,20 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       valueTile('cal-cw-dev', 'PLANT_CAL_CW_DEV_01', 'Độ lệch CW (nhiệt đới)', '°C', 2, 2, [{ when: 'gt', value: 5, sev: 2 }]),
       valueTile('cal-clo-sim', 'PLANT_ENERGY_CLOSURE_01', 'Khép cân bằng NL', '%', 0, 3),
       valueTile('cal-clo-dev', 'PLANT_CAL_CLOSURE_DEV_01', 'Độ lệch khép (≈0 tốt)', 'điểm%', 2, 3),
+      // Điều kiện hơi/chân không ĐƯỢC ĐIỀU KHIỂN — độ lệch ~0 chứng minh sim ở đúng điểm thiết kế
+      // → gap heat-rate/η KHÔNG do sai điều kiện hơi (khu biệt nguyên nhân, M-06).
+      valueTile('cal-mst-sim', 'BLR_MSTM_SH_TEMP_01', 'Nhiệt hơi chính (sim)', '°C', 0, 4),
+      valueTile('cal-mst-tgt', 'PLANT_CAL_MST_TGT_01', 'Mốc Design Basis', '°C', 1, 4),
+      valueTile('cal-mst-dev', 'PLANT_CAL_MST_DEV_01', 'Độ lệch nhiệt hơi chính', '°C', 2, 4, [{ when: 'gt', value: 5, sev: 2 }]),
+      valueTile('cal-hrh-sim', 'TRB_HRH_TEMP_01', 'Nhiệt hot reheat (sim)', '°C', 0, 5),
+      valueTile('cal-hrh-tgt', 'PLANT_CAL_HRH_TGT_01', 'Mốc Design Basis', '°C', 1, 5),
+      valueTile('cal-hrh-dev', 'PLANT_CAL_HRH_DEV_01', 'Độ lệch nhiệt hot reheat', '°C', 2, 5, [{ when: 'gt', value: 5, sev: 2 }]),
+      valueTile('cal-msp-sim', 'BLR_MSTM_SH_PRESS_01', 'Áp hơi chính (sim)', 'MPa', 0, 6),
+      valueTile('cal-msp-tgt', 'PLANT_CAL_MSP_TGT_01', 'Mốc Design Basis', 'MPa', 1, 6),
+      valueTile('cal-msp-dev', 'PLANT_CAL_MSP_DEV_01', 'Độ lệch áp hơi chính', 'MPa', 2, 6, [{ when: 'gt', value: 0.5, sev: 2 }]),
+      valueTile('cal-vac-sim', 'TRB_COND_VACUUM_01', 'Chân không bình ngưng (sim)', 'kPa', 0, 7),
+      valueTile('cal-vac-tgt', 'PLANT_CAL_VAC_TGT_01', 'Mốc Design Basis', 'kPa', 1, 7),
+      valueTile('cal-vac-dev', 'PLANT_CAL_VAC_DEV_01', 'Độ lệch chân không', 'kPa', 2, 7, [{ when: 'gt', value: 1, sev: 2 }]),
     ],
   },
 ];
