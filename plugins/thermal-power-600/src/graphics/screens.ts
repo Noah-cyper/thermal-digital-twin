@@ -745,6 +745,28 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
     ],
   },
   {
+    screenId: 'D3-soot-blower',
+    level: 'D3',
+    title: { vi: 'Thổi bụi bề mặt truyền nhiệt — trạng thái chu trình', en: 'Heat-transfer Soot Blowing Layout' },
+    elements: [
+      // Cột trái: header hơi thổi → lưu lượng hơi thổi → trạng thái chu trình.
+      equip('sb-header', 'box', 'Header hơi thổi', 'SB_STEAM_HEADER_PRESS_01', 'barg', '', 20, 40, 160, 60, [{ when: 'lt', value: 20, sev: 2 }]),
+      equip('sb-steam', 'box', 'Lưu lượng hơi thổi', 'SB_STEAM_FLOW_01', 't/h', '', 20, 130, 160, 60),
+      equip('sb-cycle', 'box', 'Chu trình thổi (0/1)', 'SB_CYCLE_ACTIVE_01', '', '', 20, 220, 160, 54),
+      // Cột giữa: chỉ số bám (mức) + độ sạch hiệu dụng.
+      pipe('sb-p1', 'steam', [{ x: 180, y: 70 }, { x: 240, y: 70 }, { x: 240, y: 95 }]),
+      equip('sb-foul', 'drum', 'Chỉ số bám', 'SB_FOULING_INDEX_01', '%', '', 240, 40, 170, 110, [{ when: 'gt', value: 50, sev: 2 }]),
+      equip('sb-clean', 'box', 'Độ sạch hiệu dụng', 'SB_CLEANLINESS_01', '%', '', 240, 180, 170, 60, [{ when: 'lt', value: 55, sev: 2 }]),
+      // Cột phải: vùng đang thổi → máy thổi đã stroke → thời gian từ chu trình.
+      pipe('sb-p2', 'steam', [{ x: 410, y: 95 }, { x: 450, y: 95 }, { x: 450, y: 70 }]),
+      equip('sb-zone', 'box', 'Vùng đang thổi (0–4)', 'SB_ZONE_ACTIVE_01', '', '', 450, 40, 200, 60),
+      equip('sb-stroked', 'box', 'Máy thổi đã stroke', 'SB_BLOWERS_STROKED_01', '', '', 450, 130, 200, 60),
+      equip('sb-since', 'box', 'Từ chu trình gần nhất', 'SB_TIME_SINCE_CYCLE_01', 'phút', '', 450, 220, 200, 54),
+      // Ước lượng ảnh hưởng tới đường khói (read-only) → drill sang màn buồng lửa/đốt.
+      equip('sb-gasdt', 'box', 'ΔT khói ra (ước lượng)', 'SB_GAS_EXIT_TEMP_DELTA_01', '°C', 'D3-boiler-combustion', 680, 40, 200, 60, [{ when: 'gt', value: 40, sev: 2 }]),
+    ],
+  },
+  {
     screenId: 'D2-calibration',
     level: 'D2',
     title: { vi: 'Hiệu chỉnh hiệu năng vs Design Basis', en: 'Performance Calibration vs Design Basis' },

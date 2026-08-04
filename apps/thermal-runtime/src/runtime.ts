@@ -20,6 +20,7 @@ import {
   FuelOilModel,
   AshHandlingModel,
   BypassAirRemovalModel,
+  SootBlowerModel,
   PlantBalanceModel,
   CalibrationModel,
   boilerControlLoops,
@@ -292,6 +293,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   // Additive — bypass = 0 ở tải bình thường (0 hồi quy); mở khi trip đẩy áp SH lên.
   const bypassAir = new BypassAirRemovalModel();
   host.register(bypassAir);
+  // Thổi bụi bề mặt truyền nhiệt (v1.44): đọc than-tro tươi → chỉ số bám + chu trình thổi định kỳ (hơi ký
+  // sinh). Additive — sinh tag SB_* độc lập; SB_GAS_EXIT_TEMP_DELTA_01 chỉ ước lượng read-only (0 hồi quy).
+  const sootBlower = new SootBlowerModel();
+  host.register(sootBlower);
   // CAPSTONE cân bằng khối lượng-năng lượng (v1.26): đăng ký CUỐI CÙNG để đọc đầu ra mọi mô hình con →
   // kiểm chứng bảo toàn năng lượng (khép ~100 %) + KPI toàn nhà máy. Additive — chỉ đọc, tổng hợp.
   const plantBalance = new PlantBalanceModel();
