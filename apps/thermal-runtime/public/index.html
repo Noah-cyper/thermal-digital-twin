@@ -423,7 +423,13 @@
     const canvas = $('canvas'); canvas.innerHTML = '';
     const isMimic = def.elements.some((e) => e.symbol === 'pipe' || e.symbol === 'equipment');
     if (isMimic) buildMimic(def, canvas);
-    else { canvas.style.width = ''; canvas.style.height = ''; }
+    else {
+      // Màn tile: đặt kích thước canvas bao đủ MỌI ô (như buildMimic) để ô hàng dưới không tràn đè controls.
+      // Giữ tối thiểu 720×280 → màn tile ngắn KHÔNG đổi (0 hồi quy), chỉ màn nhiều hàng mới cao thêm + cuộn.
+      let W = 720, H = 280;
+      for (const el of def.elements) { W = Math.max(W, el.x + (el.w || 150) + 20); H = Math.max(H, el.y + (el.h || 78) + 20); }
+      canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+    }
     for (const el of def.elements){
       if (el.symbol === 'pipe' || el.symbol === 'equipment') continue;
       const root = document.createElement('div');
