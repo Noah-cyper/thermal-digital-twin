@@ -21,6 +21,11 @@ import {
   AshHandlingModel,
   BypassAirRemovalModel,
   SootBlowerModel,
+  WaterTreatmentModel,
+  EmergencyPowerModel,
+  SwitchyardModel,
+  HvacModel,
+  FireFightingModel,
   PlantBalanceModel,
   CalibrationModel,
   boilerControlLoops,
@@ -301,6 +306,20 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   // sinh). Additive — sinh tag SB_* độc lập; SB_GAS_EXIT_TEMP_DELTA_01 chỉ ước lượng read-only (0 hồi quy).
   const sootBlower = new SootBlowerModel();
   host.register(sootBlower);
+  // Xử lý nước khử khoáng DM (v1.45, batch a-3): đọc hơi (+ hơi thổi bụi) → nhu cầu bù + sản xuất DM +
+  // chất lượng nhựa/tái sinh. Additive — sinh tag WT_* độc lập; đăng ký SAU soot-blower để đọc hơi thổi tươi.
+  const waterTreatment = new WaterTreatmentModel();
+  host.register(waterTreatment);
+  // Nguồn điện khẩn cấp + trạm 500 kV + HVAC + chữa cháy (v1.45, batch a-3): đọc MW/xuất lưới/tốc độ → EDG/UPS,
+  // đường dây 500 kV, nhiệt phòng, áp vòng ống chữa cháy. Additive — sinh tag EDG_/UPS_/SY_/HVAC_/FIRE_ độc lập.
+  const emergencyPower = new EmergencyPowerModel();
+  host.register(emergencyPower);
+  const switchyard = new SwitchyardModel();
+  host.register(switchyard);
+  const hvac = new HvacModel();
+  host.register(hvac);
+  const fireFighting = new FireFightingModel();
+  host.register(fireFighting);
   // CAPSTONE cân bằng khối lượng-năng lượng (v1.26): đăng ký CUỐI CÙNG để đọc đầu ra mọi mô hình con →
   // kiểm chứng bảo toàn năng lượng (khép ~100 %) + KPI toàn nhà máy. Additive — chỉ đọc, tổng hợp.
   const plantBalance = new PlantBalanceModel();
