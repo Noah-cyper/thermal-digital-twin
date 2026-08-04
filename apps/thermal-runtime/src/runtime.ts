@@ -3,7 +3,7 @@
 // Sim→control→alarm→tag không dùng Math.random. App tổ hợp import engines/kernel/plugin; plugin
 // runtime vẫn chỉ import @idtp/sdk.
 import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian, KpiEngine, historianKpiInput, MaintenanceEngine, FaceplateEngine, NavigationEngine, generateRegistry, generateScreens, generateControlLoops, SequenceEngine, executeScenario, CauseEffectEngine, InterlockEngine, AiAdvisor, PredictiveMaintenance, RegistrySimModel, ReportEngine, EventJournal } from '@idtp/engines';
-import type { AlarmKpi, FaceplateResolvers, FaceplateOverview, FaceplateAlarmRow, FaceplateDetail, Advice, Report, JournalEntry, JournalQuery, JournalSummary, JournalCategory, JournalSeverity } from '@idtp/engines';
+import type { AlarmKpi, ShelvedAlarm, ShelveResult, FaceplateResolvers, FaceplateOverview, FaceplateAlarmRow, FaceplateDetail, Advice, Report, JournalEntry, JournalQuery, JournalSummary, JournalCategory, JournalSeverity } from '@idtp/engines';
 import { TimeService } from '@idtp/kernel';
 import {
   BoilerIslandModel,
@@ -141,6 +141,9 @@ export interface ThermalRuntime {
   activeInterlocks(): ReadonlyArray<{ id: string; target: string; message: string }>;
   setLoopMode(loopId: string, mode: LoopMode): void;
   ackAlarm(alarmId: string, user: string): AlarmEvent;
+  shelveAlarm(alarmId: string, durationMin: number, reason: string, user: string): ShelveResult;
+  unshelveAlarm(alarmId: string, user: string): ShelveResult;
+  shelvedAlarms(): ReadonlyArray<ShelvedAlarm>;
   activeAlarms(): ReadonlyArray<AlarmEvent>;
   alarmKpi(): AlarmKpi;
   freeze(on: boolean): void;
@@ -629,6 +632,17 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
       logEvent('command', 'info', `ACK alarm ${alarmId}`, user, alarmId);
       return ev;
     },
+    shelveAlarm: (alarmId, durationMin, reason, user) => {
+      const r = alarms.shelve(alarmId, user, durationMin, reason, nowMs());
+      if ('state' in r) logEvent('command', 'info', `SHELVE alarm ${alarmId} ${durationMin} phút — lý do: ${reason.trim()}`, user, alarmId);
+      return r;
+    },
+    unshelveAlarm: (alarmId, user) => {
+      const r = alarms.unshelve(alarmId, user, nowMs());
+      if ('state' in r) logEvent('command', 'info', `UNSHELVE alarm ${alarmId} (bung thủ công)`, user, alarmId);
+      return r;
+    },
+    shelvedAlarms: () => alarms.getShelved(nowMs()),
     activeAlarms: () => alarms.getActive(),
     alarmKpi: () => alarms.kpi(nowMs()),
     computeKpis: () => {

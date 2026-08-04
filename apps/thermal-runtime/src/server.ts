@@ -25,7 +25,7 @@ const DEMO_USERS: ReadonlyArray<{ user: string; roles: Role[] }> = [
   { user: 'admin', roles: ['Admin'] },
 ];
 // Ánh xạ lệnh WS → hành động RBAC (doc 05-07). load = setpoint; leak/mill-trip = override (OTS nguy hiểm).
-const CMD_ACTION: Record<string, PermissionAction> = { load: 'setpoint', ack: 'ack', leak: 'override', 'mill-trip': 'override', vacuum: 'override', mft: 'override', 'turbine-trip': 'override', malf: 'override' };
+const CMD_ACTION: Record<string, PermissionAction> = { load: 'setpoint', ack: 'ack', shelve: 'ack', unshelve: 'ack', leak: 'override', 'mill-trip': 'override', vacuum: 'override', mft: 'override', 'turbine-trip': 'override', malf: 'override' };
 const LIVE_OTS = new Set(['ots-freeze', 'ots-snapshot', 'ots-restore']); // OTS: action 'engineer'
 // 4 KPI trên banner (MW · hơi · áp · O₂) là trạng thái TOÀN CỤC — luôn stream dù đang xem màn nào.
 const BANNER_TAGS = ['GEN_MW_01', 'BLR_STEAM_FLOW_01', 'BLR_MSTM_SH_PRESS_01', 'BLR_FLUE_O2_01'];
@@ -52,6 +52,7 @@ interface Command {
   reason?: string;
   loopId?: string;
   mode?: string;
+  durationMin?: number;
   hours?: number;
   sequenceId?: string;
   matrixId?: string;
@@ -60,7 +61,7 @@ interface Command {
   tags?: ReadonlyArray<string>;
 }
 
-const LIVE_CMDS = new Set(['load', 'leak', 'mill-trip', 'vacuum', 'ack', 'set-mode', 'seq-live-start', 'ce-reset', 'mft', 'turbine-trip', 'malf']); // lệnh ra thiết bị — chặn khi replay
+const LIVE_CMDS = new Set(['load', 'leak', 'mill-trip', 'vacuum', 'ack', 'shelve', 'unshelve', 'set-mode', 'seq-live-start', 'ce-reset', 'mft', 'turbine-trip', 'malf']); // lệnh ra thiết bị — chặn khi replay
 const MODES: ReadonlySet<string> = new Set(['MAN', 'AUTO', 'CASCADE']);
 
 export interface RunningServer {
@@ -132,7 +133,7 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
     }
   };
 
-  const alarmsMsg = (): string => JSON.stringify({ type: 'alarms', active: rt.activeAlarms(), kpi: rt.alarmKpi() });
+  const alarmsMsg = (): string => JSON.stringify({ type: 'alarms', active: rt.activeAlarms(), shelved: rt.shelvedAlarms(), kpi: rt.alarmKpi() });
 
   let replay: ReplaySession | null = null;
   const wss = new WebSocketServer({ server });
@@ -165,9 +166,9 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
     }
     const action = CMD_ACTION[cmd] as PermissionAction;
     const target =
-      cmd === 'ack' ? m.alarmId ?? '' : cmd === 'load' ? 'BLR_MW_DEMAND' : cmd === 'leak' ? 'tube-leak' : cmd === 'vacuum' ? 'loss-of-vacuum' : cmd === 'mft' ? 'BLR_MFT_PB' : cmd === 'turbine-trip' ? 'TRB_TRIP_PB' : cmd === 'malf' ? m.malf ?? 'malf' : 'mill';
+      cmd === 'ack' || cmd === 'shelve' || cmd === 'unshelve' ? m.alarmId ?? '' : cmd === 'load' ? 'BLR_MW_DEMAND' : cmd === 'leak' ? 'tube-leak' : cmd === 'vacuum' ? 'loss-of-vacuum' : cmd === 'mft' ? 'BLR_MFT_PB' : cmd === 'turbine-trip' ? 'TRB_TRIP_PB' : cmd === 'malf' ? m.malf ?? 'malf' : 'mill';
     const oldVal = cmd === 'load' ? rt.value('BLR_MW_DEMAND') : undefined;
-    const newVal = cmd === 'load' ? m.value : cmd === 'leak' || cmd === 'vacuum' || cmd === 'malf' ? m.value : cmd === 'ack' ? m.alarmId : 'trip';
+    const newVal = cmd === 'load' ? m.value : cmd === 'leak' || cmd === 'vacuum' || cmd === 'malf' ? m.value : cmd === 'ack' || cmd === 'shelve' || cmd === 'unshelve' ? m.alarmId : 'trip';
 
     let confirmToken: string | undefined;
     if (sec.requiresTwoStep(action)) {
@@ -198,6 +199,21 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
       if (typeof m.value === 'number' && m.value > 6) rt.injectMalfunction({ id: 'loss-of-vacuum', params: { kpa: m.value } });
       else rt.clearMalfunction('loss-of-vacuum');
     } else if (cmd === 'ack' && m.alarmId !== undefined) rt.ackAlarm(m.alarmId, sec.resolve(access)?.userId ?? 'operator');
+    else if (cmd === 'shelve' && m.alarmId !== undefined) {
+      const r = rt.shelveAlarm(m.alarmId, m.durationMin ?? 60, m.reason ?? '', sec.resolve(access)?.userId ?? 'operator');
+      if ('blockedReason' in r) {
+        ws.send(JSON.stringify({ type: 'denied', reason: r.blockedReason }));
+        return;
+      }
+      broadcast(alarmsMsg());
+    } else if (cmd === 'unshelve' && m.alarmId !== undefined) {
+      const r = rt.unshelveAlarm(m.alarmId, sec.resolve(access)?.userId ?? 'operator');
+      if ('blockedReason' in r) {
+        ws.send(JSON.stringify({ type: 'denied', reason: r.blockedReason }));
+        return;
+      }
+      broadcast(alarmsMsg());
+    }
   };
 
   const maintMsg = (): string =>
@@ -489,7 +505,9 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
   // Broadcast alarm khi tập alarm hoạt động đổi (report-by-exception).
   let lastAlarmSig = '';
   const broadcastAlarms = (): void => {
-    const sig = rt.activeAlarms().map((a) => `${a.alarmId}:${a.state}`).join('|');
+    const sig =
+      rt.activeAlarms().map((a) => `${a.alarmId}:${a.state}`).join('|') +
+      '#' + rt.shelvedAlarms().map((s) => s.alarmId).join('|');
     if (sig === lastAlarmSig) return;
     lastAlarmSig = sig;
     broadcast(alarmsMsg());

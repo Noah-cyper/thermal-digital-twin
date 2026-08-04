@@ -232,7 +232,33 @@
     </div>
     <div class="alist" id="alist"><div class="arow"><span class="cs">Không có alarm đang hoạt động</span></div></div>
     <button class="ackbtn" id="adviseBtn" disabled title="AI Advisor (rule-based, chỉ đọc) — giải thích alarm mới nhất">💡 Giải thích</button>
+    <button class="ackbtn" id="shelfBtn" title="Alarm đang shelve (ISA-18.2) — tạm ẩn có lý do + hẹn giờ tự bung">🔕 Shelve <b id="shelfN">0</b></button>
     <button class="ackbtn" id="ackBtn" disabled>ACK alarm mới nhất</button>
+  </div>
+  <!-- Shelve modal (ISA-18.2): shelve một alarm nhiễu có LÝ DO + thời hạn tự bung ≤ 8 h -->
+  <div class="fpmask" id="shelfMask">
+    <div class="fp" style="width:400px">
+      <div class="hd"><b>🔕 Shelve alarm — <span id="shelfTarget">—</span></b><button id="shelfCancel">✕</button></div>
+      <div style="padding:14px;display:flex;flex-direction:column;gap:10px;font-size:12px">
+        <label>Lý do (bắt buộc, ISA-18.2)
+          <input id="shelfReason" type="text" placeholder="vd: nhiễu do bảo trì van A" style="width:100%;margin-top:4px;font-family:var(--mono);font-size:12px;background:var(--bg-canvas);color:var(--text);border:1px solid var(--border);border-radius:2px;padding:6px" /></label>
+        <label>Thời hạn tự bung
+          <select id="shelfDur" style="width:100%;margin-top:4px;font-family:var(--mono);font-size:12px;background:var(--bg-canvas);color:var(--text);border:1px solid var(--border);border-radius:2px;padding:6px">
+            <option value="30">30 phút</option>
+            <option value="60" selected>1 giờ</option>
+            <option value="240">4 giờ</option>
+            <option value="480">8 giờ (tối đa)</option>
+          </select></label>
+        <button class="ackbtn" id="shelfConfirm" style="margin-top:4px">Shelve</button>
+      </div>
+    </div>
+  </div>
+  <!-- Shelved list modal: danh sách alarm đang shelve + bung thủ công (unshelve) -->
+  <div class="fpmask" id="shelvedMask">
+    <div class="fp" style="width:520px">
+      <div class="hd"><b>🔕 Alarm đang shelve (ISA-18.2)</b><button id="shelvedClose">✕</button></div>
+      <div id="shelvedBody" style="padding:12px;font-size:12px;max-height:60vh;overflow:auto"></div>
+    </div>
   </div>
   <div id="resimPanel" hidden style="position:fixed;left:50%;top:11%;transform:translateX(-50%);z-index:60;width:min(520px,92vw);
     background:var(--panel,#141a20);border:1px solid #d98c2a;border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,.5);overflow:hidden">
@@ -705,7 +731,7 @@
     ws.onclose = () => { $('linkDot').className = 'dot off'; $('linkTxt').textContent = 'reconnecting…'; setTimeout(connect, 1000); };
     ws.onmessage = (e) => { try { const m = JSON.parse(e.data);
       if (m.type === 'delta'){ Object.assign(state, m.values); refresh(); if (m.mode === 'REPLAY' && m.replay) updateReplay(m.replay); }
-      else if (m.type === 'alarms'){ renderAlarms(m.active || []); }
+      else if (m.type === 'alarms'){ renderAlarms(m.active || [], m.shelved || []); }
       else if (m.type === 'mode'){ setMode(m.mode); }
       else if (m.type === 'blocked'){ const r = (m.reasons && m.reasons.join('; ')) || m.reason || 'bị chặn'; flashBlocked(r); showToast('⛔ ' + (m.target ? '[' + m.target + '] ' : '') + r, false); }
       else if (m.type === 'auth'){ onAuth(m); }
@@ -961,7 +987,9 @@
 
   const PRIO = { P1:'alarm-1', P2:'alarm-2', P3:'alarm-3', P4:'alarm-4' };
   const isUnack = (s) => s === 'UnackAlarm' || s === 'RtnUnack';
-  function renderAlarms(active){
+  let lastShelved = [];
+  function renderAlarms(active, shelved){
+    if (shelved !== undefined) lastShelved = shelved;
     const c = { P1:0, P2:0, P3:0, P4:0 };
     for (const a of active) c[a.priority] = (c[a.priority] || 0) + 1;
     $('cP1').textContent = c.P1; $('cP2').textContent = c.P2; $('cP3').textContent = c.P3; $('cP4').textContent = c.P4;
@@ -973,8 +1001,10 @@
       '<div class="arow ' + (isUnack(a.state) ? 'unack' : '') + '" data-alarm="' + a.alarmId + '" title="Nhảy tới màn hình chứa tag">'
       + '<i class="pip" style="background:var(--' + PRIO[a.priority] + ')"></i>'
       + '<span class="id">' + a.alarmId + '</span><span class="cs">' + a.priority + '</span>'
-      + '<span class="st">' + a.state + (typeof a.value === 'number' ? ' · ' + a.value.toFixed(1) : '') + '</span></div>').join('');
-    list.querySelectorAll('.arow[data-alarm]').forEach(r => { r.onclick = () => { const s = navAlarmIdx[r.dataset.alarm]; if (s) openScreen(s); }; });
+      + '<span class="st">' + a.state + (typeof a.value === 'number' ? ' · ' + a.value.toFixed(1) : '') + '</span>'
+      + '<button class="ackbtn shelfrow" data-shelf="' + a.alarmId + '" title="Shelve alarm này (ISA-18.2)">🔕</button></div>').join('');
+    list.querySelectorAll('.arow[data-alarm]').forEach(r => { r.onclick = (e) => { if (e.target.closest('.shelfrow')) return; const s = navAlarmIdx[r.dataset.alarm]; if (s) openScreen(s); }; });
+    list.querySelectorAll('button[data-shelf]').forEach(b => { b.onclick = (e) => { e.stopPropagation(); openShelveModal(b.dataset.shelf); }; });
     const latest = unacked[unacked.length - 1];
     const btn = $('ackBtn');
     btn.disabled = !latest;
@@ -983,9 +1013,34 @@
     const first = active[0];
     adv.disabled = !first;
     adv.dataset.id = first ? first.alarmId : '';
+    $('shelfN').textContent = lastShelved.length;
+    $('shelfBtn').classList.toggle('warn', lastShelved.length > 0);
+    if ($('shelvedMask').style.display === 'flex') renderShelvedBody();
   }
   $('ackBtn').onclick = () => { const id = $('ackBtn').dataset.id; if (id && ws && ws.readyState === 1) ws.send(JSON.stringify({ cmd: 'ack', alarmId: id })); };
   $('adviseBtn').onclick = () => { const id = $('adviseBtn').dataset.id; if (id && ws && ws.readyState === 1) ws.send(JSON.stringify({ cmd: 'advise', alarmId: id })); };
+
+  // Shelve (ISA-18.2): mở modal chọn lý do + thời hạn cho một alarm.
+  function openShelveModal(alarmId){ $('shelfTarget').textContent = alarmId; $('shelfMask').dataset.id = alarmId; $('shelfReason').value = ''; $('shelfDur').value = '60'; $('shelfMask').style.display = 'flex'; $('shelfReason').focus(); }
+  $('shelfCancel').onclick = () => { $('shelfMask').style.display = 'none'; };
+  $('shelfConfirm').onclick = () => {
+    const id = $('shelfMask').dataset.id; const reason = $('shelfReason').value.trim(); const durationMin = Number($('shelfDur').value);
+    if (!reason){ $('shelfReason').style.borderColor = 'var(--alarm-1)'; return; }
+    send({ cmd: 'shelve', alarmId: id, durationMin, reason });
+    $('shelfMask').style.display = 'none';
+  };
+  // Danh sách alarm đang shelve + bung thủ công (unshelve).
+  function renderShelvedBody(){
+    const b = $('shelvedBody');
+    if (!lastShelved.length){ b.innerHTML = '<div class="cs">Không có alarm đang shelve.</div>'; return; }
+    b.innerHTML = lastShelved.map(s =>
+      '<div class="row" style="display:flex;justify-content:space-between;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding:6px 0">'
+      + '<span><b>' + s.alarmId + '</b> <span class="cs">(' + s.priority + ')</span><br><span class="cs">lý do: ' + s.reason + ' · bởi ' + s.user + ' · còn ' + s.remainingMin + ' phút</span></span>'
+      + '<button class="ackbtn" data-unshelf="' + s.alarmId + '">Bung</button></div>').join('');
+    b.querySelectorAll('button[data-unshelf]').forEach(x => { x.onclick = () => send({ cmd: 'unshelve', alarmId: x.dataset.unshelf }); });
+  }
+  $('shelfBtn').onclick = () => { renderShelvedBody(); $('shelvedMask').style.display = 'flex'; };
+  $('shelvedClose').onclick = () => { $('shelvedMask').style.display = 'none'; };
 
   document.querySelectorAll('.controls button[data-load]').forEach(b =>
     b.onclick = () => ws && ws.readyState === 1 && ws.send(JSON.stringify({ cmd: 'load', value: Number(b.dataset.load) })));
