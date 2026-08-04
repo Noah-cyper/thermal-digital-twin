@@ -23,6 +23,7 @@ export { EmergencyPowerModel } from './sim/emergency-power';
 export { SwitchyardModel } from './sim/switchyard';
 export { HvacModel } from './sim/hvac';
 export { FireFightingModel } from './sim/fire-fighting';
+export { ChemicalDosingModel } from './sim/chemical-dosing';
 export { DrumModel } from './sim/drum';
 export { boilerControlLoops, boilerLoopSeeds } from './control/loops';
 export { boilerScreens, screenTags } from './graphics/screens';
