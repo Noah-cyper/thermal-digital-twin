@@ -22,12 +22,26 @@ export interface AlarmKpi {
 
 export type ShelveResult = AlarmEvent | { blockedReason: string };
 
+/** Một alarm đang shelve (ISA-18.2) — kèm lý do, người shelve, thời điểm & hạn tự bung. */
+export interface ShelvedAlarm {
+  alarmId: string;
+  priority: Priority;
+  reason: string;
+  user: string;
+  shelvedAt: Iso8601;
+  until: Iso8601;
+  remainingMin: number;
+}
+
 interface St {
   state: AlarmStateName;
   condActive: boolean;
   rawState: boolean;
   rawSince: number;
   shelfUntil?: number;
+  shelveReason?: string;
+  shelvedBy?: string;
+  shelvedAtMs?: number;
   count: number;
   lastValue?: number;
   lastChangeMs: number;
@@ -93,8 +107,13 @@ export class AlarmEngine {
 
       if (s.state === 'OutOfService') continue;
       if (s.state === 'Shelved') {
-        if (s.shelfUntil !== undefined && nowMs >= s.shelfUntil) this.transition(id, 'Normal', nowMs, v);
-        else continue;
+        if (s.shelfUntil !== undefined && nowMs >= s.shelfUntil) {
+          s.shelfUntil = undefined;
+          s.shelveReason = undefined;
+          s.shelvedBy = undefined;
+          s.shelvedAtMs = undefined;
+          this.transition(id, 'Normal', nowMs, v);
+        } else continue;
       }
       if (def.suppressWhen !== undefined && this.suppress(def.suppressWhen)) {
         if (s.state !== 'Suppressed') this.transition(id, 'Suppressed', nowMs, v);
@@ -124,13 +143,50 @@ export class AlarmEngine {
     return { alarmId, state: s.state, priority: def.priority, ts: this.deps.formatTs(nowMs), value: s.lastValue, user };
   }
 
-  shelve(alarmId: string, user: string, durationMin: number, _reason: string, nowMs: number): ShelveResult {
+  shelve(alarmId: string, user: string, durationMin: number, reason: string, nowMs: number): ShelveResult {
     const s = this.st.get(alarmId);
     if (!s) return { blockedReason: `alarm không tồn tại: ${alarmId}` };
     if (durationMin <= 0) return { blockedReason: 'thời hạn shelve phải > 0' };
     if (durationMin > MAX_SHELVE_MIN) return { blockedReason: `shelve tối đa ${MAX_SHELVE_MIN} phút (8 h)` };
+    const trimmed = reason.trim();
+    if (trimmed.length === 0) return { blockedReason: 'shelve phải có lý do (ISA-18.2)' };
     s.shelfUntil = nowMs + durationMin * 60_000;
+    s.shelveReason = trimmed;
+    s.shelvedBy = user;
+    s.shelvedAtMs = nowMs;
     return this.transition(alarmId, 'Shelved', nowMs, s.lastValue, false, user);
+  }
+
+  /** Bung shelve THỦ CÔNG trước hạn (đưa về Normal → lần evaluate kế sẽ tái kích nếu điều kiện còn). */
+  unshelve(alarmId: string, user: string, nowMs: number): ShelveResult {
+    const s = this.st.get(alarmId);
+    if (!s) return { blockedReason: `alarm không tồn tại: ${alarmId}` };
+    if (s.state !== 'Shelved') return { blockedReason: `alarm không ở trạng thái Shelved: ${alarmId}` };
+    s.shelfUntil = undefined;
+    s.shelveReason = undefined;
+    s.shelvedBy = undefined;
+    s.shelvedAtMs = undefined;
+    return this.transition(alarmId, 'Normal', nowMs, s.lastValue, false, user);
+  }
+
+  /** Danh sách alarm đang shelve (ISA-18.2) — kèm lý do, người shelve, thời gian còn lại. */
+  getShelved(nowMs: number): ReadonlyArray<ShelvedAlarm> {
+    const out: ShelvedAlarm[] = [];
+    for (const [id, s] of this.st) {
+      if (s.state !== 'Shelved' || s.shelfUntil === undefined) continue;
+      const def = this.defs.get(id);
+      if (!def) continue;
+      out.push({
+        alarmId: id,
+        priority: def.priority,
+        reason: s.shelveReason ?? '',
+        user: s.shelvedBy ?? '',
+        shelvedAt: this.deps.formatTs(s.shelvedAtMs ?? nowMs),
+        until: this.deps.formatTs(s.shelfUntil),
+        remainingMin: Math.max(0, Math.ceil((s.shelfUntil - nowMs) / 60_000)),
+      });
+    }
+    return out;
   }
 
   outOfService(alarmId: string, user: string, on: boolean, nowMs: number): AlarmEvent {

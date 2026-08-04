@@ -3,7 +3,7 @@
 // Sim→control→alarm→tag không dùng Math.random. App tổ hợp import engines/kernel/plugin; plugin
 // runtime vẫn chỉ import @idtp/sdk.
 import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian, KpiEngine, historianKpiInput, MaintenanceEngine, FaceplateEngine, NavigationEngine, generateRegistry, generateScreens, generateControlLoops, SequenceEngine, executeScenario, CauseEffectEngine, InterlockEngine, AiAdvisor, PredictiveMaintenance, RegistrySimModel, ReportEngine, EventJournal } from '@idtp/engines';
-import type { AlarmKpi, FaceplateResolvers, FaceplateOverview, FaceplateAlarmRow, FaceplateDetail, Advice, Report, JournalEntry, JournalQuery, JournalSummary, JournalCategory, JournalSeverity } from '@idtp/engines';
+import type { AlarmKpi, ShelvedAlarm, ShelveResult, FaceplateResolvers, FaceplateOverview, FaceplateAlarmRow, FaceplateDetail, Advice, Report, JournalEntry, JournalQuery, JournalSummary, JournalCategory, JournalSeverity } from '@idtp/engines';
 import { TimeService } from '@idtp/kernel';
 import {
   BoilerIslandModel,
@@ -20,6 +20,7 @@ import {
   FuelOilModel,
   AshHandlingModel,
   BypassAirRemovalModel,
+  SootBlowerModel,
   PlantBalanceModel,
   CalibrationModel,
   boilerControlLoops,
@@ -140,6 +141,9 @@ export interface ThermalRuntime {
   activeInterlocks(): ReadonlyArray<{ id: string; target: string; message: string }>;
   setLoopMode(loopId: string, mode: LoopMode): void;
   ackAlarm(alarmId: string, user: string): AlarmEvent;
+  shelveAlarm(alarmId: string, durationMin: number, reason: string, user: string): ShelveResult;
+  unshelveAlarm(alarmId: string, user: string): ShelveResult;
+  shelvedAlarms(): ReadonlyArray<ShelvedAlarm>;
   activeAlarms(): ReadonlyArray<AlarmEvent>;
   alarmKpi(): AlarmKpi;
   freeze(on: boolean): void;
@@ -235,6 +239,7 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   put('COND_CCW_CW_VALVE_01', boilerLoopSeeds['closed-cooling-water-temp'] ?? 0); // van CW bộ trao đổi CCW (bumpless)
   put('COND_SJAE_VALVE_01', boilerLoopSeeds['sjae-air-removal'] ?? 0); // van hút khí SJAE (bumpless)
   put('BLR_HP_BYPASS_VALVE_01', boilerLoopSeeds['hp-bypass-pressure'] ?? 0); // van HP bypass (đóng ở tải)
+  put('TRB_LP_BYPASS_VALVE_01', boilerLoopSeeds['lp-bypass-pressure'] ?? 0); // van LP bypass (đóng ở tải)
 
   const host = new SimulationHost(DT_MS, {
     now: () => nowIso(),
@@ -292,6 +297,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   // Additive — bypass = 0 ở tải bình thường (0 hồi quy); mở khi trip đẩy áp SH lên.
   const bypassAir = new BypassAirRemovalModel();
   host.register(bypassAir);
+  // Thổi bụi bề mặt truyền nhiệt (v1.44): đọc than-tro tươi → chỉ số bám + chu trình thổi định kỳ (hơi ký
+  // sinh). Additive — sinh tag SB_* độc lập; SB_GAS_EXIT_TEMP_DELTA_01 chỉ ước lượng read-only (0 hồi quy).
+  const sootBlower = new SootBlowerModel();
+  host.register(sootBlower);
   // CAPSTONE cân bằng khối lượng-năng lượng (v1.26): đăng ký CUỐI CÙNG để đọc đầu ra mọi mô hình con →
   // kiểm chứng bảo toàn năng lượng (khép ~100 %) + KPI toàn nhà máy. Additive — chỉ đọc, tổng hợp.
   const plantBalance = new PlantBalanceModel();
@@ -624,6 +633,17 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
       logEvent('command', 'info', `ACK alarm ${alarmId}`, user, alarmId);
       return ev;
     },
+    shelveAlarm: (alarmId, durationMin, reason, user) => {
+      const r = alarms.shelve(alarmId, user, durationMin, reason, nowMs());
+      if ('state' in r) logEvent('command', 'info', `SHELVE alarm ${alarmId} ${durationMin} phút — lý do: ${reason.trim()}`, user, alarmId);
+      return r;
+    },
+    unshelveAlarm: (alarmId, user) => {
+      const r = alarms.unshelve(alarmId, user, nowMs());
+      if ('state' in r) logEvent('command', 'info', `UNSHELVE alarm ${alarmId} (bung thủ công)`, user, alarmId);
+      return r;
+    },
+    shelvedAlarms: () => alarms.getShelved(nowMs()),
     activeAlarms: () => alarms.getActive(),
     alarmKpi: () => alarms.kpi(nowMs()),
     computeKpis: () => {

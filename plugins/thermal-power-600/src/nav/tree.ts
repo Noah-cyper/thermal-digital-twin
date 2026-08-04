@@ -13,6 +13,7 @@ export const thermalNav: ReadonlyArray<NavNode> = [
   { screenId: 'D3-compressed-air', level: 'D3', parentId: 'D1-plant-overview', hotkey: 7, title: { vi: 'Khí nén & khí điều khiển', en: 'Compressed & Instrument Air' } },
   { screenId: 'D3-fuel-oil', level: 'D3', parentId: 'D1-plant-overview', hotkey: 8, title: { vi: 'Dầu đốt khởi động', en: 'Startup Fuel Oil' } },
   { screenId: 'D3-ash-handling', level: 'D3', parentId: 'D1-plant-overview', hotkey: 9, title: { vi: 'Thải tro (đáy + bay)', en: 'Ash Handling' } },
+  { screenId: 'D3-soot-blower', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Thổi bụi bề mặt truyền nhiệt', en: 'Soot Blowing' } },
   // Hiệu chỉnh hiệu năng (v1.42): lượng hoá độ lệch KPI vs Design Basis.
   { screenId: 'D2-calibration', level: 'D2', parentId: 'D1-plant-overview', title: { vi: 'Hiệu chỉnh hiệu năng', en: 'Performance Calibration' } },
 ];

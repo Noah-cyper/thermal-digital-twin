@@ -299,6 +299,9 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       // HP turbine bypass (loop): xả hơi SH → cold reheat khi áp vượt ngưỡng (đóng ở tải, mở khi trip).
       equip('tb-hpbp', 'box', 'HP bypass xả', 'BLR_HP_BYPASS_FLOW_01', 't/h', '', 14, 442, 160, 54),
       equip('tb-hpbpo', 'box', 'Van HP bypass', 'BLR_HP_BYPASS_OPEN_01', '%', '', 184, 442, 140, 54),
+      // LP turbine bypass (loop): xả hot reheat → bình ngưng khi áp reheat vượt ngưỡng (đóng ở tải, mở khi trip).
+      equip('tb-lpbp', 'box', 'LP bypass xả', 'TRB_LP_BYPASS_FLOW_01', 't/h', '', 334, 442, 160, 54),
+      equip('tb-lpbpo', 'box', 'Van LP bypass', 'TRB_LP_BYPASS_OPEN_01', '%', '', 504, 442, 140, 54),
     ],
   },
   {
@@ -745,6 +748,28 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
     ],
   },
   {
+    screenId: 'D3-soot-blower',
+    level: 'D3',
+    title: { vi: 'Thổi bụi bề mặt truyền nhiệt — trạng thái chu trình', en: 'Heat-transfer Soot Blowing Layout' },
+    elements: [
+      // Cột trái: header hơi thổi → lưu lượng hơi thổi → trạng thái chu trình.
+      equip('sb-header', 'box', 'Header hơi thổi', 'SB_STEAM_HEADER_PRESS_01', 'barg', '', 20, 40, 160, 60, [{ when: 'lt', value: 20, sev: 2 }]),
+      equip('sb-steam', 'box', 'Lưu lượng hơi thổi', 'SB_STEAM_FLOW_01', 't/h', '', 20, 130, 160, 60),
+      equip('sb-cycle', 'box', 'Chu trình thổi (0/1)', 'SB_CYCLE_ACTIVE_01', '', '', 20, 220, 160, 54),
+      // Cột giữa: chỉ số bám (mức) + độ sạch hiệu dụng.
+      pipe('sb-p1', 'steam', [{ x: 180, y: 70 }, { x: 240, y: 70 }, { x: 240, y: 95 }]),
+      equip('sb-foul', 'drum', 'Chỉ số bám', 'SB_FOULING_INDEX_01', '%', '', 240, 40, 170, 110, [{ when: 'gt', value: 50, sev: 2 }]),
+      equip('sb-clean', 'box', 'Độ sạch hiệu dụng', 'SB_CLEANLINESS_01', '%', '', 240, 180, 170, 60, [{ when: 'lt', value: 55, sev: 2 }]),
+      // Cột phải: vùng đang thổi → máy thổi đã stroke → thời gian từ chu trình.
+      pipe('sb-p2', 'steam', [{ x: 410, y: 95 }, { x: 450, y: 95 }, { x: 450, y: 70 }]),
+      equip('sb-zone', 'box', 'Vùng đang thổi (0–4)', 'SB_ZONE_ACTIVE_01', '', '', 450, 40, 200, 60),
+      equip('sb-stroked', 'box', 'Máy thổi đã stroke', 'SB_BLOWERS_STROKED_01', '', '', 450, 130, 200, 60),
+      equip('sb-since', 'box', 'Từ chu trình gần nhất', 'SB_TIME_SINCE_CYCLE_01', 'phút', '', 450, 220, 200, 54),
+      // Ước lượng ảnh hưởng tới đường khói (read-only) → drill sang màn buồng lửa/đốt.
+      equip('sb-gasdt', 'box', 'ΔT khói ra (ước lượng)', 'SB_GAS_EXIT_TEMP_DELTA_01', '°C', 'D3-boiler-combustion', 680, 40, 200, 60, [{ when: 'gt', value: 40, sev: 2 }]),
+    ],
+  },
+  {
     screenId: 'D2-calibration',
     level: 'D2',
     title: { vi: 'Hiệu chỉnh hiệu năng vs Design Basis', en: 'Performance Calibration vs Design Basis' },
@@ -761,6 +786,20 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       valueTile('cal-cw-dev', 'PLANT_CAL_CW_DEV_01', 'Độ lệch CW (nhiệt đới)', '°C', 2, 2, [{ when: 'gt', value: 5, sev: 2 }]),
       valueTile('cal-clo-sim', 'PLANT_ENERGY_CLOSURE_01', 'Khép cân bằng NL', '%', 0, 3),
       valueTile('cal-clo-dev', 'PLANT_CAL_CLOSURE_DEV_01', 'Độ lệch khép (≈0 tốt)', 'điểm%', 2, 3),
+      // Điều kiện hơi/chân không ĐƯỢC ĐIỀU KHIỂN — độ lệch ~0 chứng minh sim ở đúng điểm thiết kế
+      // → gap heat-rate/η KHÔNG do sai điều kiện hơi (khu biệt nguyên nhân, M-06).
+      valueTile('cal-mst-sim', 'BLR_MSTM_SH_TEMP_01', 'Nhiệt hơi chính (sim)', '°C', 0, 4),
+      valueTile('cal-mst-tgt', 'PLANT_CAL_MST_TGT_01', 'Mốc Design Basis', '°C', 1, 4),
+      valueTile('cal-mst-dev', 'PLANT_CAL_MST_DEV_01', 'Độ lệch nhiệt hơi chính', '°C', 2, 4, [{ when: 'gt', value: 5, sev: 2 }]),
+      valueTile('cal-hrh-sim', 'TRB_HRH_TEMP_01', 'Nhiệt hot reheat (sim)', '°C', 0, 5),
+      valueTile('cal-hrh-tgt', 'PLANT_CAL_HRH_TGT_01', 'Mốc Design Basis', '°C', 1, 5),
+      valueTile('cal-hrh-dev', 'PLANT_CAL_HRH_DEV_01', 'Độ lệch nhiệt hot reheat', '°C', 2, 5, [{ when: 'gt', value: 5, sev: 2 }]),
+      valueTile('cal-msp-sim', 'BLR_MSTM_SH_PRESS_01', 'Áp hơi chính (sim)', 'MPa', 0, 6),
+      valueTile('cal-msp-tgt', 'PLANT_CAL_MSP_TGT_01', 'Mốc Design Basis', 'MPa', 1, 6),
+      valueTile('cal-msp-dev', 'PLANT_CAL_MSP_DEV_01', 'Độ lệch áp hơi chính', 'MPa', 2, 6, [{ when: 'gt', value: 0.5, sev: 2 }]),
+      valueTile('cal-vac-sim', 'TRB_COND_VACUUM_01', 'Chân không bình ngưng (sim)', 'kPa', 0, 7),
+      valueTile('cal-vac-tgt', 'PLANT_CAL_VAC_TGT_01', 'Mốc Design Basis', 'kPa', 1, 7),
+      valueTile('cal-vac-dev', 'PLANT_CAL_VAC_DEV_01', 'Độ lệch chân không', 'kPa', 2, 7, [{ when: 'gt', value: 1, sev: 2 }]),
     ],
   },
 ];

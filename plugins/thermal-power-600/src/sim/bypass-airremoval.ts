@@ -5,13 +5,17 @@
 //  (2) HP TURBINE BYPASS: xả hơi SH → cold reheat khi áp SH VƯỢT ngưỡng cao (18,5 MPa, TRÊN điểm vận hành
 //      17,5) — thiết bị KHỞI ĐỘNG/TRIP: đóng ở tải bình thường (van 0), MỞ khi trip turbine đẩy áp lên.
 //      Vòng 'hp-bypass-pressure' (reverse). Suất xả = van × cap → BLR_HP_BYPASS_FLOW_01.
-// ADDITIVE — đọc áp SH + van (do ControlLoopEngine ghi), sinh tag O₂/bypass ĐỘC LẬP. Tất định. Không ghi
-// đè tag boiler/turbine (van bypass KHÔNG trừ hơi turbine ở điểm vận hành vì = 0 → 0 hồi quy). GĐ-94.
+//  (3) LP TURBINE BYPASS (v1.44): xả hot reheat → BÌNH NGƯNG khi áp reheat VƯỢT ngưỡng (4,0 MPa, TRÊN điểm
+//      vận hành HRH 3,8) — KHỞI ĐỘNG/TRIP: đóng ở tải (van 0), MỞ khi trip đẩy áp reheat lên. Vòng
+//      'lp-bypass-pressure' (reverse). Suất xả = van × cap → TRB_LP_BYPASS_FLOW_01.
+// ADDITIVE — đọc áp SH/reheat + van (do ControlLoopEngine ghi), sinh tag O₂/bypass ĐỘC LẬP. Tất định. Không
+// ghi đè tag boiler/turbine (van bypass KHÔNG trừ hơi turbine ở điểm vận hành vì = 0 → 0 hồi quy). GĐ-94/97.
 import type { ISimModel, ISimModelContext, ISimSnapshot, ISimStepResult, IMalfunction, TagId } from '@idtp/sdk';
 
 const O2_BASE_PPB = 25; // O₂ hoà tan condensate khi KHÔNG hút khí (khí lọt vào)
 const K_SJAE_PPB = 25; // giảm O₂ toàn hành trình van SJAE (hút khí)
 const HP_BYPASS_CAP_TPH = 800; // suất xả HP bypass toàn hành trình (van 100% → cold reheat)
+const LP_BYPASS_CAP_TPH = 1200; // suất xả LP bypass toàn hành trình (van 100% → bình ngưng, hot reheat)
 
 function clamp(x: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, x));
@@ -24,6 +28,8 @@ export class BypassAirRemovalModel implements ISimModel {
     'COND_AIR_INLEAK_01', // %/nền — chỉ số khí lọt (tham chiếu, nền không đổi)
     'BLR_HP_BYPASS_FLOW_01', // t/h — lưu lượng xả HP bypass (0 ở tải, > 0 khi trip đẩy áp SH lên)
     'BLR_HP_BYPASS_OPEN_01', // % — độ mở van HP bypass (echo để mimic hiển thị)
+    'TRB_LP_BYPASS_FLOW_01', // t/h — lưu lượng xả LP bypass (hot reheat → bình ngưng; 0 ở tải, > 0 khi trip đẩy áp reheat lên)
+    'TRB_LP_BYPASS_OPEN_01', // % — độ mở van LP bypass (echo để mimic hiển thị)
   ];
 
   init(_ctx?: ISimModelContext, _config?: unknown): void {
@@ -40,12 +46,19 @@ export class BypassAirRemovalModel implements ISimModel {
     const bypassValve = clamp(ctx.getTag('BLR_HP_BYPASS_VALVE_01'), 0, 100);
     const bypassFlow = (bypassValve / 100) * HP_BYPASS_CAP_TPH;
 
+    // (3) LP bypass: van (do vòng lp-bypass-pressure ghi) → lưu lượng xả hot reheat → bình ngưng. Ở tải bình
+    // thường van = 0 (áp HRH 3,8 < ngưỡng 4,0) → xả 0. Khi trip đẩy áp reheat > 4,0 → van mở → xả hơi tái nhiệt.
+    const lpValve = clamp(ctx.getTag('TRB_LP_BYPASS_VALVE_01'), 0, 100);
+    const lpFlow = (lpValve / 100) * LP_BYPASS_CAP_TPH;
+
     return {
       outputs: [
         { tagId: 'COND_O2_01', value: o2, quality: 'Good' },
         { tagId: 'COND_AIR_INLEAK_01', value: O2_BASE_PPB, quality: 'Good' },
         { tagId: 'BLR_HP_BYPASS_FLOW_01', value: bypassFlow, quality: 'Good' },
         { tagId: 'BLR_HP_BYPASS_OPEN_01', value: bypassValve, quality: 'Good' },
+        { tagId: 'TRB_LP_BYPASS_FLOW_01', value: lpFlow, quality: 'Good' },
+        { tagId: 'TRB_LP_BYPASS_OPEN_01', value: lpValve, quality: 'Good' },
       ],
     };
   }

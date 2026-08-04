@@ -10,6 +10,11 @@
 // nhiệt CW CAO hơn (bầu ướt nhiệt đới 27 °C ⇒ CW ~31 °C). Đây là ĐỘ LỆCH THẬT cần hiệu chỉnh bằng số vận
 // hành thật (đổi hằng số coal→steam→MW = rủi ro hồi quy cao → HOÃN tới khi có dữ liệu). Model này PHƠI BÀY
 // độ lệch, KHÔNG che giấu.
+//
+// MỞ RỘNG (v1.44, batch c-2): đo thêm độ lệch các ĐIỀU KIỆN HƠI/CHÂN KHÔNG ĐƯỢC ĐIỀU KHIỂN (nhiệt hơi chính ·
+// nhiệt hot reheat · áp hơi chính · chân không bình ngưng) vs mốc Design Basis. Độ lệch ~0 CHỨNG MINH sim giữ
+// đúng mọi điểm hơi thiết kế → KHU BIỆT: gap heat-rate/η KHÔNG do sai điều kiện hơi mà do hằng số coal→steam→MW
+// (đúng chẩn đoán M-06). Vẫn ADDITIVE tuyệt đối — chỉ ĐO, KHÔNG đổi vật lý, KHÔNG bịa số (mốc từ Phụ lục A).
 import type { ISimModel, ISimModelContext, ISimSnapshot, ISimStepResult, IMalfunction, TagId } from '@idtp/sdk';
 
 /* ── Mốc Design Basis (Phụ lục A) ── */
@@ -17,6 +22,12 @@ const HR_TARGET = 9200; // kJ/kWh net
 const EFF_TARGET = 39; // % net
 const CW_TARGET_C = 19; // °C — CW cấp thiết kế (ôn hoà) ⇒ chân không 5,4 kPa
 const CLOSURE_TARGET = 100; // % — khép cân bằng năng lượng
+// Mốc điều kiện hơi/chân không thiết kế (Phụ lục A §Turbine/Steam) — các biến ĐƯỢC ĐIỀU KHIỂN. Đo độ lệch
+// để CHỨNG MINH sim giữ đúng điểm thiết kế → khu biệt gap heat-rate/η KHÔNG do sai điều kiện hơi (M-06).
+const MST_TARGET_C = 541; // °C — nhiệt hơi chính SH out
+const HRH_TARGET_C = 541; // °C — nhiệt hot reheat
+const MSP_TARGET_MPA = 17.5; // MPa — áp hơi chính SH out
+const VAC_TARGET_KPA = 5.4; // kPa(a) — chân không bình ngưng thiết kế
 
 export class CalibrationModel implements ISimModel {
   readonly id = 'thermal-calibration';
@@ -28,6 +39,15 @@ export class CalibrationModel implements ISimModel {
     'PLANT_CAL_CW_TGT_01', // °C — mốc nhiệt CW cấp thiết kế
     'PLANT_CAL_CW_DEV_01', // °C — độ lệch nhiệt CW (sim − mốc), dương = nóng hơn (đẩy back-pressure)
     'PLANT_CAL_CLOSURE_DEV_01', // điểm % — độ lệch khép cân bằng (sim − 100), ~0 = kiểm toán NL tốt
+    // Điều kiện hơi/chân không ĐƯỢC ĐIỀU KHIỂN — độ lệch ~0 chứng minh sim ở đúng điểm thiết kế.
+    'PLANT_CAL_MST_TGT_01', // °C — mốc nhiệt hơi chính
+    'PLANT_CAL_MST_DEV_01', // °C — độ lệch nhiệt hơi chính (sim − mốc)
+    'PLANT_CAL_HRH_TGT_01', // °C — mốc nhiệt hot reheat
+    'PLANT_CAL_HRH_DEV_01', // °C — độ lệch nhiệt hot reheat (sim − mốc)
+    'PLANT_CAL_MSP_TGT_01', // MPa — mốc áp hơi chính
+    'PLANT_CAL_MSP_DEV_01', // MPa — độ lệch áp hơi chính (sim − mốc)
+    'PLANT_CAL_VAC_TGT_01', // kPa(a) — mốc chân không bình ngưng
+    'PLANT_CAL_VAC_DEV_01', // kPa(a) — độ lệch chân không (sim − mốc), dương = kém chân không hơn
   ];
 
   init(_ctx?: ISimModelContext, _config?: unknown): void {
@@ -42,6 +62,12 @@ export class CalibrationModel implements ISimModel {
 
     const hrDev = hrSim > 1 ? ((hrSim - HR_TARGET) / HR_TARGET) * 100 : 0;
 
+    // Điều kiện hơi/chân không được điều khiển — đọc trực tiếp, đo lệch so mốc thiết kế.
+    const mstSim = ctx.getTag('BLR_MSTM_SH_TEMP_01'); // °C
+    const hrhSim = ctx.getTag('TRB_HRH_TEMP_01'); // °C
+    const mspSim = ctx.getTag('BLR_MSTM_SH_PRESS_01'); // MPa
+    const vacSim = ctx.getTag('TRB_COND_VACUUM_01'); // kPa(a)
+
     return {
       outputs: [
         { tagId: 'PLANT_CAL_HR_TGT_01', value: HR_TARGET, quality: 'Good' },
@@ -51,6 +77,14 @@ export class CalibrationModel implements ISimModel {
         { tagId: 'PLANT_CAL_CW_TGT_01', value: CW_TARGET_C, quality: 'Good' },
         { tagId: 'PLANT_CAL_CW_DEV_01', value: cwSim - CW_TARGET_C, quality: 'Good' },
         { tagId: 'PLANT_CAL_CLOSURE_DEV_01', value: closureSim - CLOSURE_TARGET, quality: 'Good' },
+        { tagId: 'PLANT_CAL_MST_TGT_01', value: MST_TARGET_C, quality: 'Good' },
+        { tagId: 'PLANT_CAL_MST_DEV_01', value: mstSim - MST_TARGET_C, quality: 'Good' },
+        { tagId: 'PLANT_CAL_HRH_TGT_01', value: HRH_TARGET_C, quality: 'Good' },
+        { tagId: 'PLANT_CAL_HRH_DEV_01', value: hrhSim - HRH_TARGET_C, quality: 'Good' },
+        { tagId: 'PLANT_CAL_MSP_TGT_01', value: MSP_TARGET_MPA, quality: 'Good' },
+        { tagId: 'PLANT_CAL_MSP_DEV_01', value: mspSim - MSP_TARGET_MPA, quality: 'Good' },
+        { tagId: 'PLANT_CAL_VAC_TGT_01', value: VAC_TARGET_KPA, quality: 'Good' },
+        { tagId: 'PLANT_CAL_VAC_DEV_01', value: vacSim - VAC_TARGET_KPA, quality: 'Good' },
       ],
     };
   }

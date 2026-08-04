@@ -81,6 +81,33 @@ describe('AlarmEngine (ISA-18.2)', () => {
     expect(stateOf(eng)).toBe('UnackAlarm');
   });
 
+  it('shelve có lý do: reason rỗng bị chặn; getShelved liệt kê lý do + thời gian còn lại (ISA-18.2)', () => {
+    const eng = new AlarmEngine([hh()], deps);
+    expect(eng.shelve('A', 'op', 60, '   ', 1000)).toEqual({ blockedReason: expect.stringContaining('lý do') });
+    const ev = eng.shelve('A', 'op', 60, 'bảo trì van', 1000);
+    expect('state' in ev && ev.state).toBe('Shelved');
+    const list = eng.getShelved(1000);
+    expect(list).toHaveLength(1);
+    expect(list[0]).toMatchObject({ alarmId: 'A', reason: 'bảo trì van', user: 'op', priority: 'P1', remainingMin: 60 });
+    // Sau 20 phút còn ~40 phút.
+    expect(eng.getShelved(1000 + 20 * 60_000)[0]?.remainingMin).toBe(40);
+  });
+
+  it('unshelve thủ công trước hạn: về Normal → điều kiện còn thì tái kích; danh sách shelve rỗng', () => {
+    const eng = new AlarmEngine([hh()], deps);
+    eng.shelve('A', 'op', 60, 'kiểm tra', 1000);
+    expect(eng.getShelved(1000)).toHaveLength(1);
+    const r = eng.unshelve('A', 'sup', 2000);
+    expect('state' in r && r.state).toBe('Normal');
+    expect(eng.getShelved(2000)).toHaveLength(0);
+    // Điều kiện vẫn vượt ngưỡng → tái kích sau on-delay.
+    eng.evaluate('T', 300, 'Good', 2000);
+    eng.evaluate('T', 300, 'Good', 4200);
+    expect(stateOf(eng)).toBe('UnackAlarm');
+    // unshelve khi không ở Shelved bị chặn.
+    expect(eng.unshelve('A', 'sup', 5000)).toEqual({ blockedReason: expect.stringContaining('Shelved') });
+  });
+
   it('suppression theo trạng thái thiết bị: không alarm khi suppressWhen đúng', () => {
     let shutdown = true;
     const eng = new AlarmEngine([hh({ suppressWhen: 'unit_state == SHUTDOWN' })], deps);

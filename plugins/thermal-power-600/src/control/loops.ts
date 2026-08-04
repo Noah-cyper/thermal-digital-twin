@@ -12,8 +12,8 @@ const STEAM_TO_FWCV = 100 / 2100; // steam flow (t/h) → FW CV feedforward (%)
 const STEAM_TO_DEALCV = 100 / 2200; // steam flow (t/h) → deaerator condensate LCV feedforward (%)
 const STEAM_TO_CEPLCV = 100 / 2200; // steam flow (t/h) → condensate extraction pump LCV feedforward (%)
 
-/** 27 control loop CCS (doc 09) — 25 vòng vận hành liên tục + 2 vòng bảo vệ/khởi động (SJAE hút khí ·
- *  HP turbine bypass). Danh mục 25 lõi — Boiler Island + môi trường + phụ trợ + máy phát + làm mát:
+/** 28 control loop CCS (doc 09) — 25 vòng vận hành liên tục + 3 vòng bảo vệ/khởi động (SJAE hút khí ·
+ *  HP turbine bypass · LP turbine bypass). Danh mục 25 lõi — Boiler Island + môi trường + phụ trợ + máy phát + làm mát:
  *  governor · boiler master (sliding pressure) · fuel master · air/O₂ · furnace draft · SH temp · drum
  *  level 3-element · deaerator level · hotwell level · reheat temp (gas-biasing) · BFP min-flow recirc ·
  *  SCR deNOx (NH₃) · FGD SO₂ (slurry) · deaerator pressure (pegging steam) · gland steam pressure · mill
@@ -369,6 +369,19 @@ export const boilerControlLoops: ReadonlyArray<ControlLoopDef> = [
     reverse: true,
     outTag: 'BLR_HP_BYPASS_VALVE_01',
   },
+  {
+    id: 'lp-bypass-pressure',
+    desc: 'LP turbine bypass: xả hot reheat → bình ngưng khi áp reheat > 4,0 MPa (khởi động/trip, reverse); đóng ở tải bình thường (HRH 3,8 < 4,0)',
+    pvTag: 'TRB_HRH_PRESS_01',
+    sp: 4.0,
+    kp: 40,
+    ki: 2,
+    kd: 0,
+    outLo: 0,
+    outHi: 100,
+    reverse: true,
+    outTag: 'TRB_LP_BYPASS_VALVE_01',
+  },
 ];
 
 /** Điểm vận hành khởi động (~1500 t/h hơi / ~448 MW) — nạp bumpless MAN→AUTO để khởi động êm.
@@ -401,4 +414,5 @@ export const boilerLoopSeeds: Readonly<Record<string, number>> = {
   'closed-cooling-water-temp': 36, // COND_CCW_CW_VALVE_01 (%) — van CW bộ trao đổi giữ CCW ~38 °C
   'sjae-air-removal': 72, // COND_SJAE_VALVE_01 (%) — van hút khí giữ O₂ hoà tan ~7 ppb
   'hp-bypass-pressure': 0, // BLR_HP_BYPASS_VALVE_01 (%) — đóng ở tải (áp SH 17,5 < ngưỡng 18,5)
+  'lp-bypass-pressure': 0, // TRB_LP_BYPASS_VALVE_01 (%) — đóng ở tải (áp HRH 3,8 < ngưỡng 4,0)
 };

@@ -28,4 +28,23 @@ describe('thermal-runtime — vòng bảo vệ/khởi động (d, v1.43): SJAE h
     expect(rt.value('BLR_HP_BYPASS_OPEN_01')).toBeGreaterThan(3);
     expect(rt.value('BLR_HP_BYPASS_FLOW_01')).toBeGreaterThan(20);
   });
+
+  it('LP bypass ĐÓNG ở tải bình thường (áp hot reheat 3,8 < ngưỡng 4,0)', () => {
+    const rt = createThermalRuntime();
+    for (let i = 0; i < 500; i++) rt.step();
+    expect(rt.value('TRB_HRH_PRESS_01')).toBeLessThan(4.0);
+    expect(rt.value('TRB_LP_BYPASS_OPEN_01')).toBeLessThan(2); // van đóng → 0 hồi quy
+    expect(rt.value('TRB_LP_BYPASS_FLOW_01')).toBeLessThan(30);
+  });
+
+  it('LP bypass MỞ khi trip đẩy áp reheat vượt ngưỡng → xả hot reheat về bình ngưng (actuator path thật)', () => {
+    const rt = createThermalRuntime();
+    for (let i = 0; i < 500; i++) rt.step();
+    rt.manualTrip('turbine');
+    for (let i = 0; i < 800; i++) rt.step();
+    // Trip đẩy áp hơi chính → áp reheat (theo turbine-follow) tăng > 4,0 → vòng lp-bypass mở van → xả thật.
+    expect(rt.value('TRB_HRH_PRESS_01')).toBeGreaterThan(4.0);
+    expect(rt.value('TRB_LP_BYPASS_OPEN_01')).toBeGreaterThan(3);
+    expect(rt.value('TRB_LP_BYPASS_FLOW_01')).toBeGreaterThan(20);
+  });
 });
