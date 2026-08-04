@@ -19,6 +19,7 @@ export const thermalNav: ReadonlyArray<NavNode> = [
   { screenId: 'D3-switchyard', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Trạm phân phối 500 kV', en: '500 kV Switchyard' } },
   { screenId: 'D3-hvac', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Điều hoà & thông gió (HVAC)', en: 'HVAC' } },
   { screenId: 'D3-fire-fighting', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Hệ chữa cháy', en: 'Fire Fighting' } },
+  { screenId: 'D3-chemical-dosing', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Hoá chất điều hoà chu trình', en: 'Cycle Chemical Dosing' } },
   // Hiệu chỉnh hiệu năng (v1.42): lượng hoá độ lệch KPI vs Design Basis.
   { screenId: 'D2-calibration', level: 'D2', parentId: 'D1-plant-overview', title: { vi: 'Hiệu chỉnh hiệu năng', en: 'Performance Calibration' } },
 ];

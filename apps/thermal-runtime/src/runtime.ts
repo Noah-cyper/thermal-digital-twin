@@ -26,6 +26,7 @@ import {
   SwitchyardModel,
   HvacModel,
   FireFightingModel,
+  ChemicalDosingModel,
   PlantBalanceModel,
   CalibrationModel,
   boilerControlLoops,
@@ -320,6 +321,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   host.register(hvac);
   const fireFighting = new FireFightingModel();
   host.register(fireFighting);
+  // Hoá chất điều hoà chu trình (v1.46): đọc lưu lượng hơi → định lượng amoniac/khử oxy/phosphate + hoá lý
+  // (pH·phosphate·độ dẫn cation). Additive — sinh tag CHEM_* độc lập.
+  const chemicalDosing = new ChemicalDosingModel();
+  host.register(chemicalDosing);
   // CAPSTONE cân bằng khối lượng-năng lượng (v1.26): đăng ký CUỐI CÙNG để đọc đầu ra mọi mô hình con →
   // kiểm chứng bảo toàn năng lượng (khép ~100 %) + KPI toàn nhà máy. Additive — chỉ đọc, tổng hợp.
   const plantBalance = new PlantBalanceModel();

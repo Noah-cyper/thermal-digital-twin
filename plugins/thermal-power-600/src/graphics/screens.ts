@@ -857,6 +857,22 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
     ],
   },
   {
+    screenId: 'D3-chemical-dosing',
+    level: 'D3',
+    title: { vi: 'Hoá chất điều hoà chu trình — bố trí thiết bị', en: 'Cycle Chemical Dosing Layout' },
+    elements: [
+      // Amoniac (pH) · khử oxy · phosphate (bao hơi) → bơm định lượng theo lưu lượng; độ dẫn cation = tinh khiết.
+      equip('cd-fwph', 'box', 'pH nước cấp', 'CHEM_FW_PH_01', '', '', 20, 40, 180, 56, [{ when: 'lt', value: 8.8, sev: 2 }]),
+      equip('cd-drumph', 'box', 'pH bao hơi', 'CHEM_DRUM_PH_01', '', '', 20, 112, 180, 56, [{ when: 'lt', value: 9, sev: 2 }]),
+      equip('cd-phos', 'box', 'Phosphate bao hơi', 'CHEM_DRUM_PHOSPHATE_01', 'ppm', '', 20, 184, 180, 56),
+      equip('cd-cation', 'box', 'Độ dẫn cation hơi', 'CHEM_CATION_COND_01', 'µS/cm', '', 20, 256, 180, 56, [{ when: 'gt', value: 0.3, sev: 2 }]),
+      equip('cd-nh3', 'pump', 'Bơm amoniac', 'CHEM_AMMONIA_DOSE_01', 'L/h', '', 250, 40, 190, 56),
+      equip('cd-n2h4', 'pump', 'Bơm khử oxy', 'CHEM_HYDRAZINE_DOSE_01', 'L/h', '', 250, 112, 190, 56),
+      equip('cd-po4', 'pump', 'Bơm phosphate', 'CHEM_PHOSPHATE_DOSE_01', 'L/h', '', 250, 184, 190, 56),
+      equip('cd-tank', 'box', 'Bồn hoá chất ngày', 'CHEM_DOSING_TANK_01', '%', '', 250, 256, 190, 56, [{ when: 'lt', value: 20, sev: 2 }]),
+    ],
+  },
+  {
     screenId: 'D2-calibration',
     level: 'D2',
     title: { vi: 'Hiệu chỉnh hiệu năng vs Design Basis', en: 'Performance Calibration vs Design Basis' },
