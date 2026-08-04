@@ -299,6 +299,9 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       // HP turbine bypass (loop): xả hơi SH → cold reheat khi áp vượt ngưỡng (đóng ở tải, mở khi trip).
       equip('tb-hpbp', 'box', 'HP bypass xả', 'BLR_HP_BYPASS_FLOW_01', 't/h', '', 14, 442, 160, 54),
       equip('tb-hpbpo', 'box', 'Van HP bypass', 'BLR_HP_BYPASS_OPEN_01', '%', '', 184, 442, 140, 54),
+      // LP turbine bypass (loop): xả hot reheat → bình ngưng khi áp reheat vượt ngưỡng (đóng ở tải, mở khi trip).
+      equip('tb-lpbp', 'box', 'LP bypass xả', 'TRB_LP_BYPASS_FLOW_01', 't/h', '', 334, 442, 160, 54),
+      equip('tb-lpbpo', 'box', 'Van LP bypass', 'TRB_LP_BYPASS_OPEN_01', '%', '', 504, 442, 140, 54),
     ],
   },
   {

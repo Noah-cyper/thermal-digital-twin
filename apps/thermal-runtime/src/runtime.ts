@@ -239,6 +239,7 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   put('COND_CCW_CW_VALVE_01', boilerLoopSeeds['closed-cooling-water-temp'] ?? 0); // van CW bộ trao đổi CCW (bumpless)
   put('COND_SJAE_VALVE_01', boilerLoopSeeds['sjae-air-removal'] ?? 0); // van hút khí SJAE (bumpless)
   put('BLR_HP_BYPASS_VALVE_01', boilerLoopSeeds['hp-bypass-pressure'] ?? 0); // van HP bypass (đóng ở tải)
+  put('TRB_LP_BYPASS_VALVE_01', boilerLoopSeeds['lp-bypass-pressure'] ?? 0); // van LP bypass (đóng ở tải)
 
   const host = new SimulationHost(DT_MS, {
     now: () => nowIso(),
