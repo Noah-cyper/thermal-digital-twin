@@ -20,6 +20,9 @@ export interface RuntimeTagSource {
 }
 
 // ── Adapter THẬT (import động qua specifier biến → optional dep) ──────────────────────────────
+// c8 ignore: glue deploy-only, chỉ chạy được với pg/mqtt THẬT + TimescaleDB/broker (docker-compose).
+// Seam DI (`deps.makeSql`/`makeMqtt`) đã phủ đầy bằng adapter GIẢ trong persistence.test.ts.
+/* c8 ignore start */
 async function pgExecutor(url: string): Promise<{ sql: SqlExecutor; close: () => Promise<void> }> {
   const spec = 'pg';
   const pg: any = await import(spec);
@@ -54,6 +57,7 @@ async function mqttTransport(url: string): Promise<MqttTransport> {
     end: () => new Promise<void>((res) => client.end(false, {}, () => res())),
   };
 }
+/* c8 ignore stop */
 
 // ── Bridge: đọc tag hiện tại theo chu kỳ → ghi Historian bền + publish Sparkplug NDATA ───────────
 /** Nối persistence THẬT. `deps` cho phép test inject adapter giả (không cần pg/mqtt). Trả stop(). */
