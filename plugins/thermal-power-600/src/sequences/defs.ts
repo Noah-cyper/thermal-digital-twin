@@ -113,4 +113,26 @@ export const thermalSequences: ReadonlyArray<SequenceDef> = [
       { stepId: 'sh-drains-close', title: { vi: 'Đóng drain quá nhiệt', en: 'Close superheater drains' }, permissive: [], actions: [{ tag: 'BLR_SH_DRAIN_CMD', value: 0, reason: 'đã nâng áp → đóng drain, hơi sẵn sàng quay turbine' }], transition: [], holdMs: 300, timeoutMs: 15000 },
     ],
   },
+  {
+    // Two-shifting / island: TÁCH LƯỚI có kiểm soát — giảm tải về tự dùng, mở máy cắt đầu cực, chuyển máy
+    // phát sang cấp TẢI TỰ DÙNG (house load) độc lập. Dùng cho tắt máy ca đêm hoặc khi mất lưới (island).
+    sequenceId: 'generator-desync',
+    title: { vi: 'Tách lưới về tải tự dùng', en: 'Generator desync to house load' },
+    steps: [
+      { stepId: 'unload', title: { vi: 'Giảm tải về tối thiểu', en: 'Reduce to minimum load' }, permissive: [], actions: [{ tag: 'BLR_MW_DEMAND', value: 40, reason: 'giảm tải hữu công về mức tự dùng trước khi tách' }], transition: [], holdMs: 500, timeoutMs: 60000 },
+      { stepId: 'open-breaker', title: { vi: 'Mở máy cắt đầu cực', en: 'Open generator breaker' }, permissive: [], actions: [{ tag: 'GEN_BREAKER_CMD', value: 0, reason: 'tách máy phát khỏi lưới 500 kV' }], transition: [], holdMs: 400, timeoutMs: 20000 },
+      { stepId: 'house-load', title: { vi: 'Chuyển cấp tải tự dùng', en: 'Transfer to house load' }, permissive: [], actions: [{ tag: 'UNIT_HOUSE_LOAD_CMD', value: 1, reason: 'máy phát cấp riêng tải tự dùng (island)' }], transition: [], holdMs: 400, timeoutMs: 20000 },
+    ],
+  },
+  {
+    // Two-shifting: Ủ LÒ qua đêm (hot banking) — giữ lò ở trạng thái nóng-chờ (áp/nhiệt gần định mức) để khởi
+    // động lại NHANH vào ca sáng, thay vì để nguội hẳn. Giảm firing về mức ủ, duy trì mức bao hơi & áp.
+    sequenceId: 'boiler-bank',
+    title: { vi: 'Ủ lò nóng-chờ (hot banking)', en: 'Boiler hot banking' },
+    steps: [
+      { stepId: 'reduce-firing', title: { vi: 'Giảm firing về mức ủ', en: 'Reduce firing to banking rate' }, permissive: [], actions: [{ tag: 'BLR_BANK_CMD', value: 1, reason: 'giảm đốt về mức ủ giữ nhiệt' }], transition: [], holdMs: 500, timeoutMs: 30000 },
+      { stepId: 'hot-standby', title: { vi: 'Vào nóng-chờ', en: 'Enter hot standby' }, permissive: [], actions: [{ tag: 'BLR_HOT_STANDBY_CMD', value: 1, reason: 'giữ áp/nhiệt gần định mức cho khởi động nhanh' }], transition: [], holdMs: 600, timeoutMs: 30000 },
+      { stepId: 'maintain-level', title: { vi: 'Duy trì mức bao hơi', en: 'Maintain drum level' }, permissive: [], actions: [{ tag: 'BLR_BANK_LEVEL_CMD', value: 1, reason: 'giữ mức bao hơi trong khi ủ' }], transition: [], holdMs: 300, timeoutMs: 20000 },
+    ],
+  },
 ];

@@ -51,4 +51,40 @@ export const thermalScenarios: ReadonlyArray<ScenarioDef> = [
       { phaseId: 'coordinated', title: { vi: 'Giữ đầy tải phối hợp', en: 'Hold full load (coordinated)' }, action: 'settle', settleSteps: 200 },
     ],
   },
+  {
+    // Vận hành TWO-SHIFTING: tắt máy ca đêm rồi khởi động lại ca sáng (nhà máy chạy theo phụ tải ngày/đêm).
+    // Chiều tối giảm tải → tách lưới về tự dùng → ủ lò nóng-chờ → qua đêm → sáng mồi lại → hoà lưới → ramp.
+    scenarioId: 'two-shift-cycle',
+    title: { vi: 'Two-shift: tách lưới ca đêm → ủ lò → hoà lại ca sáng', en: 'Two-shift: overnight desync → bank → morning resync' },
+    sampleTags: ['GEN_MW_01', 'BLR_STEAM_FLOW_01', 'BLR_MSTM_SH_PRESS_01', 'UNIT_HOUSE_LOAD_CMD', 'GEN_BREAKER_CMD', 'BLR_COAL_FLOW_01'],
+    phases: [
+      { phaseId: 'day-hold', title: { vi: 'Giữ tải ban ngày', en: 'Hold day load' }, action: 'settle', settleSteps: 100 },
+      { phaseId: 'evening-unload', title: { vi: 'Chiều tối giảm tải', en: 'Evening unload' }, action: 'load', value: 200, settleSteps: 250 },
+      { phaseId: 'desync', title: { vi: 'Tách lưới về tự dùng', en: 'Desync to house load' }, action: 'sequence', ref: 'generator-desync', settleSteps: 40 },
+      { phaseId: 'bank', title: { vi: 'Ủ lò nóng-chờ', en: 'Boiler hot banking' }, action: 'sequence', ref: 'boiler-bank', settleSteps: 40 },
+      { phaseId: 'overnight', title: { vi: 'Qua đêm (nóng-chờ)', en: 'Overnight (banked)' }, action: 'settle', settleSteps: 150 },
+      { phaseId: 'exit-bank', title: { vi: 'Thoát ủ lò (khôi phục firing)', en: 'Exit banking (restore firing)' }, action: 'set', ref: 'BLR_BANK_CMD', value: 0, settleSteps: 20 },
+      { phaseId: 'mill-restart', title: { vi: 'Khởi động lại mill', en: 'Restart mill' }, action: 'sequence', ref: 'mill-a-start', settleSteps: 20 },
+      { phaseId: 'ready-sync', title: { vi: 'Turbine sẵn sàng hoà', en: 'Turbine ready to sync' }, action: 'set', ref: 'TRB_READY_SYNC', value: 1, settleSteps: 10 },
+      { phaseId: 'resync', title: { vi: 'Hoà lưới lại', en: 'Resynchronize' }, action: 'sequence', ref: 'generator-sync', settleSteps: 20 },
+      { phaseId: 'ramp-back', title: { vi: 'Ramp về tải ngày', en: 'Ramp back to day load' }, action: 'load', value: 448, settleSteps: 300 },
+    ],
+  },
+  {
+    // Vận hành ISLAND MODE: mất lưới (sự cố đường dây) → máy phát TÁCH LƯỚI, chạy runback cấp riêng TẢI TỰ
+    // DÙNG (island) — governor giữ tần số, AVR giữ điện áp cực — tới khi lưới phục hồi thì HOÀ LẠI.
+    scenarioId: 'grid-island-runback',
+    title: { vi: 'Island: mất lưới → tự dùng độc lập → hoà lại', en: 'Island: grid loss → house load island → resync' },
+    sampleTags: ['GEN_MW_01', 'SY_LINES_INSERVICE_01', 'UNIT_HOUSE_LOAD_CMD', 'ELEC_TERM_VOLT_PU_01', 'ANSI_81_FREQ_01', 'BLR_MSTM_SH_PRESS_01'],
+    phases: [
+      { phaseId: 'full', title: { vi: 'Vận hành đầy tải', en: 'Full load operation' }, action: 'settle', settleSteps: 100 },
+      { phaseId: 'grid-loss', title: { vi: 'Mất lưới (cắt đường dây)', en: 'Grid loss (line trip)' }, action: 'malfunction', ref: 'line-trip', settleSteps: 60 },
+      { phaseId: 'island', title: { vi: 'Tách lưới về tự dùng (island)', en: 'Island to house load' }, action: 'sequence', ref: 'generator-desync', settleSteps: 40 },
+      { phaseId: 'island-hold', title: { vi: 'Chạy island (governor/AVR giữ)', en: 'Island hold (governor/AVR)' }, action: 'settle', settleSteps: 150 },
+      { phaseId: 'grid-restore', title: { vi: 'Lưới phục hồi', en: 'Grid restored' }, action: 'clear', ref: 'line-trip', settleSteps: 40 },
+      { phaseId: 'ready-sync', title: { vi: 'Turbine sẵn sàng hoà', en: 'Turbine ready to sync' }, action: 'set', ref: 'TRB_READY_SYNC', value: 1, settleSteps: 10 },
+      { phaseId: 'resync', title: { vi: 'Hoà lưới lại', en: 'Resynchronize' }, action: 'sequence', ref: 'generator-sync', settleSteps: 20 },
+      { phaseId: 'ramp-back', title: { vi: 'Ramp về tải', en: 'Ramp back to load' }, action: 'load', value: 448, settleSteps: 300 },
+    ],
+  },
 ];
