@@ -262,6 +262,11 @@
     <div class="grid" id="cards"></div>
   </section>
 
+  <section>
+    <div class="sect-h"><h2>Cân bằng nhà máy (BoP)</h2><span class="hint">hệ phụ trợ · đồng bộ hệ thống với runtime (nhiều tài khoản vừa thêm)</span></div>
+    <div class="grid" id="bopcards"></div>
+  </section>
+
   <section class="two">
     <div>
       <div class="sect-h"><h2>Cân bằng năng lượng</h2><span class="hint">nhiên liệu = công suất gộp + nhiệt thải + tổn thất lò</span></div>
@@ -407,12 +412,38 @@
     const boilerLoss=qFuel*(1-boilerEff/100), energyOut=g+qCond+boilerLoss;
     const closure=qFuel>1?energyOut/qFuel*100:0, netEff=qFuel>1?net/qFuel*100:0;
     const unitHR=net>1?qFuel*3600/net:0, co2Int=net>1?co2*1000/net:0;
+    // ---------- balance-of-plant (BoP) — đồng bộ với các model runtime mới ----------
+    // Neo hằng số theo model runtime (không dùng nz → không nhiễu seed sim). Giá trị tĩnh/theo tải.
+    const bopOn=coal>5;
+    // khí nén: header khí điều khiển giữ ~6,9 barg (P_LOAD 6.8 / P_UNLOAD 7.5), dewpoint −40 °C, số máy nén chạy theo tải
+    const caIA=6.9, caDew=-40, caComp=bopOn?(lf>0.85?2:1):1;
+    // dầu đốt: chỉ chạy khi khởi động/tải thấp (đỡ than); két HFO 85 %, áp cấp khi bơm chạy
+    const foFlow=(bopOn&&steam<400)?18:0, foTank=85, foPress=foFlow>0?3.0:0.2;
+    // thải tro: tổng ~15 % than (đáy 15 % + bay 85 %), silo tro bay 62 %
+    const ashTotal=coal*0.15, ashBottom=ashTotal*0.15, ashSilo=62;
+    // thổi bụi lò: độ sạch bề mặt & chỉ số bám bẩn
+    const sbClean=82, sbFoul=18;
+    // xử lý nước DM: độ dẫn sản phẩm 0,08 µS/cm & silica 5 ppb (nhựa tốt); nước bù ≈ 1,2 % hơi; 3 dây (2 SV+1 DP)
+    const wtCond=0.08, wtSilica=5, wtDM=steam*0.012, wtTrains=3;
+    // định lượng hoá chất: pH bao hơi / nước cấp, liều hydrazine khử oxy (ppb)
+    const drumPh=9.5, fwPh=9.2, hydra=10;
+    // điện khẩn cấp: UPS SOC ~100 %, DC 220 V, máy phát diesel sẵn sàng
+    const upsSoc=100, dc220=220, edgReady=1;
+    // switchyard 500 kV: thanh cái, tần số = tốc độ/60, xuất tuyến chia đôi công suất lưới, 2 lộ
+    const syKv=bopOn?500:497, syFreq=S.speed/60, syLine1=grid/2, syLines=2;
+    // HVAC phòng điều khiển: nhiệt độ, độ ẩm, tải chiller theo tải nhiệt
+    const crTemp=23, crHum=50, chiller=35+clamp(lf,0,1)*35;
+    // chữa cháy: áp vòng ring-main, két nước, số zone bình thường
+    const fireRing=10, fireTank=92, fireZones=8;
     return {g,steam,coal,press:S.press,shT:S.shT,drum:S.drum,o2,vac,speed:S.speed,freq:S.speed/60,
       crhT,hrhT,hp,ip,lp,reheatDuty,cycleHR,tEcon:S.tEcon,tDea:S.tDea,
       qCond,cwRise,satT,cwOut,cwIn,evap,makeup,wetbulb,ctSupply,
       mva,pf,aux,net,grid,gsuLoad,boilerEff,excess,fgFlow,stackT,
       dust,so2,nox,co2,mills,millLoad,feeder,yardDays,
-      qFuel,boilerLoss,closure,netEff,unitHR,co2Int};
+      qFuel,boilerLoss,closure,netEff,unitHR,co2Int,
+      caIA,caDew,caComp,foFlow,foTank,foPress,ashTotal,ashBottom,ashSilo,sbClean,sbFoul,
+      wtCond,wtSilica,wtDM,wtTrains,drumPh,fwPh,hydra,upsSoc,dc220,edgReady,
+      syKv,syFreq,syLine1,syLines,crTemp,crHum,chiller,fireRing,fireTank,fireZones};
   }
 
   // ---------- cards (data-driven) ----------
@@ -441,15 +472,42 @@
     {t:'Cung cấp than', c:'var(--f-coal)', r:[
       ['Máy nghiền chạy','mills','',0], ['Tải máy nghiền','millLoad','%',0,{hi:100}], ['Suất feeder','feeder','t/h',1], ['Dự trữ yard','yardDays','ngày',0,{lo:7}] ]},
   ];
-  const cardsEl=document.getElementById('cards'); const valEls={};
-  CARDS.forEach((c,ci)=>{
-    const card=document.createElement('div'); card.className='card';
-    let h='<h3><span class="tag" style="background:'+c.c+'"></span>'+c.t+'</h3><div class="rows">';
-    c.r.forEach((row,ri)=>{ const id='v'+ci+'_'+ri;
-      h+='<span class="k">'+row[0]+'</span><span class="val" id="'+id+'">—</span><span class="u">'+row[2]+'</span>'; });
-    h+='</div>'; card.innerHTML=h; cardsEl.appendChild(card);
-    c.r.forEach((row,ri)=>{ valEls['v'+ci+'_'+ri]={key:row[1],dec:row[3],lim:row[4]}; });
-  });
+  // ---------- BoP cards (hệ phụ trợ — đồng bộ với các model runtime mới) ----------
+  const BOP_CARDS=[
+    {t:'Khí nén', c:'var(--f-cw)', r:[
+      ['Header khí ĐK','caIA','barg',1,{lo:5.5,hi:8}], ['Điểm sương','caDew','°C',0,{hi:-20}], ['Máy nén chạy','caComp','',0] ]},
+    {t:'Dầu đốt (HFO/LDO)', c:'var(--f-coal)', r:[
+      ['Lưu lượng dầu','foFlow','t/h',0], ['Két HFO','foTank','%',0,{lo:20}], ['Áp cấp','foPress','MPa',1] ]},
+    {t:'Thải tro xỉ', c:'var(--f-flue)', r:[
+      ['Tổng tro','ashTotal','t/h',1], ['Tro đáy','ashBottom','t/h',1], ['Silo tro bay','ashSilo','%',0,{hi:90}] ]},
+    {t:'Thổi bụi lò', c:'var(--f-steam)', r:[
+      ['Độ sạch bề mặt','sbClean','%',0,{lo:70}], ['Chỉ số bám bẩn','sbFoul','',0,{hi:40}] ]},
+    {t:'Xử lý nước DM', c:'var(--f-fw)', r:[
+      ['Độ dẫn sản phẩm','wtCond','µS/cm',2,{hi:0.2}], ['Silica','wtSilica','ppb',0,{hi:20}], ['Sản lượng DM','wtDM','t/h',0], ['Dây vận hành','wtTrains','',0] ]},
+    {t:'Định lượng hoá chất', c:'var(--f-fw)', r:[
+      ['pH bao hơi','drumPh','',1,{lo:9,hi:10}], ['pH nước cấp','fwPh','',1,{lo:8.8,hi:9.6}], ['Liều hydrazine','hydra','ppb',0] ]},
+    {t:'Điện khẩn cấp', c:'var(--f-power)', r:[
+      ['UPS SOC','upsSoc','%',0,{lo:40}], ['DC 220 V','dc220','V',0,{lo:210,hi:230}], ['Diesel sẵn sàng','edgReady','',0] ]},
+    {t:'Switchyard 500 kV', c:'var(--f-power)', r:[
+      ['Thanh cái','syKv','kV',0,{lo:475,hi:525}], ['Tần số','syFreq','Hz',2,{lo:49.5,hi:50.5}], ['Xuất tuyến 1','syLine1','MW',0], ['Số lộ','syLines','',0] ]},
+    {t:'HVAC phòng ĐK', c:'var(--f-cw)', r:[
+      ['Nhiệt phòng ĐK','crTemp','°C',0,{lo:18,hi:27}], ['Độ ẩm','crHum','%',0,{hi:65}], ['Tải chiller','chiller','%',0,{hi:100}] ]},
+    {t:'Chữa cháy', c:'var(--f-steam)', r:[
+      ['Áp vòng ring-main','fireRing','barg',0,{lo:7}], ['Két nước','fireTank','%',0,{lo:50}], ['Zone bình thường','fireZones','',0] ]},
+  ];
+  const valEls={};
+  function buildCards(arr,el,pfx){
+    arr.forEach((c,ci)=>{
+      const card=document.createElement('div'); card.className='card';
+      let h='<h3><span class="tag" style="background:'+c.c+'"></span>'+c.t+'</h3><div class="rows">';
+      c.r.forEach((row,ri)=>{ const id=pfx+ci+'_'+ri;
+        h+='<span class="k">'+row[0]+'</span><span class="val" id="'+id+'">—</span><span class="u">'+row[2]+'</span>'; });
+      h+='</div>'; card.innerHTML=h; el.appendChild(card);
+      c.r.forEach((row,ri)=>{ valEls[pfx+ci+'_'+ri]={key:row[1],dec:row[3],lim:row[4]}; });
+    });
+  }
+  buildCards(CARDS,document.getElementById('cards'),'v');
+  buildCards(BOP_CARDS,document.getElementById('bopcards'),'b');
 
   function fmt(v,d){ if(v===undefined||v===null||isNaN(v)) return '—'; return v.toFixed(d); }
   function limClass(v,lim){ if(!lim) return '';
