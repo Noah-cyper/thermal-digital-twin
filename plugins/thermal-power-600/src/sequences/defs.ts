@@ -89,4 +89,28 @@ export const thermalSequences: ReadonlyArray<SequenceDef> = [
       { stepId: 'purge-done', title: { vi: 'Hoàn tất thông gió', en: 'Purge complete' }, permissive: [], actions: [{ tag: 'BLR_PURGE_COMPLETE', value: 1, reason: 'đủ thông gió → cho phép mồi lửa lại' }], transition: [], holdMs: 500, timeoutMs: 30000 },
     ],
   },
+  {
+    // Tiền đề cold-start (trước khi quay turbine): lập CHÂN KHÔNG bình ngưng — chạy nước tuần hoàn, cấp HƠI
+    // CHÈN TRỤC (gland) chống lọt khí, khởi động SJAE hút khí không ngưng → kéo chân không tới định mức.
+    sequenceId: 'condenser-vacuum-raise',
+    title: { vi: 'Lập chân không bình ngưng', en: 'Condenser vacuum raising' },
+    steps: [
+      { stepId: 'cw-pumps', title: { vi: 'Chạy bơm nước tuần hoàn', en: 'Start CW pumps' }, permissive: [], actions: [{ tag: 'COND_CW_PUMP_CMD', value: 1, reason: 'cấp nước làm mát bình ngưng' }], transition: [], holdMs: 400, timeoutMs: 30000 },
+      { stepId: 'gland-steam', title: { vi: 'Cấp hơi chèn trục', en: 'Admit gland steam' }, permissive: [], actions: [{ tag: 'TRB_GLAND_SEAL_CMD', value: 1, reason: 'chèn kín trục chống lọt khí trước khi hút chân không' }], transition: [], holdMs: 400, timeoutMs: 20000 },
+      { stepId: 'sjae-start', title: { vi: 'Khởi động SJAE', en: 'Start air ejector (SJAE)' }, permissive: [{ tag: 'TRB_GLAND_SEAL_CMD', op: 'ge', value: 1 }], actions: [{ tag: 'COND_SJAE_START_CMD', value: 1, reason: 'hút khí không ngưng khỏi bình ngưng' }], transition: [], holdMs: 500, timeoutMs: 30000 },
+      { stepId: 'pull-vacuum', title: { vi: 'Kéo chân không tới định mức', en: 'Pull to rated vacuum' }, permissive: [], actions: [{ tag: 'COND_VACUUM_READY', value: 1, reason: 'chân không đạt → cho phép quay turbine' }], transition: [{ tag: 'TRB_COND_VACUUM_01', op: 'le', value: 10 }], holdMs: 600, timeoutMs: 60000 },
+    ],
+  },
+  {
+    // Tiền đề cold-start (sau light-off, trước khi quay turbine): NÂNG ÁP lò có kiểm soát + SOAK làm ấm ống
+    // góp/đường hơi (giãn nở nhiệt an toàn), mở drain quá nhiệt lúc áp thấp rồi đóng khi đã nâng áp.
+    sequenceId: 'pressure-raising',
+    title: { vi: 'Nâng áp lò & soak làm ấm', en: 'Boiler pressure raising & warm-up soak' },
+    steps: [
+      { stepId: 'sh-drains-open', title: { vi: 'Mở drain quá nhiệt', en: 'Open superheater drains' }, permissive: [{ tag: 'BLR_FIRST_FUEL_CMD', op: 'ge', value: 1 }], actions: [{ tag: 'BLR_SH_DRAIN_CMD', value: 1, reason: 'thoát nước ngưng đường hơi khi áp thấp' }], transition: [], holdMs: 400, timeoutMs: 20000 },
+      { stepId: 'warm-soak', title: { vi: 'Soak làm ấm (giãn nở nhiệt)', en: 'Warm-up soak' }, permissive: [], actions: [{ tag: 'BLR_WARMUP_SOAK_CMD', value: 1, reason: 'giữ firing thấp làm ấm ống góp/đường hơi đều' }], transition: [], holdMs: 900, timeoutMs: 60000 },
+      { stepId: 'raise', title: { vi: 'Nâng áp tới định mức', en: 'Raise to rated pressure' }, permissive: [], actions: [{ tag: 'BLR_PRESS_RAISE_CMD', value: 1, reason: 'tăng firing nâng áp có kiểm soát' }], transition: [{ tag: 'BLR_MSTM_SH_PRESS_01', op: 'ge', value: 16 }], holdMs: 600, timeoutMs: 90000 },
+      { stepId: 'sh-drains-close', title: { vi: 'Đóng drain quá nhiệt', en: 'Close superheater drains' }, permissive: [], actions: [{ tag: 'BLR_SH_DRAIN_CMD', value: 0, reason: 'đã nâng áp → đóng drain, hơi sẵn sàng quay turbine' }], transition: [], holdMs: 300, timeoutMs: 15000 },
+    ],
+  },
 ];

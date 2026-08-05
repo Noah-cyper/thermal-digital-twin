@@ -30,4 +30,25 @@ export const thermalScenarios: ReadonlyArray<ScenarioDef> = [
       { phaseId: 'post-trip-purge', title: { vi: 'Thông gió sau trip (NFPA 85)', en: 'Post-trip purge' }, action: 'sequence', ref: 'post-trip-purge', settleSteps: 40 },
     ],
   },
+  {
+    // Kịch bản KHỞI ĐỘNG SẠCH tới ĐẦY TẢI (không sự cố) — chuỗi cold-start ĐẦY ĐỦ gồm tiền đề chân không +
+    // nâng áp/soak: lập chân không (gland/SJAE) → thông gió → mồi lửa → điền nước → nâng áp & soak → khởi
+    // động mill → quay turbine → hoà lưới → ramp tới 600 MW → giữ tải phối hợp. Bổ trợ cho kịch bản
+    // startup→coastdown (có trip) ở trên — đây là quỹ đạo vận hành BÌNH THƯỜNG lên đầy tải.
+    scenarioId: 'cold-start-to-full-load',
+    title: { vi: 'Cold-start → hoà lưới → ramp đầy tải 600 MW', en: 'Cold-start → sync → ramp to full load 600 MW' },
+    sampleTags: ['GEN_MW_01', 'BLR_STEAM_FLOW_01', 'BLR_MSTM_SH_PRESS_01', 'TRB_COND_VACUUM_01', 'TRB_SPEED_01', 'BLR_COAL_FLOW_01'],
+    phases: [
+      { phaseId: 'vacuum', title: { vi: 'Lập chân không bình ngưng', en: 'Condenser vacuum raising' }, action: 'sequence', ref: 'condenser-vacuum-raise', settleSteps: 20 },
+      { phaseId: 'purge', title: { vi: 'Thông gió lò (NFPA 85)', en: 'Boiler purge' }, action: 'sequence', ref: 'boiler-purge', settleSteps: 20 },
+      { phaseId: 'light-off', title: { vi: 'Mồi lửa', en: 'Light-off' }, action: 'sequence', ref: 'boiler-light-off', settleSteps: 20 },
+      { phaseId: 'fw-fill', title: { vi: 'Cấp nước điền lò', en: 'Feedwater fill' }, action: 'sequence', ref: 'feedwater-fill', settleSteps: 20 },
+      { phaseId: 'pressure-raise', title: { vi: 'Nâng áp lò & soak', en: 'Pressure raising & soak' }, action: 'sequence', ref: 'pressure-raising', settleSteps: 20 },
+      { phaseId: 'mill-start', title: { vi: 'Khởi động mill A', en: 'Mill A start' }, action: 'sequence', ref: 'mill-a-start', settleSteps: 20 },
+      { phaseId: 'turbine-roll', title: { vi: 'Quay turbine', en: 'Turbine roll' }, action: 'sequence', ref: 'turbine-roll', settleSteps: 20 },
+      { phaseId: 'sync', title: { vi: 'Hoà máy phát', en: 'Generator sync' }, action: 'sequence', ref: 'generator-sync', settleSteps: 20 },
+      { phaseId: 'ramp-full', title: { vi: 'Ramp tải lên 600 MW', en: 'Ramp to 600 MW' }, action: 'load', value: 600, settleSteps: 500 },
+      { phaseId: 'coordinated', title: { vi: 'Giữ đầy tải phối hợp', en: 'Hold full load (coordinated)' }, action: 'settle', settleSteps: 200 },
+    ],
+  },
 ];

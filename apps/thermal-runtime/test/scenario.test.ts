@@ -5,7 +5,7 @@ import type { ScenarioPhaseResult } from '@idtp/sdk';
 describe('thermal-runtime — kịch bản §10 (cold-start → ramp → mill trip → runback → MFT → coast-down)', () => {
   it('chạy hết 14 pha: SFC khởi động + thông gió sau trip done; MFT tay cắt nhiên liệu THẬT → coast-down', () => {
     const rt = createThermalRuntime(); // warm-start ở điểm vận hành
-    expect(rt.scenarioList().length).toBe(1);
+    expect(rt.scenarioList().length).toBe(2); // + cold-start-to-full-load (GĐ-108)
 
     const res = rt.runScenario('unit-startup-to-coastdown');
     const by: Record<string, ScenarioPhaseResult> = {};
