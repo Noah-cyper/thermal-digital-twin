@@ -91,8 +91,11 @@ Anti‑windup back‑calculation + bumpless (doc 05‑06).
 | **MFT → coast down** | cắt nhiên liệu → áp/nhiệt/tải giảm; turbine coast; post‑purge |
 
 ## 11. Malfunction injection (OTS)
-tube leak · mill trip · fan trip · BFP trip · sensor stuck · valve stuck · loss of vacuum · load rejection.
-(Đề xuất 3 malfunction cho lát cắt W12: **mill trip · tube leak · loss of vacuum** — GĐ‑03.)
+`SimulationHost.injectAll` định tuyến `id` tới model sở hữu (mỗi model tự lọc id nó hiểu). Bộ malfunction hiện có:
+- **Lõi lò–máy** (doc 09 §4): tube leak · mill trip · pa-fan-trip · sh-spray-fail · feedwater-pump-trip · cw-pump-trip · hp-heater-trip · ah-fouling · loss of vacuum · load rejection · sensor/valve stuck — kèm **2 nút trip tay** MFT (`BLR_MFT_PB`) / turbine (`TRB_TRIP_PB`).
+- **BoP / phụ trợ** (§13): dm-resin-fault (WTP) · sootblower-fault · station-blackout (nguồn khẩn) · line-trip (switchyard) · hvac-chiller-trip · fire-detected · chem-dosing-fail.
+
+Lát cắt W12 tối thiểu: **mill trip · tube leak · loss of vacuum** (GĐ‑03). Chi tiết diễn biến từng malfunction = sổ GĐ doc 25.
 
 ## 12. Giả định
 | Mã | `[GIẢ ĐỊNH]` |
@@ -100,3 +103,32 @@ tube leak · mill trip · fan trip · BFP trip · sensor stuck · valve stuck ·
 | GĐ‑19 | τ/θ các vòng (§4) |
 | GĐ‑20 | K_swell, hằng số bơm/quạt H0/a/P0/b (§3,§5) |
 | GĐ‑21 | PID params khởi điểm (§9) — tuning ở pha code |
+
+## 13. Sổ đăng ký mô hình — hợp thành ADDITIVE (index doc 25)
+"Ruột" §1–§9 mô tả chu trình **lõi** (drum/boiler/turbine). Chiều sâu vật lý & bề rộng §10 (Phụ lục A §8) được
+thêm bằng **hợp thành additive**, KHÔNG viết lại lõi: mỗi hệ là một `ISimModel` độc lập, **đăng ký SAU** các
+model nó phụ thuộc → mỗi bước đọc tag TƯƠI của model trước, **chỉ THÊM tag mới, không ghi đè output cũ** ⇒ 0 hồi
+quy khi cắm thêm. Không `Math.random` (nhiễu seed §8); model có trạng thái → `snapshot`/`restore` cho replay.
+
+**Thứ tự đăng ký (host):** lõi (boiler → turbine → reheat → feedwater → condenser) → khói/gió → phát thải → điện
+→ tháp làm mát → than → BoP/phụ trợ → **plant-balance** (kiểm chứng chéo bảo toàn NL, chạy gần CUỐI) →
+**calibration** (đo độ lệch vs Design Basis, chạy SAU CÙNG). Add model mới = thêm 1 `ISimModel` + đăng ký cuối
+danh sách phụ thuộc; kernel/host không đổi (đúng "generic": mọi nhà máy chỉ là plugin).
+
+| Nhóm | Model (`id` = `thermal-…`) | ~tag | Chi tiết (doc 25) |
+|---|---|---:|---|
+| Lõi chu trình | boiler-island · turbine-generator · reheat-cycle · feedwater-train · condenser-cw | §1–§7 | GĐ‑32/48/59/65/66/67/74 |
+| Khói–gió · phát thải | fluegas-air · emissions | 8/7 | GĐ‑68/69/76 |
+| Điện · lưới 500 kV | electrical · switchyard | 15/10 | GĐ‑70/79/101 |
+| Nước tuần hoàn | cooling-tower | 7 | GĐ‑71 |
+| Nhiên liệu rắn | coal-handling | 13 | GĐ‑72/75/85 |
+| BoP — khí/dầu/tro | compressed-air · fuel-oil · ash-handling | 8/6/9 | GĐ‑89/90/91 |
+| BoP — hơi/nước/hoá | soot-blower · water-treatment · chemical-dosing | 9/9/8 | GĐ‑95/99/104 |
+| BoP — điện/tiện ích | emergency-power · hvac · fire-fighting | 11/8/8 | GĐ‑100/102/103 |
+| Bảo vệ · khởi động | bypass-airremoval (SJAE + HP/LP bypass) | 6 | GĐ‑94/97 |
+| Tổng hợp · hiệu chỉnh | plant-balance (khép NL ~100 %) · calibration (đo lệch vs Design Basis) | 8/15 | GĐ‑66/73 · 93/98 |
+
+`index.ts` phơi **24 lớp `ISimModel`** — khớp đếm breadth GĐ‑104 (24 model · 31 màn live); trong đó `drum` là mô
+hình skeleton Pha A giữ làm tham chiếu. **Chi tiết vật lý / hằng số [GIẢ ĐỊNH] / malfunction từng model = sổ GĐ
+doc 25** (bảng này chỉ INDEX, không lặp). Bề rộng §10 sau batch a-3: đủ hệ BoP (khí nén · dầu đốt · thải tro ·
+soot blower · water treatment · emergency power · switchyard · HVAC · fire fighting · chemical dosing).
