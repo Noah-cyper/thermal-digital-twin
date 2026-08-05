@@ -58,6 +58,28 @@ instance & điểm chi tiết, không đổi template.
 > **3.522 tag** (khớp roll-up trên) — kiểm bằng `plugins/thermal-power-600/test/seed.test.ts`. Con số
 > chốt lại của GĐ‑13. Chi tiết: GĐ‑42 (doc 25).
 
+## 4.1 Neo tag BoP vào hiện thực (trung thực docs↔code)
+Roll‑up §4 (BoP 560 · Switchyard 240 · Ash 150) là DANH MỤC đầy đủ theo template × instance, hiện thực qua
+**seed** (GĐ‑42: 3.522 tag). Song song, lớp **mô hình sim** (§13 doc 10) phơi bộ tag **hệ thống** BoP "sống"
+— các tag SCADA/dashboard đọc trực tiếp, ĐÃ có physics riêng (khác placeholder breadth GĐ‑61):
+
+| Model (`thermal‑…`) | Tiền tố tag | ~tag | GĐ |
+|---|---|:--:|---|
+| compressed‑air | `CA_*` | 8 | GĐ‑89 |
+| fuel‑oil | `FO_*` | 6 | GĐ‑90 |
+| ash‑handling | `ASH_*` | 9 | GĐ‑91 |
+| soot‑blower | `SB_*` | 9 | GĐ‑95 |
+| water‑treatment | `WT_*` | 9 | GĐ‑99 |
+| emergency‑power | `EDG_*` / `UPS_*` | 11 | GĐ‑100 |
+| switchyard | `SY_*` | 10 | GĐ‑101 |
+| hvac | `HVAC_*` | 8 | GĐ‑102 |
+| fire‑fighting | `FIRE_*` | 8 | GĐ‑103 |
+| chemical‑dosing | `CHEM_*` | 8 | GĐ‑104 |
+
+> **~86 tag hệ thống BoP** (tất định, EU theo §6, không `Math.random`). KKS chi tiết từng tag = `[GIẢ ĐỊNH]`
+> chờ đối chiếu VGB‑B 106 (GĐ‑04 / M‑02); tên hiện dùng fallback `AREA_SYS_EQUIP_MEAS_NN`. Chi tiết vật lý mỗi
+> model = sổ GĐ doc 25 (bảng này chỉ INDEX).
+
 ## 5. Cách sinh registry (YAML)
 1. `templates.tags.yaml` — tag chuẩn theo loại thiết bị.
 2. Danh sách instance theo asset (doc 04 asset model) — mỗi asset gắn `type`.
