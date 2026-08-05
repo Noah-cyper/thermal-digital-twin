@@ -11,6 +11,7 @@ import {
   ReheatCycleModel,
   FeedwaterTrainModel,
   FeedwaterDrainsModel,
+  AnsiProtectionModel,
   CondenserCWModel,
   FlueGasAirModel,
   EmissionsModel,
@@ -327,6 +328,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   host.register(emergencyPower);
   const switchyard = new SwitchyardModel();
   host.register(switchyard);
+  // Bảo vệ máy phát ANSI (v1.50, chiều sâu physics): đăng ký SAU avr+switchyard để đọc dòng kích từ/điện áp
+  // cực/tần số tươi → rơle 87/40/46/81/24 (pickup + cờ trip). Read-only, additive — sinh tag ANSI_* độc lập.
+  const ansiProtection = new AnsiProtectionModel();
+  host.register(ansiProtection);
   const hvac = new HvacModel();
   host.register(hvac);
   const fireFighting = new FireFightingModel();

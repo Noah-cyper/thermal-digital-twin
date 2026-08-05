@@ -910,6 +910,26 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
     ],
   },
   {
+    screenId: 'D3-ansi-protection',
+    level: 'D3',
+    title: { vi: 'Bảo vệ máy phát (ANSI/IEEE) — trạng thái rơle', en: 'Generator Protection (ANSI) Status' },
+    elements: [
+      // Rơle bảo vệ máy phát: 87 vi sai · 40 mất kích từ · 46 thứ tự nghịch · 81 tần số · 24 V/Hz.
+      equip('an-health', 'box', 'Bảo vệ bình thường', 'ANSI_PROT_HEALTHY_01', '', '', 20, 40, 180, 56, [{ when: 'lt', value: 0.5, sev: 1 }]),
+      equip('an-tripany', 'box', 'Có lệnh trip (0/1)', 'ANSI_TRIP_ANY_01', '', '', 20, 112, 180, 56, [{ when: 'gt', value: 0, sev: 1 }]),
+      equip('an-87d', 'box', '87 vi sai', 'ANSI_87_DIFF_01', '%', '', 230, 40, 180, 56, [{ when: 'gt', value: 10, sev: 1 }]),
+      equip('an-87t', 'box', '87 trip (0/1)', 'ANSI_87_TRIP_01', '', '', 230, 112, 180, 56, [{ when: 'gt', value: 0, sev: 1 }]),
+      equip('an-40m', 'box', '40 biên mất kích từ', 'ANSI_40_MARGIN_01', '%', '', 230, 184, 180, 56, [{ when: 'lt', value: 25, sev: 2 }]),
+      equip('an-40p', 'box', '40 pickup (0/1)', 'ANSI_40_PICKUP_01', '', '', 230, 256, 180, 56, [{ when: 'gt', value: 0, sev: 2 }]),
+      equip('an-46i2', 'box', '46 I₂', 'ANSI_46_I2_01', '%', '', 440, 40, 180, 56, [{ when: 'gt', value: 8, sev: 2 }]),
+      equip('an-46p', 'box', '46 pickup (0/1)', 'ANSI_46_PICKUP_01', '', '', 440, 112, 180, 56, [{ when: 'gt', value: 0, sev: 2 }]),
+      equip('an-81f', 'box', '81 tần số', 'ANSI_81_FREQ_01', 'Hz', '', 440, 184, 180, 56, [{ when: 'lt', value: 49, sev: 2 }]),
+      equip('an-81p', 'box', '81 pickup (0/1)', 'ANSI_81_PICKUP_01', '', '', 440, 256, 180, 56, [{ when: 'gt', value: 0, sev: 2 }]),
+      equip('an-24v', 'box', '24 V/Hz', 'ANSI_24_VHZ_01', '%', '', 650, 40, 180, 56, [{ when: 'gt', value: 110, sev: 2 }]),
+      equip('an-24p', 'box', '24 pickup (0/1)', 'ANSI_24_PICKUP_01', '', '', 650, 112, 180, 56, [{ when: 'gt', value: 0, sev: 2 }]),
+    ],
+  },
+  {
     screenId: 'D2-calibration',
     level: 'D2',
     title: { vi: 'Hiệu chỉnh hiệu năng vs Design Basis', en: 'Performance Calibration vs Design Basis' },
