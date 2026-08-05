@@ -12,6 +12,7 @@ import {
   FeedwaterTrainModel,
   FeedwaterDrainsModel,
   AnsiProtectionModel,
+  RegenBalanceModel,
   CondenserCWModel,
   FlueGasAirModel,
   EmissionsModel,
@@ -274,6 +275,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   // nhiệt drain + TTD/DCA + mức drain + xả khẩn. Additive — sinh tag FWH_* độc lập, không đổi tag FW_*.
   const feedwaterDrains = new FeedwaterDrainsModel();
   host.register(feedwaterDrains);
+  // Nối drain vào cân bằng nhiệt (v1.51): đọc drain chuyển hướng (xả khẩn) + heat rate chu trình → tổn thất
+  // hồi nhiệt + hạ nhiệt nước cấp hiệu dụng + phạt heat rate. GUARD 0 hồi quy: vận hành bình thường tổn thất=0.
+  const regenBalance = new RegenBalanceModel();
+  host.register(regenBalance);
   // Bình ngưng + nước tuần hoàn (v1.20): đăng ký SAU feedwater để đọc heat rate chu trình tươi → cân
   // bằng năng lượng ra nhiệt thải + phía CW. Additive — chỉ đọc chân không, không ghi đè.
   const condenser = new CondenserCWModel();

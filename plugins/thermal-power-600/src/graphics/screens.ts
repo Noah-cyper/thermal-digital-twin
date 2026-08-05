@@ -930,6 +930,21 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
     ],
   },
   {
+    screenId: 'D3-regen-balance',
+    level: 'D3',
+    title: { vi: 'Hồi nhiệt & cân bằng — tác động drain chuyển hướng', en: 'Regen Heat Balance — Drain Diversion Impact' },
+    elements: [
+      // Nối drain cascade vào cân bằng nhiệt: xả khẩn → mất hồi nhiệt → nước cấp nguội → phạt heat rate.
+      // Vận hành bình thường: tổn thất = 0 (guard 0 hồi quy).
+      equip('rb-healthy', 'box', 'Hồi nhiệt bình thường', 'PLANT_REGEN_HEALTHY_01', '', '', 20, 40, 200, 56, [{ when: 'lt', value: 0.5, sev: 2 }]),
+      equip('rb-loss', 'box', 'Tổn thất hồi nhiệt', 'PLANT_REGEN_LOSS_MW_01', 'MWth', '', 20, 112, 200, 56, [{ when: 'gt', value: 1, sev: 2 }]),
+      equip('rb-depr', 'box', 'Hạ nhiệt nước cấp', 'PLANT_FW_TEMP_DEPRESSION_01', '°C', '', 20, 184, 200, 56, [{ when: 'gt', value: 2, sev: 2 }]),
+      equip('rb-econeff', 'box', 'Nước cấp econ hiệu dụng', 'FW_ECON_INLET_EFFECTIVE_01', '°C', 'D3-fwh-drains', 250, 40, 210, 56),
+      equip('rb-penalty', 'box', 'Phạt heat rate', 'PLANT_HR_REGEN_PENALTY_01', '%', '', 250, 112, 210, 56, [{ when: 'gt', value: 0.5, sev: 2 }]),
+      equip('rb-hreff', 'box', 'Heat rate chu trình hiệu dụng', 'PLANT_CYCLE_HR_EFF_01', 'kJ/kWh', '', 250, 184, 210, 56),
+    ],
+  },
+  {
     screenId: 'D2-calibration',
     level: 'D2',
     title: { vi: 'Hiệu chỉnh hiệu năng vs Design Basis', en: 'Performance Calibration vs Design Basis' },
