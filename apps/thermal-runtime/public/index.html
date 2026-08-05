@@ -994,8 +994,21 @@
   const PRIO = { P1:'alarm-1', P2:'alarm-2', P3:'alarm-3', P4:'alarm-4' };
   const isUnack = (s) => s === 'UnackAlarm' || s === 'RtnUnack';
   let lastShelved = [];
+  const shelfExpiry = new Map(); // alarmId → mốc hết hạn (wall-clock ms) để đếm ngược mượt phía client
+  function syncShelfExpiry(shelved){
+    // Đồng bộ mốc hết hạn từ remainingMin server (nguồn chuẩn) mỗi lần nhận 'alarms' (sim ~ thời gian thực).
+    const ids = new Set();
+    for (const s of shelved){ ids.add(s.alarmId); shelfExpiry.set(s.alarmId, Date.now() + Math.max(0, s.remainingMin) * 60000); }
+    for (const id of [...shelfExpiry.keys()]) if (!ids.has(id)) shelfExpiry.delete(id); // bung/hết hạn → bỏ
+  }
+  function fmtCountdown(id){
+    const exp = shelfExpiry.get(id); if (exp === undefined) return '—';
+    const ms = exp - Date.now(); if (ms <= 0) return 'hết hạn';
+    const m = Math.floor(ms / 60000), sX = Math.floor((ms % 60000) / 1000);
+    return m + 'm ' + String(sX).padStart(2, '0') + 's';
+  }
   function renderAlarms(active, shelved){
-    if (shelved !== undefined) lastShelved = shelved;
+    if (shelved !== undefined){ lastShelved = shelved; syncShelfExpiry(shelved); }
     const c = { P1:0, P2:0, P3:0, P4:0 };
     for (const a of active) c[a.priority] = (c[a.priority] || 0) + 1;
     $('cP1').textContent = c.P1; $('cP2').textContent = c.P2; $('cP3').textContent = c.P3; $('cP4').textContent = c.P4;
@@ -1041,10 +1054,15 @@
     if (!lastShelved.length){ b.innerHTML = '<div class="cs">Không có alarm đang shelve.</div>'; return; }
     b.innerHTML = lastShelved.map(s =>
       '<div class="row" style="display:flex;justify-content:space-between;align-items:center;gap:8px;border-bottom:1px solid var(--border);padding:6px 0">'
-      + '<span><b>' + s.alarmId + '</b> <span class="cs">(' + s.priority + ')</span><br><span class="cs">lý do: ' + s.reason + ' · bởi ' + s.user + ' · còn ' + s.remainingMin + ' phút</span></span>'
+      + '<span><b>' + s.alarmId + '</b> <span class="cs">(' + s.priority + ')</span><br><span class="cs">lý do: ' + s.reason + ' · bởi ' + s.user + ' · còn <b class="cd" data-cd="' + s.alarmId + '">' + fmtCountdown(s.alarmId) + '</b></span></span>'
       + '<button class="ackbtn" data-unshelf="' + s.alarmId + '">Bung</button></div>').join('');
     b.querySelectorAll('button[data-unshelf]').forEach(x => { x.onclick = () => send({ cmd: 'unshelve', alarmId: x.dataset.unshelf }); });
   }
+  // Tick 1s: cập nhật ĐỒNG HỒ ĐẾM NGƯỢC tại chỗ (không re-render) khi modal shelved đang mở.
+  setInterval(() => {
+    if ($('shelvedMask').style.display !== 'flex') return;
+    $('shelvedBody').querySelectorAll('.cd[data-cd]').forEach(el => { el.textContent = fmtCountdown(el.dataset.cd); });
+  }, 1000);
   $('shelfBtn').onclick = () => { renderShelvedBody(); $('shelvedMask').style.display = 'flex'; };
   $('shelvedClose').onclick = () => { $('shelvedMask').style.display = 'none'; };
 
