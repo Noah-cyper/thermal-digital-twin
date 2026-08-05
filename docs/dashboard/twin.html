@@ -304,6 +304,9 @@
       <button class="malf" id="b_leak">Rò ống lò</button>
       <button class="malf" id="b_vac">Mất chân không</button>
       <button class="malf" id="b_mill">Trip mill</button>
+      <button class="malf" id="b_air">Mất khí nén</button>
+      <button class="malf" id="b_dm">Rò nhựa DM</button>
+      <button class="malf" id="b_edg">Mất điện khẩn</button>
       <button id="b_clear">Xoá sự cố</button>
       <button id="b_freeze">Freeze</button>
       <button id="b_theme" title="Đổi sáng/tối">◐</button>
@@ -332,7 +335,7 @@
   let loadSP=448, frozen=false, tripped=false;
   const HIST=[], HIST_MAX=200;
   const TREND_PENS=[{k:'g',min:0,max:650,c:'#f0b429'},{k:'steam',min:0,max:2100,c:'#d9463a'},{k:'vac',min:0,max:35,c:'#1fa5d6'},{k:'drum',min:-300,max:300,c:'#38bdf8'}];
-  const malf={ leak:0, vac:0, mill:0 }; // leak rate, vac target, mill runback
+  const malf={ leak:0, vac:0, mill:0, air:0, dm:0, edg:0 }; // leak · vac · mill runback · khí nén · rò nhựa DM · mất điện khẩn
   let simMs=0;
 
   function step(dt){
@@ -416,7 +419,7 @@
     // Neo hằng số theo model runtime (không dùng nz → không nhiễu seed sim). Giá trị tĩnh/theo tải.
     const bopOn=coal>5;
     // khí nén: header khí điều khiển giữ ~6,9 barg (P_LOAD 6.8 / P_UNLOAD 7.5), dewpoint −40 °C, số máy nén chạy theo tải
-    const caIA=6.9, caDew=-40, caComp=bopOn?(lf>0.85?2:1):1;
+    const caIA=malf.air?3.5:6.9, caDew=malf.air?-18:-40, caComp=malf.air?2:(bopOn?(lf>0.85?2:1):1);
     // dầu đốt: chỉ chạy khi khởi động/tải thấp (đỡ than); két HFO 85 %, áp cấp khi bơm chạy
     const foFlow=(bopOn&&steam<400)?18:0, foTank=85, foPress=foFlow>0?3.0:0.2;
     // thải tro: tổng ~15 % than (đáy 15 % + bay 85 %), silo tro bay 62 %
@@ -424,11 +427,11 @@
     // thổi bụi lò: độ sạch bề mặt & chỉ số bám bẩn
     const sbClean=82, sbFoul=18;
     // xử lý nước DM: độ dẫn sản phẩm 0,08 µS/cm & silica 5 ppb (nhựa tốt); nước bù ≈ 1,2 % hơi; 3 dây (2 SV+1 DP)
-    const wtCond=0.08, wtSilica=5, wtDM=steam*0.012, wtTrains=3;
+    const wtCond=malf.dm?0.6:0.08, wtSilica=malf.dm?25:5, wtDM=steam*0.012, wtTrains=malf.dm?2:3;
     // định lượng hoá chất: pH bao hơi / nước cấp, liều hydrazine khử oxy (ppb)
     const drumPh=9.5, fwPh=9.2, hydra=10;
     // điện khẩn cấp: UPS SOC ~100 %, DC 220 V, máy phát diesel sẵn sàng
-    const upsSoc=100, dc220=220, edgReady=1;
+    const upsSoc=malf.edg?82:100, dc220=malf.edg?214:220, edgReady=1;
     // switchyard 500 kV: thanh cái, tần số = tốc độ/60, xuất tuyến chia đôi công suất lưới, 2 lộ
     const syKv=bopOn?500:497, syFreq=S.speed/60, syLine1=grid/2, syLines=2;
     // HVAC phòng điều khiển: nhiệt độ, độ ẩm, tải chiller theo tải nhiệt
@@ -530,6 +533,9 @@
     if(D.hrhT<500&&D.steam>200) A.push(['P2','Nhiệt hot reheat thấp']);
     if(D.gsuLoad>100) A.push(['P2','Quá tải máy biến áp GSU']);
     if(malf.mill>0) A.push(['P2','Mill trip — runback']);
+    if(malf.air) A.push(['P1','Mất khí nén điều khiển — van điều khiển có thể về vị trí an toàn']);
+    if(malf.dm) A.push(['P2','Rò nhựa DM — độ dẫn/silica DM vượt ngưỡng, nguy cơ nhiễm bẩn chu trình']);
+    if(malf.edg) A.push(['P1','Mất nguồn tự dùng thiết yếu — UPS chạy ắc-quy, diesel khẩn cấp khởi động']);
     return A;
   }
 
@@ -621,8 +627,11 @@
   document.getElementById('b_leak').onclick=e=>{ malf.leak=malf.leak?0:800; e.target.classList.toggle('on',!!malf.leak); };
   document.getElementById('b_vac').onclick=e=>{ malf.vac=malf.vac?0:30; e.target.classList.toggle('on',!!malf.vac); };
   document.getElementById('b_mill').onclick=e=>{ malf.mill=malf.mill?0:1; e.target.classList.toggle('on',!!malf.mill); };
-  document.getElementById('b_clear').onclick=()=>{ malf.leak=0;malf.vac=0;malf.mill=0; tripped=false; S.drum=0;S.vac=5.4;
-    ['b_leak','b_vac','b_mill'].forEach(id=>document.getElementById(id).classList.remove('on')); };
+  document.getElementById('b_air').onclick=e=>{ malf.air=malf.air?0:1; e.target.classList.toggle('on',!!malf.air); };
+  document.getElementById('b_dm').onclick=e=>{ malf.dm=malf.dm?0:1; e.target.classList.toggle('on',!!malf.dm); };
+  document.getElementById('b_edg').onclick=e=>{ malf.edg=malf.edg?0:1; e.target.classList.toggle('on',!!malf.edg); };
+  document.getElementById('b_clear').onclick=()=>{ malf.leak=0;malf.vac=0;malf.mill=0;malf.air=0;malf.dm=0;malf.edg=0; tripped=false; S.drum=0;S.vac=5.4;
+    ['b_leak','b_vac','b_mill','b_air','b_dm','b_edg'].forEach(id=>document.getElementById(id).classList.remove('on')); };
   document.getElementById('b_freeze').onclick=e=>{ frozen=!frozen; e.target.classList.toggle('on',frozen); e.target.textContent=frozen?'Run':'Freeze'; };
   // theme toggle
   const root=document.documentElement;
