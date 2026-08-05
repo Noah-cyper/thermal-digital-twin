@@ -4,7 +4,7 @@ import { createThermalRuntime } from '../src/runtime';
 describe('thermal-runtime — Cause & Effect (doc 09 §4) trên CCS thật', () => {
   it('điểm vận hành: không trip; inject loss-of-vacuum → turbine trip CHỐT', () => {
     const rt = createThermalRuntime();
-    expect(rt.causeEffectMatrices().length).toBe(2);
+    expect(rt.causeEffectMatrices().length).toBe(3); // + generator-protection (ANSI, GĐ-112)
 
     for (let i = 0; i < 10; i++) rt.step();
     expect(rt.causeEffectState('boiler-mft')?.trippedEffects).toEqual([]);

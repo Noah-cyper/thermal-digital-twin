@@ -51,4 +51,34 @@ export const thermalCauseEffect: ReadonlyArray<CauseEffectMatrix> = [
       { cause: 'manual-trip', effect: 'gen-breaker' },
     ],
   },
+  {
+    // Bảo vệ máy phát ANSI/IEEE — nối cờ trip rơle (AnsiProtectionModel) vào ACTUATION thật: rơle chốt →
+    // trip turbine (TRB_TRIP sim đọc → MW=0, coast-down) + mở máy cắt máy phát + triệt kích từ (de-excite).
+    // Ở điểm vận hành mọi cờ ANSI = 0 → không nguyên nhân nào hoạt → không trip (0 hồi quy).
+    matrixId: 'generator-protection',
+    title: { vi: 'Bảo vệ máy phát (ANSI/IEEE)', en: 'Generator protection (ANSI/IEEE)' },
+    // Chỉ LỖI ĐIỆN NỘI BỘ máy phát (87/40/46) mới LOCKOUT tổ máy. 81 (tần số) là điều kiện HỆ THỐNG → giữ
+    // làm chỉ thị/pickup, KHÔNG nối vào ma trận lockout (tránh chốt lại do underfrequency lúc coast-down).
+    causes: [
+      { id: 'diff-87', tag: 'ANSI_87_TRIP_01', op: 'gt', value: 0, title: { vi: '87G vi sai (chạm chập)', en: '87G differential (internal fault)' } },
+      { id: 'lof-40', tag: 'ANSI_40_PICKUP_01', op: 'gt', value: 0, title: { vi: '40 mất kích từ', en: '40 loss of field' } },
+      { id: 'negseq-46', tag: 'ANSI_46_PICKUP_01', op: 'gt', value: 0, title: { vi: '46 dòng thứ tự nghịch', en: '46 negative sequence' } },
+    ],
+    effects: [
+      { id: 'trip-turbine', tag: 'TRB_TRIP', value: 1, title: { vi: 'Trip turbine', en: 'Trip turbine' } },
+      { id: 'gen-breaker', tag: 'GEN_BREAKER_TRIP', value: 1, title: { vi: 'Mở máy cắt máy phát', en: 'Open generator breaker' } },
+      { id: 'field-suppress', tag: 'GEN_FIELD_SUPPRESS', value: 1, title: { vi: 'Triệt kích từ', en: 'Field suppression' } },
+    ],
+    // 87 (chạm chập) & 40 (mất kích từ) nặng → cả 3 hệ quả; 46 (thứ tự nghịch) → trip turbine + mở máy cắt.
+    cells: [
+      { cause: 'diff-87', effect: 'trip-turbine' },
+      { cause: 'diff-87', effect: 'gen-breaker' },
+      { cause: 'diff-87', effect: 'field-suppress' },
+      { cause: 'lof-40', effect: 'trip-turbine' },
+      { cause: 'lof-40', effect: 'gen-breaker' },
+      { cause: 'lof-40', effect: 'field-suppress' },
+      { cause: 'negseq-46', effect: 'trip-turbine' },
+      { cause: 'negseq-46', effect: 'gen-breaker' },
+    ],
+  },
 ];

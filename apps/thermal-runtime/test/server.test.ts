@@ -341,7 +341,7 @@ describe('thermal-runtime server', () => {
     await new Promise<void>((r) => ws.on('open', () => r()));
 
     expect(await until(() => msgs.some((m) => m.type === 'seq-list' && (m.items ?? []).length >= 8))).toBe(true);
-    expect(await until(() => msgs.some((m) => m.type === 'ce' && (m.matrices ?? []).length === 2))).toBe(true);
+    expect(await until(() => msgs.some((m) => m.type === 'ce' && (m.matrices ?? []).length === 3))).toBe(true);
 
     ws.send(JSON.stringify({ cmd: 'login', user: 'engineer' })); // SFC live = action 'engineer'
     await sleep(80);

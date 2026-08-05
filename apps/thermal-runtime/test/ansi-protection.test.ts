@@ -14,17 +14,14 @@ describe('thermal-runtime — bảo vệ máy phát ANSI (chiều sâu physics)'
     expect(rt.value('ANSI_40_MARGIN_01')).toBeGreaterThan(25);
   });
 
-  it('gen-internal-fault: 87G trip; GEN_MW/GEN_MVAR KHÔNG đổi đáng kể (rơle read-only, 0 hồi quy)', () => {
+  it('gen-internal-fault: rơle 87G phát hiện → cờ trip; ACTUATION đi qua Cause&Effect (xem ansi-ce-trip)', () => {
     const rt = createThermalRuntime();
     for (let i = 0; i < 400; i++) rt.step();
-    const mw = rt.value('GEN_MW_01');
-    const mvar = rt.value('GEN_MVAR_01');
     rt.injectMalfunction({ id: 'gen-internal-fault' });
-    for (let i = 0; i < 50; i++) rt.step();
+    for (let i = 0; i < 20; i++) rt.step();
+    // Bản thân MODEL rơle là read-only (chỉ sinh cờ ANSI_*); cắt máy cắt/turbine do ma trận C&E
+    // 'generator-protection' thực hiện (kiểm end-to-end MW sập ở ansi-ce-trip.test.ts, GĐ-112).
     expect(rt.value('ANSI_87_TRIP_01')).toBe(1);
     expect(rt.value('ANSI_TRIP_ANY_01')).toBe(1);
-    // rơle chỉ giám sát → không tác động đại lượng điện.
-    expect(Math.abs(rt.value('GEN_MW_01') - mw)).toBeLessThan(1);
-    expect(Math.abs(rt.value('GEN_MVAR_01') - mvar)).toBeLessThan(1);
   });
 });
