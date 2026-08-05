@@ -873,6 +873,23 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
     ],
   },
   {
+    screenId: 'D3-avr-excitation',
+    level: 'D3',
+    title: { vi: 'AVR & hệ kích từ máy phát — bố trí thiết bị', en: 'AVR & Excitation System Layout' },
+    elements: [
+      // AVR giữ điện áp đầu cực bằng dòng kích từ → chi phối phản kháng (MVAr).
+      equip('avr-vterm', 'box', 'Điện áp đầu cực', 'ELEC_TERM_VOLT_01', 'kV', '', 20, 40, 180, 56, [{ when: 'lt', value: 19, sev: 2 }]),
+      equip('avr-vpu', 'box', 'Điện áp (pu)', 'ELEC_TERM_VOLT_PU_01', 'pu', '', 20, 112, 180, 56, [{ when: 'lt', value: 0.97, sev: 2 }]),
+      equip('avr-sp', 'box', 'Setpoint AVR', 'ELEC_AVR_SETPOINT_01', 'pu', '', 20, 184, 180, 56),
+      equip('avr-mode', 'box', 'AVR AUTO (0/1)', 'ELEC_AVR_MODE_01', '', '', 20, 256, 180, 56, [{ when: 'lt', value: 0.5, sev: 2 }]),
+      pipe('avr-p1', 'elec', [{ x: 200, y: 68 }, { x: 250, y: 68 }, { x: 250, y: 90 }]),
+      equip('avr-field', 'box', 'Dòng kích từ', 'ELEC_FIELD_CURRENT_01', 'A', '', 250, 40, 190, 56, [{ when: 'gt', value: 3800, sev: 2 }]),
+      equip('avr-fieldv', 'box', 'Điện áp kích từ', 'ELEC_FIELD_VOLTAGE_01', 'V', '', 250, 112, 190, 56),
+      equip('avr-exc', 'drum', 'Mức kích từ', 'ELEC_EXCITATION_01', '%', '', 250, 184, 190, 90, [{ when: 'gt', value: 95, sev: 2 }]),
+      equip('avr-mvar', 'box', 'Phản kháng AVR', 'ELEC_REACTIVE_AVR_01', 'MVAr', 'D3-generator', 470, 40, 190, 56),
+    ],
+  },
+  {
     screenId: 'D2-calibration',
     level: 'D2',
     title: { vi: 'Hiệu chỉnh hiệu năng vs Design Basis', en: 'Performance Calibration vs Design Basis' },

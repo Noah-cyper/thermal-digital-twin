@@ -27,6 +27,7 @@ import {
   HvacModel,
   FireFightingModel,
   ChemicalDosingModel,
+  AvrExcitationModel,
   PlantBalanceModel,
   CalibrationModel,
   boilerControlLoops,
@@ -283,6 +284,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   // lưới. Additive — không đổi GEN_MW_01/GEN_MVAR_01.
   const electrical = new ElectricalModel();
   host.register(electrical);
+  // AVR / hệ kích từ (v1.47, chiều sâu physics): đăng ký SAU electrical để đọc GEN_MVAR_01 tươi → dòng kích
+  // từ + điện áp đầu cực + mức kích thích. Additive — không đổi GEN_MVAR_01/GEN_MW_01 (0 hồi quy).
+  const avrExcitation = new AvrExcitationModel();
+  host.register(avrExcitation);
   // Tháp làm mát (v1.24): đăng ký SAU condenser để đọc nhiệt thải/độ tăng nhiệt CW tươi → khép vòng CW
   // (bầu ướt + approach + bốc hơi + nước bổ sung). Additive — không đổi tag condenser.
   const coolingTower = new CoolingTowerModel();
