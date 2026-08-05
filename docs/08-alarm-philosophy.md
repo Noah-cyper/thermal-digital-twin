@@ -25,7 +25,7 @@
 | Ngưỡng flood | > 10 alarm/10 phút |
 | Phân bố mục tiêu | P1 ≈ 5% · P2 ≈ 15% · P3/P4 ≈ 80% |
 | Bad actor | top 10 tag gây nhiều alarm nhất |
-| Shelving | ≤ 8 h, tự bung, audit (doc 05‑03) |
+| Shelving | ISA‑18.2: **lý do bắt buộc** + hẹn giờ (≤ 8 h) tự bung + bung tay + liệt kê shelved — đã hiện thực (GĐ‑96, doc 05‑03) |
 
 ## 4. Alarm template theo loại thiết bị (alarm/instance)
 | Loại | Alarm chuẩn | ~alarm |
@@ -54,6 +54,29 @@
 | **TỔNG** | **~650** |
 
 → **≥ 600 ✓** (§10). Phân bố kiểm: P1 ~33 (5%) · P2 ~98 (15%) · P3/P4 ~520 (80%).
+
+## 5.1 Neo roll‑up BoP vào hiện thực (trung thực docs↔code)
+Roll‑up BoP (100) & Switchyard (40) ở §5 được hiện thực **chủ yếu qua seed template × instance** (GĐ‑42:
+tổng **651 alarm** sinh tự động, khớp ~650) — không liệt kê tay. Lớp MÔ HÌNH sim (§13 doc 10) bổ sung các
+alarm/điều kiện bất thường CỤ THỂ sau:
+
+| Nguồn | Alarm / điều kiện bất thường | Priority | GĐ |
+|---|---|:--:|---|
+| Soot‑blower — **AlarmDef thật** | `SB-FOULING-HI` (bám bề mặt > 55%) | P3 | GĐ‑95 |
+| Soot‑blower — **AlarmDef thật** | `SB-STEAM-PRESS-LO` (header hơi thổi < 20 barg) | P2 | GĐ‑95 |
+| Water treatment | rò nhựa DM → độ dẫn/silica vượt breakthrough (malf `dm-resin-fault`) | P2 | GĐ‑99 |
+| Emergency power | mất nguồn tự dùng → UPS chạy ắc‑quy + EDG khởi động (malf `station-blackout`) | P1 | GĐ‑100 |
+| Switchyard 500 kV | cắt 1 đường dây → dòng đường còn lại ×2 (malf `line-trip`) | P2 | GĐ‑101 |
+| HVAC | mất chiller → nhiệt/ẩm phòng ĐK tăng (malf `hvac-chiller-trip`) | P2 | GĐ‑102 |
+| Fire fighting | báo cháy → bơm chính chạy + rút bồn (malf `fire-detected`) | P1 | GĐ‑103 |
+| Chemical dosing | mất điều hoá → pH vùng ăn mòn + độ dẫn cation tăng (malf `chem-dosing-fail`) | P2 | GĐ‑104 |
+
+> **Ranh giới trung thực:** chỉ 2 alarm soot‑blower là `AlarmDef` first‑class trong code; 6 điều kiện còn
+> lại hiện qua **tiêm sự cố OTS** (`SimulationHost.injectAll`) + logic dẫn xuất, CHƯA phải AlarmDef độc lập.
+> Bản dashboard tự chứa còn minh hoạ thêm điều kiện **mất khí nén** (header IA tụt → van về vị trí an toàn,
+> P1) nhưng `CompressedAirModel` (GĐ‑89) chưa mang malfunction này ở runtime. Rationalization 6+1 điều kiện
+> thành AlarmDef first‑class (đủ deadband/on‑off delay/suppression theo §1–§3) = **việc mở** khi có bảng logic
+> bảo vệ thật.
 
 ## 6. Mẫu alarm (YAML)
 `docs/08-alarm-registry/boiler-island.sample.alarms.yaml` — theo `AlarmDef` (doc 05‑03).
