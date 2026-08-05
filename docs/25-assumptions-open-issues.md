@@ -117,6 +117,7 @@
 > ✔ Doc 05 (engine-specs): **21 engine L1/L2 × 10 mục §8** (Mục đích/ranh giới · Interface TS · Mô hình dữ liệu · Luồng Mermaid · Cấu hình · Phi chức năng · Chế độ lỗi · Plugin mở rộng · Kiểm thử · Quyết định thiết kế). Chữ ký interface ánh xạ mã đã hiện thực; Trend/Animation (L4 client) không lập chương riêng. → **Bộ tài liệu 00–25 nay đã đủ file** (nợ doc 05/06 đã trả).
 > ✔ CI (doc 23): `.github/workflows/ci.yml` — build + test toàn workspace trên mỗi push/PR (matrix Node 20/22, pnpm 9.7.0, frozen lockfile). Cổng kiểm tra hồi quy tự động (232 test).
 > ✔ Seed §10 (doc 07 §5): `SeedGenerator` (engine generic) + `thermalSeedSpec` (dữ liệu plugin) → **3.522 tag / 651 alarm**, đạt ngưỡng nghiệm thu §10 (≥ 3.000 / ≥ 600). Bề rộng = thêm DỮ LIỆU khai báo, engine/kernel không đổi (GĐ‑42).
+> ✔ **Test coverage ≥ 70% (GĐ‑30):** thêm `@vitest/coverage-v8` + unit test plugin cho 5 sim model BoP chưa phủ (`ash-handling` · `compressed-air` · `fuel-oil` · `bypass-airremoval` · `calibration`) + test registry khai báo (screens/loops/nav/faceplate/interlock/kpi — bất biến + tham chiếu chéo) + 3 module kernel (`audit` · `data-contract` · `time-service`). **Coverage stmts theo package (mã runtime): engines 89,7 % · plugin 97,1 % · app 82,9 % · kernel 93,9 % — đều ≥ 70 %**; `@idtp/sdk` là type-only (0 câu lệnh runtime → ngoài phạm vi coverage). Bộ test **318 → 352 xanh**, 0 hồi quy.
 | # | Vấn đề | Cần |
 |---|---|---|
 | M‑01 | Hiệu chỉnh GĐ‑02 (person‑month) bằng velocity thực Pha A | đo khi code |
