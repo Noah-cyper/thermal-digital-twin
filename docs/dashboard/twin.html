@@ -245,6 +245,19 @@
   </section>
 
   <section>
+    <div class="sect-h"><h2>Xu hướng thời gian thực</h2><span class="hint">cửa sổ ~50 giây · cập nhật liên tục · kéo tải / tiêm sự cố để thấy đường đổi</span></div>
+    <div class="card">
+      <canvas id="trend" style="width:100%;height:172px;display:block"></canvas>
+      <div class="legend" id="trendLegend" style="margin-top:10px">
+        <span><i style="background:#f0b429"></i>Gross MW <b class="num" id="tl_g">—</b></span>
+        <span><i style="background:#d9463a"></i>Lưu lượng hơi <b class="num" id="tl_steam">—</b> t/h</span>
+        <span><i style="background:#1fa5d6"></i>Chân không <b class="num" id="tl_vac">—</b> kPa</span>
+        <span><i style="background:#38bdf8"></i>Mức bao hơi <b class="num" id="tl_drum">—</b> mm</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
     <div class="sect-h"><h2>Hệ thống</h2><span class="hint">giá trị trung tính · chỉ đổi màu khi bất thường (ISA-101)</span></div>
     <div class="grid" id="cards"></div>
   </section>
@@ -312,6 +325,8 @@
   const S={ steam:1500, coal:211, press:17.5, shT:541, drum:0, o2:3.2, vac:5.4, mw:448,
     speed:3000, tEcon:255, tDea:170, tCw:5, ferozen:false };
   let loadSP=448, frozen=false, tripped=false;
+  const HIST=[], HIST_MAX=200;
+  const TREND_PENS=[{k:'g',min:0,max:650,c:'#f0b429'},{k:'steam',min:0,max:2100,c:'#d9463a'},{k:'vac',min:0,max:35,c:'#1fa5d6'},{k:'drum',min:-300,max:300,c:'#38bdf8'}];
   const malf={ leak:0, vac:0, mill:0 }; // leak rate, vac target, mill runback
   let simMs=0;
 
@@ -461,8 +476,36 @@
   }
 
   // ---------- render ----------
+  function drawTrend(){
+    const cv=document.getElementById('trend'); if(!cv) return;
+    const dpr=window.devicePixelRatio||1, w=cv.clientWidth, h=cv.clientHeight; if(!w||!h) return;
+    if(cv.width!==Math.round(w*dpr)||cv.height!==Math.round(h*dpr)){ cv.width=Math.round(w*dpr); cv.height=Math.round(h*dpr); }
+    const ctx=cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,w,h);
+    const line=(getComputedStyle(document.documentElement).getPropertyValue('--line')||'#27323d').trim();
+    ctx.strokeStyle=line; ctx.lineWidth=1; ctx.globalAlpha=.6;
+    for(let i=0;i<=4;i++){ const y=Math.round(h*i/4)+.5; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+    ctx.globalAlpha=1;
+    const n=HIST.length; if(n<2) return;
+    const pad=5, span=HIST_MAX-1;
+    for(const p of TREND_PENS){
+      ctx.strokeStyle=p.c; ctx.lineWidth=1.8; ctx.beginPath();
+      for(let i=0;i<n;i++){
+        const x=(i/span)*w, norm=clamp((HIST[i][p.k]-p.min)/(p.max-p.min),0,1), y=h-pad-norm*(h-2*pad);
+        i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+      }
+      ctx.stroke();
+      const lx=((n-1)/span)*w, ln=clamp((HIST[n-1][p.k]-p.min)/(p.max-p.min),0,1), ly=h-pad-ln*(h-2*pad);
+      ctx.fillStyle=p.c; ctx.beginPath(); ctx.arc(lx,ly,2.6,0,6.29); ctx.fill();
+    }
+  }
   function render(){
     const D=derive();
+    HIST.push({g:D.g,steam:D.steam,vac:D.vac,drum:D.drum}); if(HIST.length>HIST_MAX) HIST.shift();
+    drawTrend();
+    document.getElementById('tl_g').textContent=fmt(D.g,0);
+    document.getElementById('tl_steam').textContent=fmt(D.steam,0);
+    document.getElementById('tl_vac').textContent=fmt(D.vac,1);
+    document.getElementById('tl_drum').textContent=fmt(D.drum,0);
     // KPIs
     document.getElementById('k_net').textContent=fmt(D.net,0);
     document.getElementById('k_gross').textContent=fmt(D.g,0);
