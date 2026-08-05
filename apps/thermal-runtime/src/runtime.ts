@@ -10,6 +10,7 @@ import {
   TurbineGeneratorModel,
   ReheatCycleModel,
   FeedwaterTrainModel,
+  FeedwaterDrainsModel,
   CondenserCWModel,
   FlueGasAirModel,
   EmissionsModel,
@@ -268,6 +269,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   // reheater tươi. Additive — sinh thêm tag nước cấp/heat rate, không đổi tag boiler/turbine.
   const feedwater = new FeedwaterTrainModel();
   host.register(feedwater);
+  // Drain cascade bình gia nhiệt (v1.48, chiều sâu physics): đăng ký SAU feedwater để đọc nhiệt bình tươi →
+  // nhiệt drain + TTD/DCA + mức drain + xả khẩn. Additive — sinh tag FWH_* độc lập, không đổi tag FW_*.
+  const feedwaterDrains = new FeedwaterDrainsModel();
+  host.register(feedwaterDrains);
   // Bình ngưng + nước tuần hoàn (v1.20): đăng ký SAU feedwater để đọc heat rate chu trình tươi → cân
   // bằng năng lượng ra nhiệt thải + phía CW. Additive — chỉ đọc chân không, không ghi đè.
   const condenser = new CondenserCWModel();

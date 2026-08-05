@@ -890,6 +890,26 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
     ],
   },
   {
+    screenId: 'D3-fwh-drains',
+    level: 'D3',
+    title: { vi: 'Drain cascade bình gia nhiệt — bố trí thiết bị', en: 'Feedwater Heater Drain Cascade Layout' },
+    elements: [
+      // Drain cascade: HP3→HP2→HP1→deaerator; LP4→…→LP1→bình ngưng. TTD/DCA + mức drain + van xả khẩn.
+      equip('fwd-hph3', 'box', 'Drain HP3', 'FWH_HPH3_DRAIN_TEMP_01', '°C', '', 20, 40, 160, 56),
+      equip('fwd-hph2', 'box', 'Drain HP2', 'FWH_HPH2_DRAIN_TEMP_01', '°C', '', 20, 112, 160, 56),
+      equip('fwd-hph1', 'box', 'Drain HP1 → deaerator', 'FWH_HPH1_DRAIN_TEMP_01', '°C', '', 20, 184, 160, 56),
+      equip('fwd-lph4', 'box', 'Drain LP4', 'FWH_LPH4_DRAIN_TEMP_01', '°C', '', 20, 256, 160, 56),
+      equip('fwd-lph1', 'box', 'Drain LP1 → bình ngưng', 'FWH_LPH1_DRAIN_TEMP_01', '°C', 'D3-condenser-cw', 20, 328, 160, 56),
+      equip('fwd-httd', 'box', 'TTD đoàn HP', 'FWH_HPH_TTD_01', '°C', '', 230, 40, 180, 56, [{ when: 'gt', value: 6, sev: 2 }]),
+      equip('fwd-lttd', 'box', 'TTD đoàn LP', 'FWH_LPH_TTD_01', '°C', '', 230, 112, 180, 56, [{ when: 'gt', value: 6, sev: 2 }]),
+      equip('fwd-dca', 'box', 'DCA đoàn HP', 'FWH_HPH_DCA_01', '°C', '', 230, 184, 180, 56),
+      equip('fwd-hplvl', 'drum', 'Mức drain HP', 'FWH_HPH_DRAIN_LEVEL_01', '%', '', 230, 256, 180, 100, [{ when: 'gt', value: 80, sev: 2 }]),
+      equip('fwd-lplvl', 'box', 'Mức drain LP', 'FWH_LPH_DRAIN_LEVEL_01', '%', '', 440, 40, 190, 56),
+      equip('fwd-emerg', 'box', 'Van xả khẩn (0/1)', 'FWH_EMERG_DRAIN_01', '', '', 440, 112, 190, 56, [{ when: 'gt', value: 0, sev: 2 }]),
+      equip('fwd-tocond', 'box', 'Drain → bình ngưng', 'FWH_DRAIN_TO_COND_01', 't/h', '', 440, 184, 190, 56),
+    ],
+  },
+  {
     screenId: 'D2-calibration',
     level: 'D2',
     title: { vi: 'Hiệu chỉnh hiệu năng vs Design Basis', en: 'Performance Calibration vs Design Basis' },

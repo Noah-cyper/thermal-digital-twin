@@ -25,6 +25,7 @@ export { HvacModel } from './sim/hvac';
 export { FireFightingModel } from './sim/fire-fighting';
 export { ChemicalDosingModel } from './sim/chemical-dosing';
 export { AvrExcitationModel } from './sim/avr-excitation';
+export { FeedwaterDrainsModel } from './sim/feedwater-drains';
 export { DrumModel } from './sim/drum';
 export { boilerControlLoops, boilerLoopSeeds } from './control/loops';
 export { boilerScreens, screenTags } from './graphics/screens';
