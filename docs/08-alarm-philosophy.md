@@ -71,12 +71,13 @@ alarm/điều kiện bất thường CỤ THỂ sau:
 | Fire fighting | báo cháy → bơm chính chạy + rút bồn (malf `fire-detected`) | P1 | GĐ‑103 |
 | Chemical dosing | mất điều hoá → pH vùng ăn mòn + độ dẫn cation tăng (malf `chem-dosing-fail`) | P2 | GĐ‑104 |
 
-> **Ranh giới trung thực:** chỉ 2 alarm soot‑blower là `AlarmDef` first‑class trong code; 6 điều kiện còn
-> lại hiện qua **tiêm sự cố OTS** (`SimulationHost.injectAll`) + logic dẫn xuất, CHƯA phải AlarmDef độc lập.
-> Bản dashboard tự chứa còn minh hoạ thêm điều kiện **mất khí nén** (header IA tụt → van về vị trí an toàn,
-> P1) nhưng `CompressedAirModel` (GĐ‑89) chưa mang malfunction này ở runtime. Rationalization 6+1 điều kiện
-> thành AlarmDef first‑class (đủ deadband/on‑off delay/suppression theo §1–§3) = **việc mở** khi có bảng logic
-> bảo vệ thật.
+> **✔ Rationalization 6+1 ĐÃ XONG (GĐ‑105):** cả 6 điều kiện malfunction BoP + điều kiện **mất khí nén** nay
+> là `AlarmDef` first‑class trong `boiler-alarms.ts` (đủ deadband + on/off delay + consequence/corrective theo
+> §1–§3), neo tag process thật với setpoint giữa giá trị NORMAL và FAULTED đã đo: `WTP‑DM‑COND‑HI` (P2) ·
+> `EMG‑STATION‑BLACKOUT` (P1) · `SWY‑LINE‑TRIP` (P2) · `HVAC‑CR‑TEMP‑HI` (P2) · `FIRE‑DETECTED` (P1) ·
+> `CHEM‑FW‑PH‑LO` (P2) · `CA‑IA‑PRESS‑LO` (P1). `CompressedAirModel` (GĐ‑89) nay MANG malfunction
+> `instrument-air-loss` ở runtime → header IA tụt về sàn kích alarm. Kiểm: `bop-alarm-rationalization.test.ts`
+> — vận hành ổn định 0/7 nổi; tiêm mỗi malfunction → alarm tương ứng nổi; ACK + RTN → rời active (ISA‑18.2).
 
 ## 6. Mẫu alarm (YAML)
 `docs/08-alarm-registry/boiler-island.sample.alarms.yaml` — theo `AlarmDef` (doc 05‑03).

@@ -34,10 +34,12 @@ export class CompressedAirModel implements ISimModel {
 
   private receiver = 7.1; // barg
   private loaded = true;
+  private airLoss = false; // malfunction 'instrument-air-loss': máy nén cô lập → bình chứa tụt về sàn
 
   init(_ctx?: ISimModelContext, _config?: unknown): void {
     this.receiver = 7.1;
     this.loaded = true;
+    this.airLoss = false;
   }
 
   step(ctx: ISimModelContext): ISimStepResult {
@@ -50,13 +52,15 @@ export class CompressedAirModel implements ISimModel {
     // (hysteresis) giữ áp bình chứa trong dải — A một mình chưa đủ ở tải cao nên B nạp/xả quanh dải.
     if (this.receiver < P_LOAD_BARG) this.loaded = true;
     else if (this.receiver > P_UNLOAD_BARG) this.loaded = false;
-    const trimOn = anyDemand && this.loaded;
+    const trimOn = anyDemand && this.loaded && !this.airLoss;
 
-    const supply = (anyDemand ? COMP_CAP_NM3MIN : 0) + (trimOn ? COMP_CAP_NM3MIN : 0);
+    // Mất khí nén (OTS): máy nén cô lập/hỏng → cấp 0 → bình chứa tụt về sàn → header IA sập dưới ngưỡng
+    // an toàn → van khí điều khiển về vị trí fail-safe (alarm CA-IA-PRESS-LO P1).
+    const supply = this.airLoss ? 0 : (anyDemand ? COMP_CAP_NM3MIN : 0) + (trimOn ? COMP_CAP_NM3MIN : 0);
     // Áp bình chứa = tích phân (cấp − tiêu).
     this.receiver = clamp(this.receiver + ((supply - demand) / RECEIVER_K) * dt, 5.5, 8.5);
 
-    const running = (anyDemand ? 1 : 0) + (trimOn ? 1 : 0);
+    const running = this.airLoss ? 0 : (anyDemand ? 1 : 0) + (trimOn ? 1 : 0);
     const perComp = running > 0 ? clamp((demand / running / COMP_CAP_NM3MIN) * 100, 0, 100) : 0;
     const iaHeader = Math.max(0, this.receiver - IA_DRYER_DROP_BARG);
 
@@ -75,17 +79,18 @@ export class CompressedAirModel implements ISimModel {
   }
 
   snapshot(): ISimSnapshot {
-    return { state: { receiver: this.receiver, loaded: this.loaded ? 1 : 0 } };
+    return { state: { receiver: this.receiver, loaded: this.loaded ? 1 : 0, airLoss: this.airLoss ? 1 : 0 } };
   }
   restore(snapshot: ISimSnapshot): void {
     this.receiver = snapshot.state.receiver ?? 7.1;
     this.loaded = (snapshot.state.loaded ?? 1) > 0.5;
+    this.airLoss = (snapshot.state.airLoss ?? 0) > 0.5;
   }
-  injectMalfunction(_m: IMalfunction): void {
-    // model không có malfunction riêng ở v1.40
+  injectMalfunction(m: IMalfunction): void {
+    if (m.id === 'instrument-air-loss') this.airLoss = true;
   }
-  clearMalfunction(_id: string): void {
-    // không giữ trạng thái malfunction
+  clearMalfunction(id: string): void {
+    if (id === 'instrument-air-loss') this.airLoss = false;
   }
   dispose(): void {
     // không giữ tài nguyên ngoài
