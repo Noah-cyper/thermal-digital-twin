@@ -907,6 +907,44 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
     ],
   },
   {
+    screenId: 'D3-governor-droop',
+    level: 'D3',
+    title: { vi: 'Điều tốc turbine — droop & đáp ứng tần số sơ cấp', en: 'Governor Droop & Primary Frequency Response' },
+    elements: [
+      // Điều tốc giữ tần số bằng droop 5% + deadband; ngoài deadband → PFR góp công suất đỡ/giảm tần số.
+      equip('gov-en', 'box', 'Điều tốc (0/1)', 'GOV_ENABLED_01', '', '', 20, 40, 190, 56, [{ when: 'lt', value: 0.5, sev: 2 }]),
+      equip('gov-droop', 'box', 'Droop', 'GOV_DROOP_PCT_01', '%', '', 20, 112, 190, 56),
+      equip('gov-freq', 'box', 'Tần số lưới', 'GOV_GRID_FREQ_01', 'Hz', '', 20, 184, 190, 56, [{ when: 'lt', value: 49.85, sev: 2 }]),
+      equip('gov-dev', 'box', 'Lệch tần số', 'GOV_FREQ_DEV_MHZ_01', 'mHz', '', 20, 256, 190, 56),
+      pipe('gov-p1', 'elec', [{ x: 210, y: 68 }, { x: 260, y: 68 }, { x: 260, y: 90 }]),
+      equip('gov-db', 'box', 'Trong deadband (0/1)', 'GOV_DEADBAND_ACTIVE_01', '', '', 260, 40, 200, 56),
+      equip('gov-valve', 'drum', 'Van điều tốc', 'GOV_VALVE_POS_01', '%', '', 260, 112, 200, 90, [{ when: 'gt', value: 99, sev: 2 }]),
+      equip('gov-pfr', 'box', 'Đáp ứng PFR', 'GOV_PFR_MW_01', 'MW', '', 260, 220, 200, 56),
+      equip('gov-health', 'box', 'Còn margin (0/1)', 'GOV_HEALTHY_01', '', 'D3-pss-stabilizer', 490, 40, 200, 56, [{ when: 'lt', value: 0.5, sev: 2 }]),
+    ],
+  },
+  {
+    screenId: 'D3-pulverizer-mills',
+    level: 'D3',
+    title: { vi: 'Máy nghiền than — chi tiết từng máy (A–F)', en: 'Pulverizer Mills — Per-Mill Detail (A–F)' },
+    elements: [
+      // Từng máy nghiền: tải % + độ mịn % (lọt sàng 200 mesh). Trip 1 máy → máy còn lại gánh → quá tải, thô.
+      equip('pm-a', 'box', 'Máy A: tải', 'PVM_A_LOAD_01', '%', '', 20, 40, 150, 56, [{ when: 'gt', value: 100, sev: 2 }]),
+      equip('pm-b', 'box', 'Máy B: tải', 'PVM_B_LOAD_01', '%', '', 20, 112, 150, 56, [{ when: 'gt', value: 100, sev: 2 }]),
+      equip('pm-c', 'box', 'Máy C: tải', 'PVM_C_LOAD_01', '%', '', 20, 184, 150, 56, [{ when: 'gt', value: 100, sev: 2 }]),
+      equip('pm-d', 'box', 'Máy D: tải', 'PVM_D_LOAD_01', '%', '', 20, 256, 150, 56, [{ when: 'gt', value: 100, sev: 2 }]),
+      equip('pm-e', 'box', 'Máy E: tải', 'PVM_E_LOAD_01', '%', '', 20, 328, 150, 56, [{ when: 'gt', value: 100, sev: 2 }]),
+      equip('pm-f', 'box', 'Máy F (dự phòng)', 'PVM_F_STATUS_01', '', '', 20, 400, 150, 56),
+      equip('pm-run', 'box', 'Số máy chạy', 'PVM_RUNNING_01', '', '', 200, 40, 180, 56),
+      equip('pm-trip', 'box', 'Số máy trip', 'PVM_TRIPPED_01', '', '', 200, 112, 180, 56, [{ when: 'gt', value: 0, sev: 2 }]),
+      equip('pm-maxload', 'box', 'Tải máy cao nhất', 'PVM_MAX_LOAD_01', '%', '', 200, 184, 180, 56, [{ when: 'gt', value: 100, sev: 2 }]),
+      equip('pm-minfine', 'drum', 'Độ mịn kém nhất', 'PVM_MIN_FINENESS_01', '%', '', 200, 256, 180, 100, [{ when: 'lt', value: 70, sev: 2 }]),
+      equip('pm-dp', 'box', 'ΔP bát trung bình', 'PVM_DP_AVG_01', 'kPa', '', 400, 40, 180, 56),
+      equip('pm-pa', 'box', 'Tổng gió sơ cấp', 'PVM_PA_TOTAL_01', 't/h', '', 400, 112, 180, 56),
+      equip('pm-health', 'box', 'Nghiền bình thường', 'PVM_HEALTHY_01', '', 'D3-soot-blower', 400, 184, 180, 56, [{ when: 'lt', value: 0.5, sev: 2 }]),
+    ],
+  },
+  {
     screenId: 'D3-fwh-drains',
     level: 'D3',
     title: { vi: 'Drain cascade bình gia nhiệt — bố trí thiết bị', en: 'Feedwater Heater Drain Cascade Layout' },
@@ -1026,6 +1064,23 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       valueTile('pd-pssz', 'PSS_DAMPING_RATIO_01', 'Hệ số dập ζ (PSS)', '', 0, 6, [{ when: 'lt', value: 0.05, sev: 2 }]),
       valueTile('pd-pssamp', 'PSS_OSC_AMPLITUDE_01', 'Biên độ dao động', 'MW', 1, 6, [{ when: 'gt', value: 15, sev: 2 }]),
       valueTile('pd-psshealth', 'PSS_HEALTHY_01', 'PSS dập đủ margin', '', 2, 6, [{ when: 'lt', value: 0.5, sev: 2 }]),
+    ],
+  },
+  {
+    screenId: 'D2-alarm-performance',
+    level: 'D2',
+    title: { vi: 'Hiệu năng hệ alarm (EEMUA-191)', en: 'Alarm System Performance (EEMUA-191)' },
+    elements: [
+      // Chỉ số quản lý alarm theo EEMUA-191: suất/đỉnh/flood/đứng lâu/bad-actor → cảnh báo quá tải người vận hành.
+      valueTile('ap-rate', 'ALM_RATE_10MIN_01', 'Suất alarm / 10 phút', '', 0, 0, [{ when: 'gt', value: 10, sev: 2 }]),
+      valueTile('ap-peak', 'ALM_PEAK_RATE_01', 'Đỉnh suất / 10 phút', '', 1, 0, [{ when: 'gt', value: 10, sev: 1 }]),
+      valueTile('ap-flood', 'ALM_FLOOD_01', 'Đang flood (0/1)', '', 2, 0, [{ when: 'gt', value: 0.5, sev: 2 }]),
+      valueTile('ap-active', 'ALM_ACTIVE_01', 'Alarm đang hoạt động', '', 0, 1),
+      valueTile('ap-unack', 'ALM_UNACK_01', 'Chưa xác nhận', '', 1, 1, [{ when: 'gt', value: 10, sev: 1 }]),
+      valueTile('ap-standing', 'ALM_STANDING_01', 'Đứng lâu (>10 phút)', '', 2, 1, [{ when: 'gt', value: 5, sev: 2 }]),
+      valueTile('ap-p1', 'ALM_P1_ACTIVE_01', 'P1 đang hoạt động', '', 0, 2, [{ when: 'gt', value: 0, sev: 1 }]),
+      valueTile('ap-bad', 'ALM_BADACTOR_TOP_01', 'Bad-actor cao nhất', '', 1, 2, [{ when: 'gt', value: 10, sev: 1 }]),
+      valueTile('ap-ok', 'ALM_EEMUA_OK_01', 'Đạt EEMUA (0/1)', '', 2, 2, [{ when: 'lt', value: 0.5, sev: 2 }]),
     ],
   },
   {

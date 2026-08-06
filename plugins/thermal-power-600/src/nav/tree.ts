@@ -22,6 +22,8 @@ export const thermalNav: ReadonlyArray<NavNode> = [
   { screenId: 'D3-chemical-dosing', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Hoá chất điều hoà chu trình', en: 'Cycle Chemical Dosing' } },
   { screenId: 'D3-avr-excitation', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'AVR & hệ kích từ', en: 'AVR & Excitation' } },
   { screenId: 'D3-pss-stabilizer', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'PSS — ổn định hệ thống điện', en: 'Power System Stabilizer' } },
+  { screenId: 'D3-governor-droop', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Điều tốc & droop (PFR)', en: 'Governor Droop (PFR)' } },
+  { screenId: 'D3-pulverizer-mills', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Máy nghiền than (từng máy)', en: 'Pulverizer Mills (per-mill)' } },
   { screenId: 'D3-fwh-drains', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Drain cascade bình gia nhiệt', en: 'FWH Drain Cascade' } },
   { screenId: 'D3-ansi-protection', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Bảo vệ máy phát (ANSI)', en: 'Generator Protection (ANSI)' } },
   { screenId: 'D3-regen-balance', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Hồi nhiệt & cân bằng nhiệt', en: 'Regen Heat Balance' } },
@@ -29,5 +31,6 @@ export const thermalNav: ReadonlyArray<NavNode> = [
   { screenId: 'D3-fouling-air', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Bám bẩn & lọt khí (động)', en: 'Fouling & Air In-leakage' } },
   // Hiệu chỉnh hiệu năng (v1.42): lượng hoá độ lệch KPI vs Design Basis.
   { screenId: 'D2-physics-depth', level: 'D2', parentId: 'D1-plant-overview', title: { vi: 'Tổng hợp chiều sâu physics', en: 'Deep Physics Overview' } },
+  { screenId: 'D2-alarm-performance', level: 'D2', parentId: 'D1-plant-overview', title: { vi: 'Hiệu năng hệ alarm (EEMUA-191)', en: 'Alarm Performance (EEMUA-191)' } },
   { screenId: 'D2-calibration', level: 'D2', parentId: 'D1-plant-overview', title: { vi: 'Hiệu chỉnh hiệu năng', en: 'Performance Calibration' } },
 ];

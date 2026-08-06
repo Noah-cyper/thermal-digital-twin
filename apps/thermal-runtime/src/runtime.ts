@@ -34,6 +34,8 @@ import {
   ChemicalDosingModel,
   AvrExcitationModel,
   PssStabilizerModel,
+  GovernorDroopModel,
+  PulverizerMillsModel,
   PlantBalanceModel,
   CalibrationModel,
   boilerControlLoops,
@@ -310,6 +312,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   // biết đã hoà lưới → dập dao động local-mode qua tín hiệu phụ Vs. Additive — chỉ sinh PSS_* (0 hồi quy).
   const pssStabilizer = new PssStabilizerModel();
   host.register(pssStabilizer);
+  // Điều tốc & droop / PFR (v1.58, chiều sâu physics): đăng ký SAU pssStabilizer — đọc GEN_MW_01/GEN_FREQ_01
+  // → droop 5% + deadband + đáp ứng tần số sơ cấp. Additive — chỉ sinh GOV_* (0 hồi quy). Cặp đôi với AVR/PSS.
+  const governorDroop = new GovernorDroopModel();
+  host.register(governorDroop);
   // Tháp làm mát (v1.24): đăng ký SAU condenser để đọc nhiệt thải/độ tăng nhiệt CW tươi → khép vòng CW
   // (bầu ướt + approach + bốc hơi + nước bổ sung). Additive — không đổi tag condenser.
   const coolingTower = new CoolingTowerModel();
@@ -318,6 +324,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   // — không đổi BLR_COAL_FLOW_01. Có trạng thái mức bunker (nằm trong snapshot host cho OTS).
   const coalHandling = new CoalHandlingModel();
   host.register(coalHandling);
+  // Máy nghiền PER-MILL (v1.58, chiều sâu physics): đăng ký SAU coalHandling — đọc BLR_COAL_FLOW_01 tươi →
+  // phân giải từng máy nghiền A–F (tải/độ mịn/ΔP/trạng thái) + động học trip/redistribute. Additive (PVM_*).
+  const pulverizerMills = new PulverizerMillsModel();
+  host.register(pulverizerMills);
   // Balance of Plant §10 (v1.40): khí nén/khí điều khiển · dầu đốt khởi động · thải tro. Đọc than/MW tươi
   // → sinh tag BOP độc lập (CA_*/FO_*/ASH_*). Additive — không đổi tag hệ chính. Có trạng thái (snapshot).
   const compressedAir = new CompressedAirModel();
@@ -392,9 +402,45 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
     }
   };
 
+  // Hiệu năng HỆ ALARM (EEMUA-191, doc 08 §KPI): tag hoá các chỉ số quản lý alarm → trend được + màn D2.
+  // READ-ONLY với process: chỉ ĐỌC trạng thái alarm engine → sinh tag ALM_* (không đụng tag process, 0 hồi quy).
+  // ratePer10Min/flood/bad-actor từ engine; standing (đứng > 10 phút), unack, P1 active, đỉnh rate tính tại đây.
+  const ALM_KPI_TAGS = [
+    'ALM_RATE_10MIN_01', 'ALM_PEAK_RATE_01', 'ALM_FLOOD_01', 'ALM_ACTIVE_01',
+    'ALM_STANDING_01', 'ALM_UNACK_01', 'ALM_P1_ACTIVE_01', 'ALM_BADACTOR_TOP_01', 'ALM_EEMUA_OK_01',
+  ];
+  const STANDING_MS = 600_000; // 10 phút — alarm đứng lâu (stale standing alarm, EEMUA-191)
+  const EEMUA_RATE_MAX = 10; // alarm/10 phút — ngưỡng "chịu được" (trên = quá tải người vận hành)
+  const EEMUA_STANDING_MAX = 5; // — số standing alarm tối đa chấp nhận
+  let almPeakRate = 0;
+  const publishAlarmKpi = (): void => {
+    const kpi = alarms.kpi(nowMs());
+    almPeakRate = Math.max(almPeakRate, kpi.ratePer10Min);
+    const now = nowMs();
+    let standing = 0;
+    let unack = 0;
+    let p1 = 0;
+    for (const e of alarms.getActive()) {
+      if (now - Date.parse(e.ts) > STANDING_MS) standing += 1;
+      if (e.state === 'UnackAlarm' || e.state === 'RtnUnack') unack += 1;
+      if (e.priority === 'P1') p1 += 1;
+    }
+    const topBad = kpi.badActors[0]?.count ?? 0;
+    const eemuaOk = kpi.ratePer10Min <= EEMUA_RATE_MAX && !kpi.flood && standing <= EEMUA_STANDING_MAX ? 1 : 0;
+    put('ALM_RATE_10MIN_01', kpi.ratePer10Min);
+    put('ALM_PEAK_RATE_01', almPeakRate);
+    put('ALM_FLOOD_01', kpi.flood ? 1 : 0);
+    put('ALM_ACTIVE_01', kpi.active);
+    put('ALM_STANDING_01', standing);
+    put('ALM_UNACK_01', unack);
+    put('ALM_P1_ACTIVE_01', p1);
+    put('ALM_BADACTOR_TOP_01', topBad);
+    put('ALM_EEMUA_OK_01', eemuaOk);
+  };
+
   // Historian (adapter memory): ghi tag hiển thị + tag alarm để truy vấn lịch sử + DATA REPLAY.
   const historian = new MemoryHistorian({ formatTs: (ms) => time.formatEpoch(ms) });
-  const recordedTags = [...new Set([...boilerScreens.flatMap((s) => screenTags(s)), ...alarmTags, ...turbine.tagsProvided, ...reheat.tagsProvided, ...feedwater.tagsProvided, ...condenser.tagsProvided, ...fluegas.tagsProvided, ...emissions.tagsProvided, ...electrical.tagsProvided, ...coolingTower.tagsProvided, ...coalHandling.tagsProvided, ...plantBalance.tagsProvided])];
+  const recordedTags = [...new Set([...boilerScreens.flatMap((s) => screenTags(s)), ...alarmTags, ...ALM_KPI_TAGS, ...turbine.tagsProvided, ...reheat.tagsProvided, ...feedwater.tagsProvided, ...condenser.tagsProvided, ...fluegas.tagsProvided, ...emissions.tagsProvided, ...electrical.tagsProvided, ...coolingTower.tagsProvided, ...coalHandling.tagsProvided, ...plantBalance.tagsProvided])];
   const record = (): void => {
     if (stepCount % REC_EVERY === 0) {
       const ts = nowIso();
@@ -596,6 +642,7 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
     if (frozen) return; // OTS freeze: đóng băng sim + control + alarm + đồng hồ
     advance();
     evalAlarms();
+    publishAlarmKpi();
     evalCe();
     tickLiveSeqs();
     record();

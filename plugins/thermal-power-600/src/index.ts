@@ -26,6 +26,8 @@ export { FireFightingModel } from './sim/fire-fighting';
 export { ChemicalDosingModel } from './sim/chemical-dosing';
 export { AvrExcitationModel } from './sim/avr-excitation';
 export { PssStabilizerModel } from './sim/pss-stabilizer';
+export { GovernorDroopModel } from './sim/governor-droop';
+export { PulverizerMillsModel } from './sim/pulverizer-mills';
 export { FeedwaterDrainsModel } from './sim/feedwater-drains';
 export { AnsiProtectionModel } from './sim/ansi-protection';
 export { RegenBalanceModel } from './sim/regen-balance';
