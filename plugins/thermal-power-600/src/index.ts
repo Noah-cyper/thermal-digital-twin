@@ -28,6 +28,7 @@ export { AvrExcitationModel } from './sim/avr-excitation';
 export { FeedwaterDrainsModel } from './sim/feedwater-drains';
 export { AnsiProtectionModel } from './sim/ansi-protection';
 export { RegenBalanceModel } from './sim/regen-balance';
+export { CemsHgCoModel } from './sim/cems-hg-co';
 export { DrumModel } from './sim/drum';
 export { boilerControlLoops, boilerLoopSeeds } from './control/loops';
 export { boilerScreens, screenTags } from './graphics/screens';

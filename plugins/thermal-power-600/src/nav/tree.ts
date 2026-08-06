@@ -24,6 +24,7 @@ export const thermalNav: ReadonlyArray<NavNode> = [
   { screenId: 'D3-fwh-drains', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Drain cascade bình gia nhiệt', en: 'FWH Drain Cascade' } },
   { screenId: 'D3-ansi-protection', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Bảo vệ máy phát (ANSI)', en: 'Generator Protection (ANSI)' } },
   { screenId: 'D3-regen-balance', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Hồi nhiệt & cân bằng nhiệt', en: 'Regen Heat Balance' } },
+  { screenId: 'D3-cems-hg-co', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'CEMS Hg & CO', en: 'CEMS Hg & CO' } },
   // Hiệu chỉnh hiệu năng (v1.42): lượng hoá độ lệch KPI vs Design Basis.
   { screenId: 'D2-calibration', level: 'D2', parentId: 'D1-plant-overview', title: { vi: 'Hiệu chỉnh hiệu năng', en: 'Performance Calibration' } },
 ];

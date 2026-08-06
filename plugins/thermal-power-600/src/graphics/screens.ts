@@ -945,6 +945,21 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
     ],
   },
   {
+    screenId: 'D3-cems-hg-co',
+    level: 'D3',
+    title: { vi: 'CEMS mở rộng — thuỷ ngân & CO', en: 'CEMS — Mercury & CO' },
+    elements: [
+      // Thuỷ ngân (thu hồi ESP+FGD+ACI) + CO (theo O₂ cháy). Vận hành bình thường: Hg thu ~90%, CO thấp.
+      equip('cm-hg', 'box', 'Hg ống khói', 'CEMS_HG_STACK_01', 'µg/Nm³', '', 20, 40, 190, 56, [{ when: 'gt', value: 5, sev: 2 }]),
+      equip('cm-hgcap', 'box', 'Thu hồi Hg', 'CEMS_HG_CAPTURE_01', '%', '', 20, 112, 190, 56, [{ when: 'lt', value: 75, sev: 2 }]),
+      equip('cm-hgrate', 'box', 'Suất phát thải Hg', 'CEMS_HG_RATE_01', 'g/h', '', 20, 184, 190, 56),
+      equip('cm-aci', 'box', 'Phun than hoạt tính (ACI)', 'CEMS_HG_ACI_01', 'kg/h', '', 20, 256, 190, 56),
+      equip('cm-co', 'box', 'CO ống khói', 'CEMS_CO_STACK_01', 'mg/Nm³', '', 250, 40, 200, 56, [{ when: 'gt', value: 200, sev: 2 }]),
+      equip('cm-cocorr', 'box', 'CO quy 6% O₂', 'CEMS_CO_CORRECTED_01', 'mg/Nm³', '', 250, 112, 200, 56),
+      equip('cm-comb', 'box', 'Hiệu suất cháy', 'CEMS_COMBUSTION_EFF_01', '%', '', 250, 184, 200, 56, [{ when: 'lt', value: 98, sev: 2 }]),
+    ],
+  },
+  {
     screenId: 'D2-calibration',
     level: 'D2',
     title: { vi: 'Hiệu chỉnh hiệu năng vs Design Basis', en: 'Performance Calibration vs Design Basis' },

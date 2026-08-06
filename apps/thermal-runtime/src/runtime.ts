@@ -16,6 +16,7 @@ import {
   CondenserCWModel,
   FlueGasAirModel,
   EmissionsModel,
+  CemsHgCoModel,
   ElectricalModel,
   CoolingTowerModel,
   CoalHandlingModel,
@@ -291,6 +292,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   // sau ESP/FGD. Additive — chỉ đọc than/khói, không đổi tag khác.
   const emissions = new EmissionsModel();
   host.register(emissions);
+  // CEMS mở rộng Hg + CO (v1.54): đăng ký SAU emissions để đọc lưu lượng khói + FGD tươi → thuỷ ngân (thu
+  // hồi ESP+FGD+ACI) + CO (theo O₂). Additive — sinh tag CEMS_* độc lập, không đổi tag emissions.
+  const cemsHgCo = new CemsHgCoModel();
+  host.register(cemsHgCo);
   // Phía điện (v1.23): đăng ký SAU turbine để đọc công suất gộp/phản kháng tươi → tự dùng + net + GSU +
   // lưới. Additive — không đổi GEN_MW_01/GEN_MVAR_01.
   const electrical = new ElectricalModel();
