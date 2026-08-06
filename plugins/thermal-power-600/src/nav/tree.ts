@@ -36,5 +36,6 @@ export const thermalNav: ReadonlyArray<NavNode> = [
   // Hiệu chỉnh hiệu năng (v1.42): lượng hoá độ lệch KPI vs Design Basis.
   { screenId: 'D2-physics-depth', level: 'D2', parentId: 'D1-plant-overview', title: { vi: 'Tổng hợp chiều sâu physics', en: 'Deep Physics Overview' } },
   { screenId: 'D2-alarm-performance', level: 'D2', parentId: 'D1-plant-overview', title: { vi: 'Hiệu năng hệ alarm (EEMUA-191)', en: 'Alarm Performance (EEMUA-191)' } },
+  { screenId: 'D2-alarm-rationalization', level: 'D2', parentId: 'D1-plant-overview', title: { vi: 'Rationalization alarm (ISA-18.2)', en: 'Alarm Rationalization' } },
   { screenId: 'D2-calibration', level: 'D2', parentId: 'D1-plant-overview', title: { vi: 'Hiệu chỉnh hiệu năng', en: 'Performance Calibration' } },
 ];

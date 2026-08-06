@@ -41,6 +41,8 @@ export { DrumModel } from './sim/drum';
 export { boilerControlLoops, boilerLoopSeeds } from './control/loops';
 export { boilerScreens, screenTags } from './graphics/screens';
 export { boilerAlarms } from './alarms/boiler-alarms';
+export { thermalAlarmRationalization, buildAlarmRationalization, EEMUA_PRIORITY_TARGET } from './alarms/rationalization';
+export type { AlarmRationalization, AlarmRationalizationReport } from './alarms/rationalization';
 export { thermalKpis } from './kpi/calculators';
 export { thermalMaintenance } from './maintenance/items';
 export { thermalPredictiveRules } from './maintenance/predictive';

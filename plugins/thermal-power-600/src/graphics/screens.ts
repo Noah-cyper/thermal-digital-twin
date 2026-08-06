@@ -1154,6 +1154,21 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
     ],
   },
   {
+    screenId: 'D2-alarm-rationalization',
+    level: 'D2',
+    title: { vi: 'Rationalization alarm (ISA-18.2 / EEMUA-191)', en: 'Alarm Rationalization (ISA-18.2)' },
+    elements: [
+      // Độ phủ rationalization + phân bố ưu tiên vs mục tiêu EEMUA-191 (P1≤5% · P2≤15% · P3≥80%).
+      valueTile('ar-cov', 'ALM_RAT_COVERAGE_01', 'Độ phủ rationalize', '%', 0, 0, [{ when: 'lt', value: 100, sev: 1 }]),
+      valueTile('ar-rev', 'ALM_RAT_REVIEWED_01', 'Số alarm đã duyệt', '', 1, 0),
+      valueTile('ar-unrat', 'ALM_RAT_UNRAT_01', 'Chưa rationalize', '', 2, 0, [{ when: 'gt', value: 0, sev: 2 }]),
+      valueTile('ar-p1', 'ALM_RAT_P1_SHARE_01', 'Tỉ lệ P1 (mục tiêu ≤5%)', '%', 0, 1, [{ when: 'gt', value: 10, sev: 2 }]),
+      valueTile('ar-p2', 'ALM_RAT_P2_SHARE_01', 'Tỉ lệ P2 (mục tiêu ~15%)', '%', 1, 1),
+      valueTile('ar-p3', 'ALM_RAT_P3_SHARE_01', 'Tỉ lệ P3 (mục tiêu ~80%)', '%', 2, 1),
+      valueTile('ar-ok', 'ALM_RAT_DIST_OK_01', 'Phân bố hợp lý (0/1)', '', 0, 2, [{ when: 'lt', value: 0.5, sev: 1 }]),
+    ],
+  },
+  {
     screenId: 'D2-calibration',
     level: 'D2',
     title: { vi: 'Hiệu chỉnh hiệu năng vs Design Basis', en: 'Performance Calibration vs Design Basis' },

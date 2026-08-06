@@ -45,6 +45,7 @@ import {
   boilerControlLoops,
   boilerLoopSeeds,
   boilerAlarms,
+  buildAlarmRationalization,
   boilerScreens,
   screenTags,
   thermalKpis,
@@ -60,6 +61,7 @@ import {
   thermalPredictiveRules,
   thermalReportSections,
 } from '@idtp/plugin-thermal-power-600';
+import type { AlarmRationalizationReport } from '@idtp/plugin-thermal-power-600';
 import type {
   IMalfunction,
   LoopMode,
@@ -165,6 +167,7 @@ export interface ThermalRuntime {
   shelvedAlarms(): ReadonlyArray<ShelvedAlarm>;
   activeAlarms(): ReadonlyArray<AlarmEvent>;
   alarmKpi(): AlarmKpi;
+  alarmRationalization(): AlarmRationalizationReport;
   freeze(on: boolean): void;
   isFrozen(): boolean;
   snapshot(): OtsSnapshot;
@@ -428,7 +431,12 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   const ALM_KPI_TAGS = [
     'ALM_RATE_10MIN_01', 'ALM_PEAK_RATE_01', 'ALM_FLOOD_01', 'ALM_ACTIVE_01',
     'ALM_STANDING_01', 'ALM_UNACK_01', 'ALM_P1_ACTIVE_01', 'ALM_BADACTOR_TOP_01', 'ALM_EEMUA_OK_01',
+    // Rationalization (ISA-18.2, B): độ phủ + phân bố ưu tiên vs mục tiêu EEMUA-191 (tĩnh, tag hoá để trend/màn).
+    'ALM_RAT_COVERAGE_01', 'ALM_RAT_REVIEWED_01', 'ALM_RAT_P1_SHARE_01', 'ALM_RAT_P2_SHARE_01',
+    'ALM_RAT_P3_SHARE_01', 'ALM_RAT_DIST_OK_01', 'ALM_RAT_UNRAT_01',
   ];
+  // Báo cáo rationalization tĩnh (danh mục alarm × bản ghi rationalization) — dựng 1 lần.
+  const ratReport = buildAlarmRationalization(boilerAlarms);
   const STANDING_MS = 600_000; // 10 phút — alarm đứng lâu (stale standing alarm, EEMUA-191)
   const EEMUA_RATE_MAX = 10; // alarm/10 phút — ngưỡng "chịu được" (trên = quá tải người vận hành)
   const EEMUA_STANDING_MAX = 5; // — số standing alarm tối đa chấp nhận
@@ -456,6 +464,14 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
     put('ALM_P1_ACTIVE_01', p1);
     put('ALM_BADACTOR_TOP_01', topBad);
     put('ALM_EEMUA_OK_01', eemuaOk);
+    // Rationalization (tĩnh — không đổi theo bước, publish để có mặt trên tag/màn/historian).
+    put('ALM_RAT_COVERAGE_01', ratReport.coveragePct);
+    put('ALM_RAT_REVIEWED_01', ratReport.reviewed);
+    put('ALM_RAT_P1_SHARE_01', ratReport.distributionPct.P1);
+    put('ALM_RAT_P2_SHARE_01', ratReport.distributionPct.P2);
+    put('ALM_RAT_P3_SHARE_01', ratReport.distributionPct.P3);
+    put('ALM_RAT_DIST_OK_01', ratReport.distributionOk ? 1 : 0);
+    put('ALM_RAT_UNRAT_01', ratReport.unrationalized.length);
   };
 
   // Historian (adapter memory): ghi tag hiển thị + tag alarm để truy vấn lịch sử + DATA REPLAY.
@@ -772,6 +788,7 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
     shelvedAlarms: () => alarms.getShelved(nowMs()),
     activeAlarms: () => alarms.getActive(),
     alarmKpi: () => alarms.kpi(nowMs()),
+    alarmRationalization: () => ratReport,
     computeKpis: () => {
       const r = historian.dataRange();
       return r ? new KpiEngine(thermalKpis).computeAll(historianKpiInput(historian, r.from, r.to)) : Promise.resolve([]);

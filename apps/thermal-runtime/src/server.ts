@@ -475,6 +475,10 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
         // System Diagnostic READ-ONLY: tự soi trạng thái runtime (sim/tag/loop/historian/alarm/journal).
         if (tokens.get(ws) === undefined) ws.send(JSON.stringify({ type: 'denied', reason: 'chưa đăng nhập' }));
         else ws.send(JSON.stringify({ type: 'diag', diag: rt.systemDiagnostics() }));
+      } else if (m.cmd === 'alarm-rationalization') {
+        // Master alarm rationalization READ-ONLY (ISA-18.2): bảng nguyên nhân/hậu quả/ưu tiên + phân bố EEMUA.
+        if (tokens.get(ws) === undefined) ws.send(JSON.stringify({ type: 'denied', reason: 'chưa đăng nhập' }));
+        else ws.send(JSON.stringify({ type: 'alarm-rationalization', report: rt.alarmRationalization() }));
       } else if (m.cmd === 'replay-start') {
         const range = rt.historian.dataRange();
         if (range) {
