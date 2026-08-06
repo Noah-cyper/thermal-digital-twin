@@ -25,6 +25,7 @@ import {
   AshHandlingModel,
   BypassAirRemovalModel,
   SootBlowerModel,
+  FoulingAirIngressModel,
   WaterTreatmentModel,
   EmergencyPowerModel,
   SwitchyardModel,
@@ -328,6 +329,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   // sinh). Additive — sinh tag SB_* độc lập; SB_GAS_EXIT_TEMP_DELTA_01 chỉ ước lượng read-only (0 hồi quy).
   const sootBlower = new SootBlowerModel();
   host.register(sootBlower);
+  // Bám bẩn & lọt khí ĐỘNG (v1.55): đăng ký SAU soot-blower để đọc chu trình thổi bụi (làm sạch AH). Bám bộ
+  // sấy gió tích theo thời gian + lọt khí bình ngưng tiến hoá. Additive — sinh tag FA_* độc lập (0 hồi quy).
+  const foulingAirIngress = new FoulingAirIngressModel();
+  host.register(foulingAirIngress);
   // Xử lý nước khử khoáng DM (v1.45, batch a-3): đọc hơi (+ hơi thổi bụi) → nhu cầu bù + sản xuất DM +
   // chất lượng nhựa/tái sinh. Additive — sinh tag WT_* độc lập; đăng ký SAU soot-blower để đọc hơi thổi tươi.
   const waterTreatment = new WaterTreatmentModel();

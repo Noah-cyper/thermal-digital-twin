@@ -29,6 +29,7 @@ export { FeedwaterDrainsModel } from './sim/feedwater-drains';
 export { AnsiProtectionModel } from './sim/ansi-protection';
 export { RegenBalanceModel } from './sim/regen-balance';
 export { CemsHgCoModel } from './sim/cems-hg-co';
+export { FoulingAirIngressModel } from './sim/fouling-air-ingress';
 export { DrumModel } from './sim/drum';
 export { boilerControlLoops, boilerLoopSeeds } from './control/loops';
 export { boilerScreens, screenTags } from './graphics/screens';

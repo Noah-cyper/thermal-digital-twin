@@ -960,6 +960,22 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
     ],
   },
   {
+    screenId: 'D3-fouling-air',
+    level: 'D3',
+    title: { vi: 'Bám bẩn & lọt khí (động) — suy giảm theo thời gian', en: 'Fouling & Air In-leakage (dynamic)' },
+    elements: [
+      // Bám bộ sấy gió (tích theo thời gian, thổi bụi làm sạch) + lọt khí bình ngưng (tiến hoá). Đọc-only.
+      equip('fa-ahfoul', 'drum', 'Bám bộ sấy gió', 'FA_AH_FOULING_01', '%', 'D3-soot-blower', 20, 40, 190, 100, [{ when: 'gt', value: 40, sev: 2 }]),
+      equip('fa-ahdp', 'box', 'ΔP gió-khói AH', 'FA_AH_GAS_DP_01', 'kPa', '', 20, 160, 190, 56),
+      equip('fa-ahdt', 'box', 'ΔT khói ra (AH)', 'FA_AH_GAS_EXIT_DT_01', '°C', '', 20, 232, 190, 56, [{ when: 'gt', value: 24, sev: 2 }]),
+      equip('fa-aheff', 'box', 'Hiệu quả AH', 'FA_AH_EFFECTIVENESS_01', '%', '', 250, 40, 200, 56, [{ when: 'lt', value: 70, sev: 2 }]),
+      equip('fa-inleak', 'box', 'Lọt khí bình ngưng', 'FA_COND_AIR_INLEAK_01', 'scfm', 'D3-condenser-cw', 250, 112, 200, 56, [{ when: 'gt', value: 40, sev: 2 }]),
+      equip('fa-sjae', 'box', 'Biên SJAE', 'FA_SJAE_MARGIN_01', '%', '', 250, 184, 200, 56, [{ when: 'lt', value: 20, sev: 2 }]),
+      equip('fa-vacpen', 'box', 'Xấu chân không', 'FA_COND_VAC_PENALTY_01', 'kPa', '', 250, 256, 200, 56, [{ when: 'gt', value: 0.5, sev: 2 }]),
+      equip('fa-healthy', 'box', 'Bình thường (0/1)', 'FA_FOULING_HEALTHY_01', '', '', 480, 40, 190, 56, [{ when: 'lt', value: 0.5, sev: 2 }]),
+    ],
+  },
+  {
     screenId: 'D2-calibration',
     level: 'D2',
     title: { vi: 'Hiệu chỉnh hiệu năng vs Design Basis', en: 'Performance Calibration vs Design Basis' },
