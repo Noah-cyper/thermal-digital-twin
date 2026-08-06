@@ -25,6 +25,14 @@ export const thermalInterlocks: ReadonlyArray<InterlockRule> = [
     when: [{ tag: 'BLR_MSTM_SH_PRESS_01', op: 'lt', value: 14 }],
     message: { vi: 'Áp hơi chính quá thấp (< 14 MPa) — khoá tăng tải cho tới khi phục áp.', en: 'Main steam pressure too low (< 14 MPa) — load raise blocked until recovered.' },
   },
+  {
+    // TSE (GĐ-128) thành RÀNG BUỘC điều khiển thật: ứng suất nhiệt rotor > 90% → khoá TĂNG TẢI cho tới khi
+    // chênh nhiệt bề mặt–tâm giảm (tránh mỏi nhiệt). Điểm vận hành ứng suất ~0% → bất hoạt (0 hồi quy).
+    id: 'il-load-tse-stress',
+    target: 'load',
+    when: [{ tag: 'TSE_STRESS_PCT_01', op: 'gt', value: 90 }],
+    message: { vi: 'Ứng suất nhiệt rotor turbine > 90% (TSE) — khoá tăng tải tới khi chênh nhiệt bề mặt–tâm giảm.', en: 'Turbine rotor thermal stress > 90% (TSE) — load raise blocked until rotor ΔT recovers.' },
+  },
   // ── Permissive chuyển AUTO loop MỨC BAO HƠI (target loopId 'drum-level') ──
   {
     id: 'il-drum-hh',

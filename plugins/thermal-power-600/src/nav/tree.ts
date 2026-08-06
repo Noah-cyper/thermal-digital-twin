@@ -29,6 +29,8 @@ export const thermalNav: ReadonlyArray<NavNode> = [
   { screenId: 'D3-heater-detail', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Bình gia nhiệt (từng bình)', en: 'Feedwater Heaters (per-heater)' } },
   { screenId: 'D3-drum-swell', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Bao hơi shrink/swell', en: 'Drum Shrink/Swell' } },
   { screenId: 'D3-turbine-stress', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'TSE — ứng suất nhiệt rotor', en: 'Turbine Stress Evaluator' } },
+  { screenId: 'D3-condenser-perf', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Hiệu năng bình ngưng', en: 'Condenser Performance' } },
+  { screenId: 'D3-generator-capability', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Biểu đồ khả năng P-Q', en: 'Generator Capability' } },
   { screenId: 'D3-fwh-drains', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Drain cascade bình gia nhiệt', en: 'FWH Drain Cascade' } },
   { screenId: 'D3-ansi-protection', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Bảo vệ máy phát (ANSI)', en: 'Generator Protection (ANSI)' } },
   { screenId: 'D3-regen-balance', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Hồi nhiệt & cân bằng nhiệt', en: 'Regen Heat Balance' } },

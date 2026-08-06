@@ -9,6 +9,8 @@ import {
   BoilerIslandModel,
   TurbineGeneratorModel,
   TurbineStressModel,
+  CondenserPerfModel,
+  GeneratorCapabilityModel,
   ReheatCycleModel,
   FeedwaterTrainModel,
   FeedwaterDrainsModel,
@@ -320,6 +322,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   // lưới. Additive — không đổi GEN_MW_01/GEN_MVAR_01.
   const electrical = new ElectricalModel();
   host.register(electrical);
+  // Biểu đồ khả năng P-Q máy phát (v1.63): đăng ký SAU electrical — đọc GEN_MW_01 + GEN_MVAR_01 → vị trí trên
+  // capability curve + giới hạn ràng buộc. Additive (GCAP_*). Mất làm mát → derate giới hạn.
+  const generatorCapability = new GeneratorCapabilityModel();
+  host.register(generatorCapability);
   // AVR / hệ kích từ (v1.47, chiều sâu physics): đăng ký SAU electrical để đọc GEN_MVAR_01 tươi → dòng kích
   // từ + điện áp đầu cực + mức kích thích. Additive — không đổi GEN_MVAR_01/GEN_MW_01 (0 hồi quy).
   const avrExcitation = new AvrExcitationModel();
@@ -344,6 +350,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   // (bầu ướt + approach + bốc hơi + nước bổ sung). Additive — không đổi tag condenser.
   const coolingTower = new CoolingTowerModel();
   host.register(coolingTower);
+  // Hiệu năng bình ngưng & back-pressure (v1.63): đăng ký SAU coolingTower — đọc CT_CW_SUPPLY_01 + GEN_MW_01
+  // → độ sạch ống/TTD/nhiệt bão hoà → lệch back-pressure + phạt heat rate (chẩn đoán). Additive (CNDP_*).
+  const condenserPerf = new CondenserPerfModel();
+  host.register(condenserPerf);
   // Cung cấp than (v1.25): đăng ký để đọc lưu lượng than tiêu thụ → bunker/feeder/mill/yard. Additive
   // — không đổi BLR_COAL_FLOW_01. Có trạng thái mức bunker (nằm trong snapshot host cho OTS).
   const coalHandling = new CoalHandlingModel();

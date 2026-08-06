@@ -1031,6 +1031,39 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
     ],
   },
   {
+    screenId: 'D3-condenser-perf',
+    level: 'D3',
+    title: { vi: 'Hiệu năng bình ngưng & back-pressure', en: 'Condenser Performance & Back-pressure' },
+    elements: [
+      // Nhiệt CW + độ sạch ống → TTD → nhiệt bão hoà → lệch back-pressure → phạt heat rate.
+      equip('cnd-cwin', 'box', 'CW vào', 'CNDP_CW_INLET_01', '°C', '', 20, 40, 190, 56, [{ when: 'gt', value: 34, sev: 2 }]),
+      equip('cnd-cwout', 'box', 'CW ra', 'CNDP_CW_OUTLET_01', '°C', '', 20, 112, 190, 56),
+      equip('cnd-rise', 'box', 'Độ tăng CW', 'CNDP_CW_RISE_01', '°C', '', 20, 184, 190, 56),
+      equip('cnd-clean', 'drum', 'Độ sạch ống', 'CNDP_CLEANLINESS_01', '%', '', 240, 40, 200, 90, [{ when: 'lt', value: 80, sev: 2 }]),
+      equip('cnd-ttd', 'box', 'TTD', 'CNDP_TTD_01', '°C', '', 240, 148, 200, 56, [{ when: 'gt', value: 4.5, sev: 2 }]),
+      equip('cnd-sat', 'box', 'Nhiệt bão hoà ngưng', 'CNDP_SAT_TEMP_01', '°C', '', 240, 220, 200, 56),
+      equip('cnd-bpdev', 'box', 'Lệch back-pressure', 'CNDP_BP_DEVIATION_01', 'kPa', '', 460, 40, 200, 56, [{ when: 'gt', value: 1.5, sev: 2 }]),
+      equip('cnd-hrpen', 'box', 'Phạt heat rate', 'CNDP_HR_PENALTY_01', '%', '', 460, 112, 200, 56, [{ when: 'gt', value: 2, sev: 2 }]),
+      equip('cnd-health', 'box', 'Bình ngưng bình thường', 'CNDP_HEALTHY_01', '', 'D3-condenser-cw', 460, 184, 200, 56, [{ when: 'lt', value: 0.5, sev: 2 }]),
+    ],
+  },
+  {
+    screenId: 'D3-generator-capability',
+    level: 'D3',
+    title: { vi: 'Biểu đồ khả năng P-Q máy phát', en: 'Generator Capability Curve (P-Q)' },
+    elements: [
+      // Vị trí điểm vận hành so giới hạn: stator (vòng MVA) · quá kích (nhiệt rotor) · thiếu kích (ổn định).
+      equip('gc-mva', 'box', 'Công suất biểu kiến', 'GCAP_MVA_01', 'MVA', '', 20, 40, 200, 56),
+      equip('gc-rated', 'box', 'Giới hạn stator', 'GCAP_MVA_RATED_01', 'MVA', '', 20, 112, 200, 56),
+      equip('gc-load', 'drum', 'Tải MVA', 'GCAP_MVA_LOADING_01', '%', '', 20, 184, 200, 90, [{ when: 'gt', value: 95, sev: 2 }]),
+      equip('gc-qover', 'box', 'Trần MVAr quá kích', 'GCAP_Q_OVER_LIMIT_01', 'MVAr', '', 240, 40, 200, 56),
+      equip('gc-qunder', 'box', 'Sàn MVAr thiếu kích', 'GCAP_Q_UNDER_LIMIT_01', 'MVAr', '', 240, 112, 200, 56),
+      equip('gc-qmargin', 'box', 'Biên tới giới hạn Q', 'GCAP_Q_MARGIN_01', 'MVAr', '', 240, 184, 200, 56, [{ when: 'lt', value: 30, sev: 2 }]),
+      equip('gc-bind', 'box', 'Giới hạn ràng buộc', 'GCAP_LIMIT_BINDING_01', '', '', 460, 40, 200, 56, [{ when: 'gt', value: 0.5, sev: 2 }]),
+      equip('gc-health', 'box', 'Trong biểu đồ (0/1)', 'GCAP_HEALTHY_01', '', 'D3-electrical-sld', 460, 112, 200, 56, [{ when: 'lt', value: 0.5, sev: 2 }]),
+    ],
+  },
+  {
     screenId: 'D3-fwh-drains',
     level: 'D3',
     title: { vi: 'Drain cascade bình gia nhiệt — bố trí thiết bị', en: 'Feedwater Heater Drain Cascade Layout' },

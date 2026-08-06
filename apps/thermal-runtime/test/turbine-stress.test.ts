@@ -37,6 +37,18 @@ describe('thermal-runtime — TSE ứng suất nhiệt rotor turbine (chiều s�
     expect(rt.value('TSE_LIFE_USED_01')).toBeGreaterThan(0);
   });
 
+  it('TSE → interlock: điểm vận hành KHÔNG chặn tải; fast-startup (ứng suất >90%) → CHẶN lệnh tăng tải', () => {
+    const rt = createThermalRuntime();
+    for (let i = 0; i < 200; i++) rt.step();
+    expect(rt.interlockCheck('load').blocked).toBe(false); // ứng suất ~0 → không chặn (0 hồi quy)
+
+    rt.injectMalfunction({ id: 'fast-startup' });
+    for (let i = 0; i < 200; i++) rt.step();
+    const il = rt.interlockCheck('load');
+    expect(il.blocked).toBe(true); // ứng suất >90% → khoá tăng tải
+    expect(il.reasons.some((r) => /ứng suất|stress/i.test(r))).toBe(true);
+  });
+
   it('màn D3-turbine-stress có trong screens + nav; mọi tag sống', () => {
     const scr = boilerScreens.find((s) => s.screenId === 'D3-turbine-stress');
     expect(scr).toBeDefined();
