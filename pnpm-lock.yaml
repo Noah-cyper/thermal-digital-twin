@@ -86,6 +86,40 @@ importers:
         specifier: ^2.0.5
         version: 2.1.9(@types/node@22.20.1)
 
+  apps/water-runtime:
+    dependencies:
+      '@idtp/engines':
+        specifier: workspace:*
+        version: link:../../packages/engines
+      '@idtp/plugin-water-treatment-demo':
+        specifier: workspace:*
+        version: link:../../plugins/water-treatment-demo
+      '@idtp/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
+      ws:
+        specifier: ^8.18.0
+        version: 8.21.1
+    devDependencies:
+      '@types/node':
+        specifier: ^22.5.0
+        version: 22.20.1
+      '@types/ws':
+        specifier: ^8.5.12
+        version: 8.18.1
+      esbuild:
+        specifier: ^0.21.5
+        version: 0.21.5
+      playwright:
+        specifier: 1.62.0
+        version: 1.62.0
+      typescript:
+        specifier: ^5.5.4
+        version: 5.9.3
+      vitest:
+        specifier: ^2.0.5
+        version: 2.1.9(@types/node@22.20.1)
+
   packages/engines:
     dependencies:
       '@idtp/sdk':
