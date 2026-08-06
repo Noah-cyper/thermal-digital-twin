@@ -7,6 +7,7 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { chromium } from 'playwright';
+import { WebSocket } from 'ws';
 
 const APP = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PORT = Number(process.env.PORT) || 8080;
@@ -78,6 +79,54 @@ try {
     return { total: cs.length, drawn };
   });
   ok(spark.total > 0 && spark.drawn === spark.total, `sparkline vẽ trên mọi ô overview (${spark.drawn}/${spark.total})`);
+
+  // (9) Alarm-shelf UI (ISA-18.2) end-to-end: side-channel Admin bơm sự cố → alarm hiện trên panel →
+  //     UI Operator shelve (có LÝ DO + thời hạn) → badge tăng → danh sách shelve có mục → Bung (unshelve).
+  //     Đặt CUỐI vì sự cố nước cấp làm mất ổn định nhà máy (không ảnh hưởng các check phía trên).
+  const admin = new WebSocket(`ws://localhost:${PORT}`);
+  await new Promise((r) => admin.on('open', () => r()));
+  admin.send(JSON.stringify({ cmd: 'login', user: 'admin' }));
+  await page.waitForTimeout(400);
+  admin.send(JSON.stringify({ cmd: 'malf', malf: 'feedwater-pump-trip', value: 1, confirm: true })); // → BLR-DRUM-LVL-LO
+
+  // Chờ alarm xuất hiện trên panel (nút shelve từng dòng). Onset ~86 bước sim (stepMs 100) → nới rộng.
+  let shelfRow = null;
+  for (let t = 0; t < 60 && !shelfRow; t++) {
+    await page.waitForTimeout(500);
+    shelfRow = await page.$('#alist button[data-shelf]');
+  }
+  ok(!!shelfRow, 'alarm sự cố hiện trên panel (nút shelve/dòng)');
+  if (shelfRow) {
+    await shelfRow.click();
+    await page.waitForSelector('#shelfMask', { state: 'visible', timeout: 4000 });
+    const target = await page.evaluate(() => document.getElementById('shelfTarget').textContent);
+    ok(!!target && target !== '—', `modal shelve mở đúng alarm (${target})`);
+    await page.fill('#shelfReason', 'E2E: nhiễu do thử nghiệm');
+    await page.selectOption('#shelfDur', '60');
+    await page.click('#shelfConfirm');
+
+    // Badge shelfN tăng + modal đóng.
+    let shelfN = '0';
+    for (let t = 0; t < 20 && shelfN === '0'; t++) { await page.waitForTimeout(300); shelfN = await page.evaluate(() => document.getElementById('shelfN').textContent); }
+    ok(Number(shelfN) > 0, `badge shelve tăng sau khi shelve (shelfN=${shelfN})`);
+
+    // Mở danh sách shelve → có mục + đồng hồ đếm ngược + nút Bung.
+    await page.click('#shelfBtn');
+    await page.waitForSelector('#shelvedMask', { state: 'visible', timeout: 4000 });
+    const shelvedInfo = await page.evaluate(() => {
+      const btns = [...document.querySelectorAll('#shelvedBody button[data-unshelf]')];
+      const cd = document.querySelector('#shelvedBody .cd');
+      return { count: btns.length, hasCountdown: !!cd && (cd.textContent || '').length > 0, firstId: btns[0]?.getAttribute('data-unshelf') };
+    });
+    ok(shelvedInfo.count > 0 && shelvedInfo.hasCountdown, `danh sách shelve có mục + đếm ngược (${shelvedInfo.count} mục)`);
+
+    // Bung (unshelve) → badge về 0.
+    await page.click(`#shelvedBody button[data-unshelf="${shelvedInfo.firstId}"]`);
+    let after = shelfN;
+    for (let t = 0; t < 20 && Number(after) > 0; t++) { await page.waitForTimeout(300); after = await page.evaluate(() => document.getElementById('shelfN').textContent); }
+    ok(Number(after) === 0, `unshelve bung hết — badge về 0 (shelfN=${after})`);
+  }
+  admin.close();
 
   ok(jsErrors.length === 0, 'không có lỗi JS trên trang — ' + (jsErrors.join(' | ') || 'none'));
 } catch (e) {
