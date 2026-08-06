@@ -1015,6 +1015,22 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
     ],
   },
   {
+    screenId: 'D3-turbine-stress',
+    level: 'D3',
+    title: { vi: 'TSE — ứng suất nhiệt rotor turbine', en: 'Turbine Stress Evaluator' },
+    elements: [
+      // Chênh nhiệt bề mặt–tâm rotor sinh ứng suất; TSE thắt tốc độ tải để tránh mỏi nhiệt.
+      equip('tse-surf', 'box', 'Nhiệt bề mặt rotor', 'TSE_SURFACE_TEMP_01', '°C', '', 20, 40, 200, 56),
+      equip('tse-bore', 'box', 'Nhiệt tâm rotor', 'TSE_BORE_TEMP_01', '°C', '', 20, 112, 200, 56),
+      equip('tse-dt', 'box', 'Chênh bề mặt–tâm', 'TSE_ROTOR_DT_01', '°C', '', 20, 184, 200, 56, [{ when: 'gt', value: 54, sev: 2 }, { when: 'lt', value: -54, sev: 2 }]),
+      equip('tse-stress', 'drum', 'Ứng suất', 'TSE_STRESS_PCT_01', '%', '', 240, 40, 210, 90, [{ when: 'gt', value: 90, sev: 2 }]),
+      equip('tse-margin', 'box', 'Biên ứng suất', 'TSE_MARGIN_01', '%', '', 240, 148, 210, 56, [{ when: 'lt', value: 10, sev: 2 }]),
+      equip('tse-ramp', 'box', 'Ramp limit cho phép', 'TSE_RAMP_LIMIT_01', 'MW/ph', '', 240, 220, 210, 56, [{ when: 'lt', value: 8, sev: 1 }]),
+      equip('tse-life', 'box', 'Tiêu hao tuổi thọ', 'TSE_LIFE_USED_01', '%', '', 470, 40, 210, 56),
+      equip('tse-health', 'box', 'Ứng suất trong ngưỡng', 'TSE_HEALTHY_01', '', 'D3-turbine-generator', 470, 112, 210, 56, [{ when: 'lt', value: 0.5, sev: 2 }]),
+    ],
+  },
+  {
     screenId: 'D3-fwh-drains',
     level: 'D3',
     title: { vi: 'Drain cascade bình gia nhiệt — bố trí thiết bị', en: 'Feedwater Heater Drain Cascade Layout' },

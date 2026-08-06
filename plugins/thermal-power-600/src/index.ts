@@ -32,6 +32,7 @@ export { AgcSecondaryModel } from './sim/agc-secondary';
 export { CombustionOptModel } from './sim/combustion-opt';
 export { HeaterDetailModel } from './sim/heater-detail';
 export { DrumSwellModel } from './sim/drum-swell';
+export { TurbineStressModel } from './sim/turbine-stress';
 export { FeedwaterDrainsModel } from './sim/feedwater-drains';
 export { AnsiProtectionModel } from './sim/ansi-protection';
 export { RegenBalanceModel } from './sim/regen-balance';

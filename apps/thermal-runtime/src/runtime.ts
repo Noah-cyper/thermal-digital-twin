@@ -8,6 +8,7 @@ import { TimeService } from '@idtp/kernel';
 import {
   BoilerIslandModel,
   TurbineGeneratorModel,
+  TurbineStressModel,
   ReheatCycleModel,
   FeedwaterTrainModel,
   FeedwaterDrainsModel,
@@ -275,6 +276,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   // mỗi bước. Additive: sinh thêm tag turbine/generator, không đổi GEN_MW_01.
   const turbine = new TurbineGeneratorModel();
   host.register(turbine);
+  // TSE ứng suất nhiệt rotor (v1.62): đăng ký SAU turbine — đọc GEN_MW_01 + BLR_MSTM_SH_TEMP_01 → chênh
+  // nhiệt bề mặt–tâm rotor → ứng suất + ramp limit + tuổi thọ mỏi. Additive — chỉ sinh TSE_* (0 hồi quy).
+  const turbineStress = new TurbineStressModel();
+  host.register(turbineStress);
   // Chu trình tái nhiệt + turbine nhiều tầng (v1.18): đăng ký SAU để đọc hơi/áp/nhiệt/MW tươi mỗi bước.
   // Additive — sinh thêm tag đường reheat + tách công suất HP/IP/LP, không đổi GEN_MW_01.
   const reheat = new ReheatCycleModel();
