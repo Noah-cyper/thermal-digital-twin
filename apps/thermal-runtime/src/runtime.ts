@@ -33,6 +33,7 @@ import {
   FireFightingModel,
   ChemicalDosingModel,
   AvrExcitationModel,
+  PssStabilizerModel,
   PlantBalanceModel,
   CalibrationModel,
   boilerControlLoops,
@@ -305,6 +306,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   // từ + điện áp đầu cực + mức kích thích. Additive — không đổi GEN_MVAR_01/GEN_MW_01 (0 hồi quy).
   const avrExcitation = new AvrExcitationModel();
   host.register(avrExcitation);
+  // PSS / Power System Stabilizer (v1.57, chiều sâu physics): đăng ký SAU avrExcitation — đọc GEN_MW_01 để
+  // biết đã hoà lưới → dập dao động local-mode qua tín hiệu phụ Vs. Additive — chỉ sinh PSS_* (0 hồi quy).
+  const pssStabilizer = new PssStabilizerModel();
+  host.register(pssStabilizer);
   // Tháp làm mát (v1.24): đăng ký SAU condenser để đọc nhiệt thải/độ tăng nhiệt CW tươi → khép vòng CW
   // (bầu ướt + approach + bốc hơi + nước bổ sung). Additive — không đổi tag condenser.
   const coolingTower = new CoolingTowerModel();

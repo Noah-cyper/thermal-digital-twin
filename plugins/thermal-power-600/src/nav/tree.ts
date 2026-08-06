@@ -21,6 +21,7 @@ export const thermalNav: ReadonlyArray<NavNode> = [
   { screenId: 'D3-fire-fighting', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Hệ chữa cháy', en: 'Fire Fighting' } },
   { screenId: 'D3-chemical-dosing', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Hoá chất điều hoà chu trình', en: 'Cycle Chemical Dosing' } },
   { screenId: 'D3-avr-excitation', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'AVR & hệ kích từ', en: 'AVR & Excitation' } },
+  { screenId: 'D3-pss-stabilizer', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'PSS — ổn định hệ thống điện', en: 'Power System Stabilizer' } },
   { screenId: 'D3-fwh-drains', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Drain cascade bình gia nhiệt', en: 'FWH Drain Cascade' } },
   { screenId: 'D3-ansi-protection', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Bảo vệ máy phát (ANSI)', en: 'Generator Protection (ANSI)' } },
   { screenId: 'D3-regen-balance', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Hồi nhiệt & cân bằng nhiệt', en: 'Regen Heat Balance' } },

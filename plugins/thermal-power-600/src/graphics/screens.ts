@@ -886,7 +886,24 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       equip('avr-field', 'box', 'Dòng kích từ', 'ELEC_FIELD_CURRENT_01', 'A', '', 250, 40, 190, 56, [{ when: 'gt', value: 3800, sev: 2 }]),
       equip('avr-fieldv', 'box', 'Điện áp kích từ', 'ELEC_FIELD_VOLTAGE_01', 'V', '', 250, 112, 190, 56),
       equip('avr-exc', 'drum', 'Mức kích từ', 'ELEC_EXCITATION_01', '%', '', 250, 184, 190, 90, [{ when: 'gt', value: 95, sev: 2 }]),
-      equip('avr-mvar', 'box', 'Phản kháng AVR', 'ELEC_REACTIVE_AVR_01', 'MVAr', 'D3-generator', 470, 40, 190, 56),
+      equip('avr-mvar', 'box', 'Phản kháng AVR', 'ELEC_REACTIVE_AVR_01', 'MVAr', 'D3-pss-stabilizer', 470, 40, 190, 56),
+    ],
+  },
+  {
+    screenId: 'D3-pss-stabilizer',
+    level: 'D3',
+    title: { vi: 'PSS — bộ ổn định hệ thống điện (dập dao động)', en: 'Power System Stabilizer (Oscillation Damping)' },
+    elements: [
+      // PSS bơm tín hiệu phụ Vs vào AVR để dập dao động local-mode ~1 Hz; ζ cao = dập tốt.
+      equip('pss-en', 'box', 'PSS hoạt động (0/1)', 'PSS_ENABLED_01', '', '', 20, 40, 190, 56, [{ when: 'lt', value: 0.5, sev: 2 }]),
+      equip('pss-freq', 'box', 'Tần số mode', 'PSS_MODE_FREQ_01', 'Hz', '', 20, 112, 190, 56),
+      equip('pss-dw', 'box', 'Sai lệch tốc độ Δω', 'PSS_SPEED_DEV_01', 'pu', '', 20, 184, 190, 56),
+      equip('pss-vs', 'box', 'Tín hiệu phụ Vs', 'PSS_OUTPUT_01', 'pu', '', 20, 256, 190, 56),
+      pipe('pss-p1', 'elec', [{ x: 210, y: 68 }, { x: 260, y: 68 }, { x: 260, y: 90 }]),
+      equip('pss-zeta', 'drum', 'Hệ số dập ζ', 'PSS_DAMPING_RATIO_01', '', '', 260, 40, 200, 90, [{ when: 'lt', value: 0.05, sev: 2 }]),
+      equip('pss-amp', 'box', 'Biên độ dao động', 'PSS_OSC_AMPLITUDE_01', 'MW', '', 260, 148, 200, 56, [{ when: 'gt', value: 15, sev: 2 }]),
+      equip('pss-osc', 'box', 'Đang có nhiễu (0/1)', 'PSS_OSC_ACTIVE_01', '', '', 260, 220, 200, 56, [{ when: 'gt', value: 0.5, sev: 1 }]),
+      equip('pss-health', 'box', 'Dập đủ margin (0/1)', 'PSS_HEALTHY_01', '', 'D3-avr-excitation', 490, 40, 200, 56, [{ when: 'lt', value: 0.5, sev: 2 }]),
     ],
   },
   {
@@ -1005,6 +1022,10 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       valueTile('pd-hg', 'CEMS_HG_STACK_01', 'Thuỷ ngân ống khói', 'µg/Nm³', 0, 5, [{ when: 'gt', value: 5, sev: 2 }]),
       valueTile('pd-co', 'CEMS_CO_STACK_01', 'CO ống khói', 'mg/Nm³', 1, 5, [{ when: 'gt', value: 200, sev: 2 }]),
       valueTile('pd-comb', 'CEMS_COMBUSTION_EFF_01', 'Hiệu suất cháy', '%', 2, 5, [{ when: 'lt', value: 98, sev: 2 }]),
+      // Hàng 6 — PSS ổn định hệ thống điện:
+      valueTile('pd-pssz', 'PSS_DAMPING_RATIO_01', 'Hệ số dập ζ (PSS)', '', 0, 6, [{ when: 'lt', value: 0.05, sev: 2 }]),
+      valueTile('pd-pssamp', 'PSS_OSC_AMPLITUDE_01', 'Biên độ dao động', 'MW', 1, 6, [{ when: 'gt', value: 15, sev: 2 }]),
+      valueTile('pd-psshealth', 'PSS_HEALTHY_01', 'PSS dập đủ margin', '', 2, 6, [{ when: 'lt', value: 0.5, sev: 2 }]),
     ],
   },
   {
