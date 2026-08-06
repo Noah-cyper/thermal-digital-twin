@@ -976,6 +976,38 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
     ],
   },
   {
+    screenId: 'D2-physics-depth',
+    level: 'D2',
+    title: { vi: 'Tổng hợp chiều sâu physics (điện & nhiệt)', en: 'Deep Physics Overview (electrical & thermal)' },
+    elements: [
+      // Gom chỉ số cốt lõi các hệ chiều sâu vừa bổ sung — 1 màn liếc nhanh sức khoẻ điện & nhiệt.
+      // Hàng 0 — AVR/kích từ:
+      valueTile('pd-vterm', 'ELEC_TERM_VOLT_01', 'Điện áp cực (AVR)', 'kV', 0, 0, [{ when: 'lt', value: 19, sev: 2 }]),
+      valueTile('pd-exc', 'ELEC_EXCITATION_01', 'Mức kích từ', '%', 1, 0, [{ when: 'gt', value: 95, sev: 2 }]),
+      valueTile('pd-mvar', 'ELEC_REACTIVE_AVR_01', 'Phản kháng AVR', 'MVAr', 2, 0),
+      // Hàng 1 — Bảo vệ ANSI:
+      valueTile('pd-anhealth', 'ANSI_PROT_HEALTHY_01', 'Bảo vệ bình thường', '', 0, 1, [{ when: 'lt', value: 0.5, sev: 1 }]),
+      valueTile('pd-antrip', 'ANSI_TRIP_ANY_01', 'Có lệnh trip', '', 1, 1, [{ when: 'gt', value: 0, sev: 1 }]),
+      valueTile('pd-an40', 'ANSI_40_MARGIN_01', '40 biên mất kích từ', '%', 2, 1, [{ when: 'lt', value: 25, sev: 2 }]),
+      // Hàng 2 — Drain cascade bình gia nhiệt:
+      valueTile('pd-ttd', 'FWH_HPH_TTD_01', 'TTD đoàn HP', '°C', 0, 2, [{ when: 'gt', value: 6, sev: 2 }]),
+      valueTile('pd-drainlvl', 'FWH_HPH_DRAIN_LEVEL_01', 'Mức drain HP', '%', 1, 2, [{ when: 'gt', value: 80, sev: 2 }]),
+      valueTile('pd-draincond', 'FWH_DRAIN_TO_COND_01', 'Drain → bình ngưng', 't/h', 2, 2),
+      // Hàng 3 — Hồi nhiệt & cân bằng:
+      valueTile('pd-regenloss', 'PLANT_REGEN_LOSS_MW_01', 'Tổn thất hồi nhiệt', 'MWth', 0, 3, [{ when: 'gt', value: 1, sev: 2 }]),
+      valueTile('pd-hrpen', 'PLANT_HR_REGEN_PENALTY_01', 'Phạt heat rate', '%', 1, 3, [{ when: 'gt', value: 0.5, sev: 2 }]),
+      valueTile('pd-hreff', 'PLANT_CYCLE_HR_EFF_01', 'Heat rate chu trình hiệu dụng', 'kJ/kWh', 2, 3),
+      // Hàng 4 — Bám bẩn & lọt khí động:
+      valueTile('pd-ahfoul', 'FA_AH_FOULING_01', 'Bám bộ sấy gió', '%', 0, 4, [{ when: 'gt', value: 40, sev: 2 }]),
+      valueTile('pd-sjae', 'FA_SJAE_MARGIN_01', 'Biên SJAE', '%', 1, 4, [{ when: 'lt', value: 20, sev: 2 }]),
+      valueTile('pd-inleak', 'FA_COND_AIR_INLEAK_01', 'Lọt khí bình ngưng', 'scfm', 2, 4, [{ when: 'gt', value: 40, sev: 2 }]),
+      // Hàng 5 — CEMS mở rộng:
+      valueTile('pd-hg', 'CEMS_HG_STACK_01', 'Thuỷ ngân ống khói', 'µg/Nm³', 0, 5, [{ when: 'gt', value: 5, sev: 2 }]),
+      valueTile('pd-co', 'CEMS_CO_STACK_01', 'CO ống khói', 'mg/Nm³', 1, 5, [{ when: 'gt', value: 200, sev: 2 }]),
+      valueTile('pd-comb', 'CEMS_COMBUSTION_EFF_01', 'Hiệu suất cháy', '%', 2, 5, [{ when: 'lt', value: 98, sev: 2 }]),
+    ],
+  },
+  {
     screenId: 'D2-calibration',
     level: 'D2',
     title: { vi: 'Hiệu chỉnh hiệu năng vs Design Basis', en: 'Performance Calibration vs Design Basis' },
