@@ -210,6 +210,7 @@
         <button id="openTrend" title="Trend đa tag: chọn nhiều tag + dải thời gian → biểu đồ đường từ Historian">📈 Trend</button>
         <button id="openJournal" title="Event Log / SOE (màn hình hệ thống): nhật ký sự kiện alarm/trip/lệnh/chuỗi/bảo mật">📓 Nhật ký sự kiện</button>
         <button id="openDiag" title="System Diagnostic (màn hình hệ thống): tự soi trạng thái sim/tag/loop/historian/alarm/journal">🩺 Chẩn đoán hệ thống</button>
+        <button id="openRat" title="Alarm Rationalization (ISA-18.2): bảng master alarm — nguyên nhân/hậu quả/ưu tiên + phân bố EEMUA-191">📋 Rationalization alarm</button>
         <button data-ots="freeze" id="otsFreeze">Freeze (OTS)</button>
         <button data-ots="snapshot">Snapshot</button>
         <button data-ots="restore" id="otsRestore" disabled>Restore</button>
@@ -295,6 +296,16 @@
         <span id="diagX" style="cursor:pointer;opacity:.6;font-size:16px">✕</span></div>
       <div id="diagBody"></div>
       <div class="note" style="margin-top:8px;font-size:11px;opacity:.6">Chỉ đọc — số liệu lấy từ nguồn thật của runtime (sim/tag/loop/historian/alarm/journal). Không tác động thiết bị.</div>
+    </div>
+  </div>
+  <div id="ratModal" hidden style="position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center">
+    <div style="background:var(--panel,#141a20);color:var(--text,#e7edf2);border:1px solid var(--line,#2a343d);border-radius:8px;width:min(900px,96vw);max-height:90vh;overflow:auto;padding:16px 18px;font-size:13px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <b>📋 Alarm Rationalization — master DB (ISA-18.2 / EEMUA-191)</b>
+        <span id="ratX" style="cursor:pointer;opacity:.6;font-size:16px">✕</span></div>
+      <div id="ratSummary" style="margin-bottom:10px"></div>
+      <div id="ratBody"></div>
+      <div class="note" style="margin-top:8px;font-size:11px;opacity:.6">Chỉ đọc — bảng rationalization tĩnh (nguyên nhân/hậu quả/khắc phục/ưu tiên). Không tác động thiết bị.</div>
     </div>
   </div>
   <div id="trendModal" hidden style="position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center">
@@ -667,6 +678,44 @@
     $('diagBody').innerHTML = html;
     $('diagModal').hidden = false;
   }
+  function onRat(r){
+    if (!r) return;
+    const esc = (s) => String(s == null ? '' : s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    const dp = r.distributionPct || {};
+    const tgt = r.eemuaTarget || {};
+    const pcol = { P1:'var(--alarm-1,#d9534f)', P2:'var(--alarm-2,#E8952A)', P3:'var(--alarm-3,#F5D90A)', P4:'#8a94a0' };
+    const okBadge = r.distributionOk
+      ? '<span style="color:#57a773">ĐẠT</span>'
+      : '<span style="color:var(--alarm-2,#E8952A)">CHƯA ĐẠT (P1 quá cao)</span>';
+    $('ratSummary').innerHTML =
+      '<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px">'
+      + '<span>Độ phủ: <b>' + (r.coveragePct||0).toFixed(0) + '%</b></span>'
+      + '<span>Đã duyệt: <b>' + r.reviewed + '/' + r.total + '</b></span>'
+      + '<span>Chưa rationalize: <b>' + (r.unrationalized ? r.unrationalized.length : 0) + '</b></span>'
+      + '<span>Phân bố EEMUA: ' + okBadge + '</span></div>'
+      + '<div style="margin-top:6px;font-size:12px">Phân bố ưu tiên (mục tiêu EEMUA-191): '
+      + '<b style="color:'+pcol.P1+'">P1 ' + (dp.P1||0).toFixed(0) + '%</b> (≤' + (tgt.P1||5) + '%) · '
+      + '<b style="color:'+pcol.P2+'">P2 ' + (dp.P2||0).toFixed(0) + '%</b> (~' + (tgt.P2||15) + '%) · '
+      + '<b style="color:'+pcol.P3+'">P3 ' + (dp.P3||0).toFixed(0) + '%</b> (~' + (tgt.P3||80) + '%)</div>';
+    const th = (t) => '<th style="text-align:left;padding:4px 8px;border-bottom:1px solid var(--line,#2a343d);position:sticky;top:0;background:var(--panel,#141a20)">'+t+'</th>';
+    const td = (v) => '<td style="padding:4px 8px;border-bottom:1px solid rgba(255,255,255,.06);vertical-align:top">'+v+'</td>';
+    let html = '<table style="width:100%;border-collapse:collapse;font-size:11px"><thead><tr>'
+      + th('Alarm') + th('Ưu tiên') + th('Nguyên nhân') + th('Hậu quả') + th('Khắc phục') + th('Phản ứng') + th('Duyệt') + '</tr></thead><tbody>';
+    for (const a of (r.master || [])) {
+      const pc = pcol[a.priority] || 'inherit';
+      const rt = a.responseTimeSec >= 0 ? (a.responseTimeSec >= 60 ? (a.responseTimeSec/60)+' ph' : a.responseTimeSec+' s') : '—';
+      html += '<tr>' + td('<b>'+esc(a.alarmId)+'</b>')
+        + td('<b style="color:'+pc+'">'+esc(a.priority)+'</b>')
+        + td(esc(a.cause && a.cause.vi))
+        + td(esc(a.consequence && a.consequence.vi))
+        + td(esc(a.corrective && a.corrective.vi))
+        + td(rt)
+        + td(a.reviewed ? '<span style="color:#57a773">✓</span>' : '—') + '</tr>';
+    }
+    html += '</tbody></table>';
+    $('ratBody').innerHTML = html;
+    $('ratModal').hidden = false;
+  }
   let builderTags = [];
   let bTiles = [];
   function openBuilder(){
@@ -763,6 +812,7 @@
       else if (m.type === 'trend-series'){ drawTrend(m); }
       else if (m.type === 'journal'){ onJournal(m); }
       else if (m.type === 'diag'){ onDiag(m.diag); }
+      else if (m.type === 'alarm-rationalization'){ onRat(m.report); }
     } catch {} };
   }
   const KPI_LABEL = { 'heat-rate': 'Heat rate', 'efficiency': 'Hiệu suất', 'steam-rate': 'Steam rate' };
@@ -886,6 +936,8 @@
   $('openJournal').onclick = () => send({ cmd: 'journal' });
   $('journalX').onclick = () => { $('journalModal').hidden = true; };
   $('openDiag').onclick = () => send({ cmd: 'diag' });
+  $('openRat').onclick = () => send({ cmd: 'alarm-rationalization' });
+  $('ratX').onclick = () => { $('ratModal').hidden = true; };
   // ── Trend viewer đa tag (Historian) ──
   const TREND_COLORS = ['#E8952A', '#4A90D9', '#57A773', '#E5484D', '#C9A227', '#38BDF8', '#B14CFF', '#9AA5B1'];
   let trPens = ['GEN_MW_01', 'BLR_STEAM_FLOW_01', 'BLR_MSTM_SH_PRESS_01', 'BLR_DRUM_LEVEL_01'];
@@ -942,7 +994,7 @@
   $('openBuilder').onclick = openBuilder;
   $('builderX').onclick = () => { $('builderModal').hidden = true; };
   // UX: đóng modal bằng Esc hoặc bấm ra nền tối (nhất quán, tránh overlay bẫy thao tác).
-  const overlayModals = ['reportModal', 'journalModal', 'diagModal', 'builderModal', 'trendModal'];
+  const overlayModals = ['reportModal', 'journalModal', 'diagModal', 'ratModal', 'builderModal', 'trendModal'];
   overlayModals.forEach((id) => {
     const el = $(id);
     if (el) el.addEventListener('click', (e) => { if (e.target === el) el.hidden = true; });
