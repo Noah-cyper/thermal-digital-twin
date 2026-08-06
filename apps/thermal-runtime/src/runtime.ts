@@ -36,6 +36,10 @@ import {
   PssStabilizerModel,
   GovernorDroopModel,
   PulverizerMillsModel,
+  AgcSecondaryModel,
+  CombustionOptModel,
+  HeaterDetailModel,
+  DrumSwellModel,
   PlantBalanceModel,
   CalibrationModel,
   boilerControlLoops,
@@ -280,6 +284,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   // nhiệt drain + TTD/DCA + mức drain + xả khẩn. Additive — sinh tag FWH_* độc lập, không đổi tag FW_*.
   const feedwaterDrains = new FeedwaterDrainsModel();
   host.register(feedwaterDrains);
+  // Bình gia nhiệt PER-HEATER (v1.59, A3): đăng ký SAU feedwaterDrains — đọc GEN_MW_01 → từng bình HP1–LP4
+  // (mức/TTD/van drain) + động học van kẹt. Additive — chỉ sinh HTR_* (0 hồi quy).
+  const heaterDetail = new HeaterDetailModel();
+  host.register(heaterDetail);
   // Nối drain vào cân bằng nhiệt (v1.51): đọc drain chuyển hướng (xả khẩn) + heat rate chu trình → tổn thất
   // hồi nhiệt + hạ nhiệt nước cấp hiệu dụng + phạt heat rate. GUARD 0 hồi quy: vận hành bình thường tổn thất=0.
   const regenBalance = new RegenBalanceModel();
@@ -316,6 +324,14 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   // → droop 5% + deadband + đáp ứng tần số sơ cấp. Additive — chỉ sinh GOV_* (0 hồi quy). Cặp đôi với AVR/PSS.
   const governorDroop = new GovernorDroopModel();
   host.register(governorDroop);
+  // AGC / điều tần thứ cấp (v1.59, A1): đăng ký SAU governorDroop — đọc GOV_GRID_FREQ_01 + GEN_MW_01 → ACE
+  // (tie-line bias) + tín hiệu điều tiết khôi phục tần số/tie. Additive — chỉ sinh AGC_* (0 hồi quy).
+  const agcSecondary = new AgcSecondaryModel();
+  host.register(agcSecondary);
+  // Bao hơi shrink/swell (v1.59, A4): đăng ký SAU boiler — đọc BLR_STEAM_FLOW_01/BLR_DRUM_LEVEL_01 → thành
+  // phần swell non-minimum-phase + mức thật ước lượng. Additive — không đổi mức bao hơi lõi (DRM_*).
+  const drumSwell = new DrumSwellModel();
+  host.register(drumSwell);
   // Tháp làm mát (v1.24): đăng ký SAU condenser để đọc nhiệt thải/độ tăng nhiệt CW tươi → khép vòng CW
   // (bầu ướt + approach + bốc hơi + nước bổ sung). Additive — không đổi tag condenser.
   const coolingTower = new CoolingTowerModel();
@@ -328,6 +344,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   // phân giải từng máy nghiền A–F (tải/độ mịn/ΔP/trạng thái) + động học trip/redistribute. Additive (PVM_*).
   const pulverizerMills = new PulverizerMillsModel();
   host.register(pulverizerMills);
+  // Tối ưu cháy & bản đồ hiệu suất lò (v1.59, A2): đăng ký SAU pulverizerMills — đọc BLR_FLUE_O2_01 +
+  // FG_STACK_TEMP_01 + PVM_MIN_FINENESS_01 → phân tích tổn thất khói/chưa cháy + hiệu suất LÒ (tách M-06).
+  const combustionOpt = new CombustionOptModel();
+  host.register(combustionOpt);
   // Balance of Plant §10 (v1.40): khí nén/khí điều khiển · dầu đốt khởi động · thải tro. Đọc than/MW tươi
   // → sinh tag BOP độc lập (CA_*/FO_*/ASH_*). Additive — không đổi tag hệ chính. Có trạng thái (snapshot).
   const compressedAir = new CompressedAirModel();
