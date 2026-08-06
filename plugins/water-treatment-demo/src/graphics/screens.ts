@@ -67,6 +67,20 @@ export const waterScreens: ReadonlyArray<ScreenDef> = [
       valueTile('demand', 'WTP_DEMAND_01', 'Nhu cầu ra', 'm³/h', 2, 0, [{ when: 'gt', value: 180, sev: 3 }]),
     ],
   },
+  {
+    screenId: 'D3-wtp-ro',
+    level: 'D3',
+    title: { vi: 'Màng RO — thẩm thấu ngược', en: 'RO Membrane Train' },
+    elements: [
+      valueTile('perm', 'WTP_RO_PERMEATE_FLOW_01', 'Permeate (sạch)', 'm³/h', 0, 0),
+      valueTile('reject', 'WTP_RO_REJECT_FLOW_01', 'Reject (đậm muối)', 'm³/h', 1, 0),
+      valueTile('rec', 'WTP_RO_RECOVERY_01', 'Thu hồi', '%', 2, 0, [{ when: 'lt', value: 65, sev: 2 }]),
+      valueTile('dp', 'WTP_RO_DP_01', 'ΔP màng', 'bar', 0, 1, [{ when: 'gt', value: 3.5, sev: 2 }]),
+      valueTile('salt', 'WTP_RO_SALT_REJECT_01', 'Khử muối', '%', 1, 1, [{ when: 'lt', value: 98, sev: 2 }]),
+      valueTile('cond', 'WTP_RO_PERM_COND_01', 'Độ dẫn permeate', 'µS/cm', 2, 1, [{ when: 'gt', value: 15, sev: 2 }]),
+      valueTile('rohealth', 'WTP_RO_HEALTHY_01', 'Màng bình thường', '', 0, 2, [{ when: 'lt', value: 0.5, sev: 2 }]),
+    ],
+  },
 ];
 
 export function waterScreenTags(screen: ScreenDef): string[] {
