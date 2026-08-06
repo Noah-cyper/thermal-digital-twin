@@ -35,6 +35,7 @@ export { DrumSwellModel } from './sim/drum-swell';
 export { TurbineStressModel } from './sim/turbine-stress';
 export { CondenserPerfModel } from './sim/condenser-perf';
 export { GeneratorCapabilityModel } from './sim/generator-capability';
+export { LubeOilSystemModel } from './sim/lube-oil-system';
 export { FeedwaterDrainsModel } from './sim/feedwater-drains';
 export { AnsiProtectionModel } from './sim/ansi-protection';
 export { RegenBalanceModel } from './sim/regen-balance';

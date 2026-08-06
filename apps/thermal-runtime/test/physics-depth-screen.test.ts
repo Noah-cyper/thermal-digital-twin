@@ -15,7 +15,7 @@ describe('thermal-runtime — màn tổng hợp chiều sâu physics (D2)', () =
     for (let i = 0; i < 600; i++) rt.step();
 
     const tags = screenTags(scr);
-    expect(tags.length).toBeGreaterThanOrEqual(18);
+    expect(tags.length).toBeGreaterThanOrEqual(30); // v1.64: mở rộng thêm TSE/CNDP/GCAP (21→30 ô)
     for (const t of tags) {
       const v = rt.value(t);
       expect(Number.isFinite(v), `tag ${t} phải sống`).toBe(true);

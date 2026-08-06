@@ -1064,6 +1064,23 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
     ],
   },
   {
+    screenId: 'D3-lube-oil',
+    level: 'D3',
+    title: { vi: 'Hệ dầu bôi trơn gối trục turbine', en: 'Turbine Lube Oil System' },
+    elements: [
+      // Bể dầu · lọc · logic bơm MOP/AOP/EOP · biên nhiệt gối. Áp tụt → AOP tự khởi; tụt sâu → EOP DC.
+      equip('lo-res', 'box', 'Nhiệt bể dầu', 'LUBE_RESERVOIR_TEMP_01', '°C', '', 20, 40, 190, 56, [{ when: 'gt', value: 60, sev: 2 }]),
+      equip('lo-cool', 'box', 'Dầu ra làm mát', 'LUBE_COOLER_OUT_TEMP_01', '°C', '', 20, 112, 190, 56),
+      equip('lo-dp', 'box', 'ΔP lọc dầu', 'LUBE_FILTER_DP_01', 'bar', '', 20, 184, 190, 56, [{ when: 'gt', value: 1, sev: 2 }]),
+      equip('lo-header', 'drum', 'Áp header dầu', 'LUBE_HEADER_PRESS_01', 'MPa', '', 240, 40, 200, 90, [{ when: 'lt', value: 0.15, sev: 2 }]),
+      equip('lo-mop', 'box', 'Bơm chính MOP', 'LUBE_MOP_RUN_01', '', '', 240, 148, 200, 56, [{ when: 'lt', value: 0.5, sev: 1 }]),
+      equip('lo-aop', 'box', 'Bơm phụ AOP (AC)', 'LUBE_AOP_RUN_01', '', '', 240, 220, 200, 56, [{ when: 'gt', value: 0.5, sev: 1 }]),
+      equip('lo-eop', 'box', 'Bơm khẩn EOP (DC)', 'LUBE_EOP_RUN_01', '', '', 460, 40, 200, 56, [{ when: 'gt', value: 0.5, sev: 2 }]),
+      equip('lo-brg', 'box', 'Biên nhiệt gối', 'LUBE_BRG_MARGIN_01', '°C', '', 460, 112, 200, 56, [{ when: 'lt', value: 20, sev: 2 }]),
+      equip('lo-health', 'box', 'Hệ dầu bình thường', 'LUBE_HEALTHY_01', '', 'D3-turbine-generator', 460, 184, 200, 56, [{ when: 'lt', value: 0.5, sev: 2 }]),
+    ],
+  },
+  {
     screenId: 'D3-fwh-drains',
     level: 'D3',
     title: { vi: 'Drain cascade bình gia nhiệt — bố trí thiết bị', en: 'Feedwater Heater Drain Cascade Layout' },
@@ -1183,6 +1200,18 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       valueTile('pd-pssz', 'PSS_DAMPING_RATIO_01', 'Hệ số dập ζ (PSS)', '', 0, 6, [{ when: 'lt', value: 0.05, sev: 2 }]),
       valueTile('pd-pssamp', 'PSS_OSC_AMPLITUDE_01', 'Biên độ dao động', 'MW', 1, 6, [{ when: 'gt', value: 15, sev: 2 }]),
       valueTile('pd-psshealth', 'PSS_HEALTHY_01', 'PSS dập đủ margin', '', 2, 6, [{ when: 'lt', value: 0.5, sev: 2 }]),
+      // Hàng 7 — TSE ứng suất nhiệt rotor turbine:
+      valueTile('pd-tsestress', 'TSE_STRESS_PCT_01', 'Ứng suất rotor', '%', 0, 7, [{ when: 'gt', value: 90, sev: 2 }]),
+      valueTile('pd-tseramp', 'TSE_RAMP_LIMIT_01', 'Ramp cho phép', 'MW/ph', 1, 7, [{ when: 'lt', value: 8, sev: 1 }]),
+      valueTile('pd-tselife', 'TSE_LIFE_USED_01', 'Tiêu hao tuổi thọ', '%', 2, 7),
+      // Hàng 8 — Hiệu năng bình ngưng:
+      valueTile('pd-cndclean', 'CNDP_CLEANLINESS_01', 'Độ sạch bình ngưng', '%', 0, 8, [{ when: 'lt', value: 80, sev: 2 }]),
+      valueTile('pd-cndbp', 'CNDP_BP_DEVIATION_01', 'Lệch back-pressure', 'kPa', 1, 8, [{ when: 'gt', value: 1.5, sev: 2 }]),
+      valueTile('pd-cndpen', 'CNDP_HR_PENALTY_01', 'Phạt heat rate (BN)', '%', 2, 8, [{ when: 'gt', value: 2, sev: 2 }]),
+      // Hàng 9 — Biểu đồ khả năng máy phát:
+      valueTile('pd-gcload', 'GCAP_MVA_LOADING_01', 'Tải MVA', '%', 0, 9, [{ when: 'gt', value: 95, sev: 2 }]),
+      valueTile('pd-gcqmargin', 'GCAP_Q_MARGIN_01', 'Biên Q máy phát', 'MVAr', 1, 9, [{ when: 'lt', value: 30, sev: 2 }]),
+      valueTile('pd-gcbind', 'GCAP_LIMIT_BINDING_01', 'Giới hạn ràng buộc', '', 2, 9, [{ when: 'gt', value: 0.5, sev: 2 }]),
     ],
   },
   {

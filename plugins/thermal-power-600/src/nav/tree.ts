@@ -29,6 +29,7 @@ export const thermalNav: ReadonlyArray<NavNode> = [
   { screenId: 'D3-heater-detail', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Bình gia nhiệt (từng bình)', en: 'Feedwater Heaters (per-heater)' } },
   { screenId: 'D3-drum-swell', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Bao hơi shrink/swell', en: 'Drum Shrink/Swell' } },
   { screenId: 'D3-turbine-stress', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'TSE — ứng suất nhiệt rotor', en: 'Turbine Stress Evaluator' } },
+  { screenId: 'D3-lube-oil', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Dầu bôi trơn gối trục', en: 'Lube Oil System' } },
   { screenId: 'D3-condenser-perf', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Hiệu năng bình ngưng', en: 'Condenser Performance' } },
   { screenId: 'D3-generator-capability', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Biểu đồ khả năng P-Q', en: 'Generator Capability' } },
   { screenId: 'D3-fwh-drains', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Drain cascade bình gia nhiệt', en: 'FWH Drain Cascade' } },

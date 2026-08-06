@@ -9,6 +9,7 @@ import {
   BoilerIslandModel,
   TurbineGeneratorModel,
   TurbineStressModel,
+  LubeOilSystemModel,
   CondenserPerfModel,
   GeneratorCapabilityModel,
   ReheatCycleModel,
@@ -282,6 +283,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   // nhiệt bề mặt–tâm rotor → ứng suất + ramp limit + tuổi thọ mỏi. Additive — chỉ sinh TSE_* (0 hồi quy).
   const turbineStress = new TurbineStressModel();
   host.register(turbineStress);
+  // Hệ dầu bôi trơn gối trục (v1.64): đăng ký SAU turbine — đọc GEN_MW_01 + TRB_BRG_TEMP_01 → bể dầu/lọc/
+  // logic bơm MOP·AOP·EOP/biên nhiệt gối. Additive — chỉ sinh LUBE_* (0 hồi quy).
+  const lubeOilSystem = new LubeOilSystemModel();
+  host.register(lubeOilSystem);
   // Chu trình tái nhiệt + turbine nhiều tầng (v1.18): đăng ký SAU để đọc hơi/áp/nhiệt/MW tươi mỗi bước.
   // Additive — sinh thêm tag đường reheat + tách công suất HP/IP/LP, không đổi GEN_MW_01.
   const reheat = new ReheatCycleModel();
