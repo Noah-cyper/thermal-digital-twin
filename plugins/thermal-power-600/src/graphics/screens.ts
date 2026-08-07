@@ -138,50 +138,111 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
     ],
   },
   {
-    // Sơ đồ mimic sống (process graphic) — dòng hơi-nước + khói + điện; click thiết bị → drill D3.
+    // SƠ ĐỒ TỔNG THỂ NHÀ MÁY (full-screen process graphic) — không gian ~1610×780 px, phủ TOÀN BỘ hệ thống
+    // con SCADA + đường đi (dòng chảy môi chất) + kết nối, cho cái nhìn tổng quát một liếc. 6 tuyến chính:
+    //  ① Cấp than–gió: kho→nghiền→buồng lửa; quạt PA/FD.        ④ Ngưng tụ–cấp nước: bình ngưng→hạ áp→khử khí→BFP→cao áp→hâm→bao hơi.
+    //  ② Sinh hơi: buồng lửa→bao hơi→quá nhiệt (+ tái nhiệt).    ⑤ Nước tuần hoàn: bình ngưng↔tháp giải nhiệt↔bơm CW.
+    //  ③ Đường khói: hâm→sấy gió→SCR→ESP→quạt ID→FGD→ống khói.   ⑥ Điện: máy phát→GSU→lưới 500kV; AVR/kích từ; tự dùng (UAT); thải tro-xỉ.
+    // Click bất kỳ thiết bị → drill xuống màn hệ thống D3 tương ứng. Tag đều SỐNG (không ô chết).
     screenId: 'D1-plant-mimic',
     level: 'D1',
-    title: { vi: 'Sơ đồ nhà máy (live)', en: 'Plant Mimic (live)' },
+    title: { vi: 'Sơ đồ tổng thể nhà máy (live)', en: 'Whole-Plant Mimic (live)' },
     elements: [
-      // Đường ống (vẽ nền trước)
-      pipe('p-riser', 'water', [{ x: 120, y: 250 }, { x: 120, y: 170 }]),
-      pipe('p-drum-sh', 'steam', [{ x: 176, y: 144 }, { x: 236, y: 144 }]),
-      pipe('p-sh-trb', 'steam', [{ x: 348, y: 144 }, { x: 420, y: 150 }]),
-      pipe('p-trb-gen', 'shaft', [{ x: 560, y: 164 }, { x: 610, y: 165 }]),
-      pipe('p-gen-grid', 'elec', [{ x: 696, y: 165 }, { x: 772, y: 165 }]),
-      pipe('p-trb-cond', 'steam', [{ x: 490, y: 212 }, { x: 490, y: 318 }]),
-      pipe('p-cond-bfp', 'water', [{ x: 420, y: 351 }, { x: 316, y: 361 }]),
-      pipe('p-bfp-fur', 'water', [{ x: 250, y: 361 }, { x: 210, y: 361 }, { x: 210, y: 325 }, { x: 180, y: 325 }]),
-      pipe('p-fur-stack', 'flue', [{ x: 160, y: 250 }, { x: 160, y: 90 }, { x: 321, y: 90 }, { x: 321, y: 112 }]),
-      // Thiết bị (click → drill vào màn hệ thống D3)
-      equip('m-furnace', 'furnace', 'Buồng lửa', 'BLR_FURN_PRESS_01', 'Pa', 'D3-furnace', 60, 250, 120, 150, [
+      // ── ĐƯỜNG ỐNG / DÒNG CHẢY (vẽ nền trước) ─────────────────────────────────────────────────
+      // ① Cấp than (rắn) + gió cháy (air)
+      pipe('p-bunker-mills', 'coal', [{ x: 90, y: 206 }, { x: 90, y: 300 }]),
+      pipe('p-mills-fur', 'coal', [{ x: 150, y: 328 }, { x: 210, y: 332 }]),
+      pipe('p-pa-mills', 'air', [{ x: 56, y: 430 }, { x: 56, y: 372 }, { x: 90, y: 372 }, { x: 90, y: 356 }]),
+      pipe('p-fd-fur', 'air', [{ x: 156, y: 430 }, { x: 156, y: 405 }, { x: 205, y: 405 }, { x: 205, y: 415 }, { x: 210, y: 415 }]),
+      // ② Sinh hơi (nước cấp → bao hơi → quá nhiệt → tái nhiệt)
+      pipe('p-hph-econ', 'water', [{ x: 295, y: 512 }, { x: 360, y: 512 }, { x: 360, y: 140 }, { x: 440, y: 140 }, { x: 440, y: 121 }]),
+      pipe('p-econ-drum', 'water', [{ x: 385, y: 105 }, { x: 367, y: 105 }, { x: 367, y: 190 }, { x: 355, y: 190 }]),
+      pipe('p-drum-sh', 'steam', [{ x: 355, y: 190 }, { x: 385, y: 190 }]),
+      pipe('p-sh-hp', 'steam', [{ x: 505, y: 190 }, { x: 612, y: 190 }, { x: 612, y: 293 }]),
+      pipe('p-reheat', 'steam', [{ x: 638, y: 293 }, { x: 638, y: 250 }, { x: 760, y: 250 }, { x: 760, y: 293 }]),
+      pipe('p-hp-ip', 'steam', [{ x: 664, y: 330 }, { x: 712, y: 330 }]),
+      pipe('p-ip-lp', 'steam', [{ x: 816, y: 330 }, { x: 864, y: 330 }]),
+      pipe('p-lp-cond', 'steam', [{ x: 916, y: 367 }, { x: 916, y: 452 }]),
+      pipe('p-shaft', 'shaft', [{ x: 968, y: 330 }, { x: 1016, y: 330 }]),
+      // ③ Đường khói (flue): buồng lửa → hâm → sấy gió → SCR → ESP → quạt ID → FGD → ống khói
+      pipe('p-fur-econ', 'flue', [{ x: 270, y: 230 }, { x: 270, y: 94 }, { x: 385, y: 94 }]),
+      pipe('p-econ-ah', 'flue', [{ x: 495, y: 94 }, { x: 525, y: 94 }]),
+      pipe('p-ah-scr', 'flue', [{ x: 635, y: 94 }, { x: 665, y: 94 }]),
+      pipe('p-scr-esp', 'flue', [{ x: 775, y: 94 }, { x: 805, y: 94 }]),
+      pipe('p-esp-id', 'flue', [{ x: 915, y: 94 }, { x: 950, y: 94 }]),
+      pipe('p-id-fgd', 'flue', [{ x: 1014, y: 94 }, { x: 1044, y: 94 }]),
+      pipe('p-fgd-stack', 'flue', [{ x: 1154, y: 94 }, { x: 1190, y: 95 }]),
+      // ④ Ngưng tụ – cấp nước (water): bình ngưng → hạ áp → khử khí → BFP → cao áp → (hâm → bao hơi)
+      pipe('p-cond-lph', 'water', [{ x: 864, y: 482 }, { x: 765, y: 482 }, { x: 765, y: 512 }]),
+      pipe('p-lph-dea', 'water', [{ x: 710, y: 540 }, { x: 650, y: 540 }]),
+      pipe('p-dea-bfp', 'water', [{ x: 540, y: 540 }, { x: 478, y: 540 }]),
+      pipe('p-bfp-hph', 'water', [{ x: 410, y: 540 }, { x: 350, y: 540 }]),
+      // ⑤ Nước tuần hoàn (CW loop): bình ngưng ↔ tháp giải nhiệt ↔ bơm CW
+      pipe('p-cond-ct', 'water', [{ x: 916, y: 512 }, { x: 916, y: 650 }, { x: 924, y: 650 }, { x: 924, y: 690 }]),
+      pipe('p-ct-cwp', 'water', [{ x: 984, y: 722 }, { x: 1020, y: 722 }]),
+      pipe('p-cwp-cond', 'water', [{ x: 1054, y: 688 }, { x: 1054, y: 530 }, { x: 955, y: 530 }, { x: 955, y: 512 }]),
+      // ⑥ Điện (elec) + thải tro-xỉ (ash)
+      pipe('p-gen-gsu', 'elec', [{ x: 1108, y: 330 }, { x: 1160, y: 330 }]),
+      pipe('p-gsu-grid', 'elec', [{ x: 1240, y: 330 }, { x: 1300, y: 330 }]),
+      pipe('p-grid-net', 'elec', [{ x: 1420, y: 330 }, { x: 1470, y: 330 }]),
+      pipe('p-gen-avr', 'elec', [{ x: 1071, y: 284 }, { x: 1071, y: 222 }]),
+      pipe('p-gsu-aux', 'elec', [{ x: 1200, y: 379 }, { x: 1200, y: 458 }, { x: 1300, y: 458 }]),
+      pipe('p-fur-bash', 'ash', [{ x: 270, y: 440 }, { x: 270, y: 655 }, { x: 210, y: 655 }, { x: 210, y: 690 }]),
+      pipe('p-esp-fash', 'ash', [{ x: 830, y: 121 }, { x: 830, y: 662 }, { x: 360, y: 662 }, { x: 360, y: 690 }]),
+
+      // ── THIẾT BỊ (click → drill D3) ──────────────────────────────────────────────────────────
+      // ① Cấp than & gió
+      equip('m-bunker', 'box', 'Bunker than', 'COAL_BUNKER_LEVEL_01', '%', 'D3-coal-handling', 30, 150, 120, 56),
+      equip('m-mills', 'box', 'Máy nghiền', 'COAL_MILLS_RUNNING_01', 'máy', 'D3-pulverizer-mills', 30, 300, 120, 56),
+      equip('m-pafan', 'pump', 'Quạt PA', 'FAN_PA_FLOW_01', 'kg/s', 'D3-fan-system', 24, 430, 64, 64),
+      equip('m-fdfan', 'pump', 'Quạt FD', 'FAN_FD_FLOW_01', 'kg/s', 'D3-fan-system', 124, 430, 64, 64),
+      // ② Lò hơi
+      equip('m-furnace', 'furnace', 'Buồng lửa', 'BLR_FURN_PRESS_01', 'Pa', 'D3-furnace', 210, 230, 120, 210, [
         { when: 'gt', value: 200, sev: 1 },
         { when: 'lt', value: -200, sev: 1 },
       ]),
-      equip('m-drum', 'drum', 'Bao hơi', 'BLR_DRUM_LEVEL_01', 'mm', 'D3-steam-drum', 64, 118, 112, 52, [
+      equip('m-drum', 'drum', 'Bao hơi', 'BLR_DRUM_LEVEL_01', 'mm', 'D3-steam-drum', 205, 166, 150, 48, [
         { when: 'gt', value: 250, sev: 1 },
         { when: 'lt', value: -250, sev: 1 },
       ]),
-      equip('m-sh', 'superheater', 'Quá nhiệt', 'BLR_MSTM_SH_TEMP_01', '°C', 'D3-superheater', 236, 118, 112, 52, [
+      equip('m-sh', 'box', 'Quá nhiệt', 'BLR_MSTM_SH_TEMP_01', '°C', 'D3-superheater', 385, 166, 120, 48, [
         { when: 'gt', value: 550, sev: 2 },
       ]),
-      equip('m-turbine', 'turbine', 'Turbine', 'BLR_STEAM_FLOW_01', 't/h', 'D3-turbine', 420, 116, 140, 96),
-      equip('m-gen', 'generator', 'Máy phát', 'GEN_MW_01', 'MW', 'D3-generator', 610, 122, 86, 86),
-      equip('m-grid', 'grid', 'Xuất lưới 500kV', 'ELEC_GRID_MW_01', 'MW', 'D3-electrical', 772, 136, 120, 58),
-      equip('m-cond', 'condenser', 'Bình ngưng', 'TRB_COND_VACUUM_01', 'kPa', 'D3-condenser-cw', 420, 318, 140, 66, [
-        { when: 'gt', value: 12, sev: 2 },
-      ]),
-      equip('m-bfp', 'pump', 'Bơm cấp', 'FW_FLOW_01', 't/h', 'D3-feedwater-heatrate', 250, 328, 66, 66),
-      equip('m-stack', 'stack', 'Ống khói', 'BLR_FLUE_O2_01', '%', 'D3-flue-stack', 300, 28, 42, 84, [
+      // ③ Đường khói
+      equip('m-econ', 'box', 'Bộ hâm nước', 'FW_ECON_INLET_TEMP_01', '°C', 'D3-boiler-combustion', 385, 67, 110, 54),
+      equip('m-ah', 'box', 'Sấy gió (AH)', 'AH_AIR_OUT_TEMP_01', '°C', 'D3-fouling-air', 525, 67, 110, 54),
+      equip('m-scr', 'box', 'SCR deNOx', 'ECTL_SCR_REMOVAL_01', '%', 'D3-emissions-control', 665, 67, 110, 54),
+      equip('m-esp', 'box', 'Lọc bụi ESP', 'EMI_DUST_STACK_01', 'mg/m³', 'D3-emissions-cems', 805, 67, 110, 54),
+      equip('m-idfan', 'pump', 'Quạt ID', 'FAN_ID_FLOW_01', 'kg/s', 'D3-fan-system', 950, 62, 64, 64),
+      equip('m-fgd', 'box', 'FGD deSOx', 'ECTL_FGD_REMOVAL_01', '%', 'D3-emissions-control', 1044, 67, 110, 54),
+      equip('m-stack', 'stack', 'Ống khói', 'BLR_FLUE_O2_01', '%', 'D3-flue-stack', 1190, 20, 48, 150, [
         { when: 'lt', value: 1.5, sev: 2 },
       ]),
-      // v2: vòng nước làm mát (CW) + gió cháy + khử SO₂
-      pipe('p-cond-ct', 'water', [{ x: 560, y: 351 }, { x: 612, y: 342 }]),
-      pipe('p-ct-cond', 'water', [{ x: 668, y: 384 }, { x: 668, y: 410 }, { x: 490, y: 410 }, { x: 490, y: 384 }]),
-      pipe('p-fd-fur', 'air', [{ x: 102, y: 428 }, { x: 102, y: 400 }]),
-      equip('m-fgd', 'box', 'Khử SO₂ FGD', 'EMI_FGD_EFF_01', '%', 'D3-emissions-cems', 185, 66, 92, 48),
-      equip('m-ct', 'box', 'Tháp giải nhiệt', 'CT_CW_SUPPLY_01', '°C', 'D3-cooling-tower', 612, 300, 112, 84),
-      equip('m-fd', 'pump', 'Quạt gió FD', 'PLANT_AIR_FLOW_01', 't/h', 'D3-fd-fan', 66, 428, 72, 72),
+      // ④ Tuabin — máy phát
+      equip('m-hp', 'turbine', 'Turbine HP', 'TRB_HP_MW_01', 'MW', 'D3-turbine', 560, 293, 104, 74),
+      equip('m-ip', 'turbine', 'Turbine IP', 'TRB_IP_MW_01', 'MW', 'D3-turbine', 712, 293, 104, 74),
+      equip('m-lp', 'turbine', 'Turbine LP', 'TRB_LP_MW_01', 'MW', 'D3-turbine', 864, 293, 104, 74),
+      equip('m-gen', 'generator', 'Máy phát', 'GEN_MW_01', 'MW', 'D3-generator', 1016, 284, 92, 92),
+      // ⑥ Điện
+      equip('m-avr', 'box', 'AVR & kích từ', 'ELEC_EXCITATION_01', '%', 'D3-avr-excitation', 1016, 168, 110, 54),
+      equip('m-gsu', 'transformer', 'MBA chính GSU', 'ELEC_GSU_LOADING_01', '%', 'D3-electrical', 1160, 281, 80, 98),
+      equip('m-grid', 'box', 'Lưới 500kV', 'ELEC_GRID_MW_01', 'MW', 'D3-switchyard', 1300, 302, 120, 56),
+      equip('m-net', 'box', 'Xuất lưới (net)', 'ELEC_NET_MW_01', 'MW', 'D3-electrical', 1470, 302, 120, 56),
+      equip('m-aux', 'box', 'Điện tự dùng (UAT)', 'ELEC_AUX_POWER_01', 'MW', 'D3-electrical', 1300, 430, 120, 56),
+      // ④ Ngưng tụ – cấp nước
+      equip('m-cond', 'condenser', 'Bình ngưng', 'TRB_COND_VACUUM_01', 'kPa', 'D3-condenser-cw', 864, 452, 104, 60, [
+        { when: 'gt', value: 12, sev: 2 },
+      ]),
+      equip('m-lph', 'box', 'Gia nhiệt hạ áp', 'FW_LPH1_TEMP_01', '°C', 'D3-heater-detail', 710, 512, 110, 56),
+      equip('m-dea', 'box', 'Khử khí (DEA)', 'FW_DEAERATOR_LEVEL_01', '%', 'D3-feedwater-heatrate', 540, 512, 110, 56),
+      equip('m-bfp', 'pump', 'Bơm cấp BFP', 'FW_FLOW_01', 't/h', 'D3-bfp-cavitation', 410, 506, 68, 68),
+      equip('m-hph', 'box', 'Gia nhiệt cao áp', 'FW_HPH3_TEMP_01', '°C', 'D3-heater-detail', 240, 512, 110, 56),
+      // ⑤ Nước tuần hoàn
+      equip('m-ct', 'box', 'Tháp giải nhiệt', 'CT_APPROACH_01', '°C', 'D3-cooling-tower', 864, 690, 120, 64),
+      equip('m-cwp', 'pump', 'Bơm nước tuần hoàn', 'CT_CW_SUPPLY_01', '°C', 'D3-cw-pump', 1020, 688, 68, 68),
+      // ⑥ Thải tro – xỉ
+      equip('m-bash', 'box', 'Thải xỉ đáy', 'ASH_BOTTOM_FLOW_01', 't/h', 'D3-ash-handling', 150, 690, 120, 52),
+      equip('m-fash', 'box', 'Thải tro bay', 'ASH_FLY_FLOW_01', 't/h', 'D3-ash-handling', 300, 690, 120, 52),
     ],
   },
   {

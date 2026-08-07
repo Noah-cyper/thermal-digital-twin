@@ -361,7 +361,7 @@
   let screen = null;       // ScreenDef hiện tại
   const nodes = new Map(); // elementId → { root, valEl, barEl, el } | { kind:'equip', valEl, shapeEl, el }
   const SVGNS = 'http://www.w3.org/2000/svg';
-  const MEDIUM = { steam: '#F5A524', water: '#4A90D9', flue: '#8A939C', air: '#38BDF8', elec: '#57A773', shaft: '#6B7580' };
+  const MEDIUM = { steam: '#F5A524', water: '#4A90D9', flue: '#8A939C', air: '#38BDF8', elec: '#57A773', shaft: '#6B7580', coal: '#8B6D4A', ash: '#B0894A' };
 
   function evalCondition(read, c){
     if (c.when === 'bad') return read.quality === 'Bad' || read.quality === 'Uncertain';
