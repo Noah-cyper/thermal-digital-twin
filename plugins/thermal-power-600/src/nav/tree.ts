@@ -36,6 +36,7 @@ export const thermalNav: ReadonlyArray<NavNode> = [
   { screenId: 'D3-ansi-protection', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Bảo vệ máy phát (ANSI)', en: 'Generator Protection (ANSI)' } },
   { screenId: 'D3-regen-balance', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Hồi nhiệt & cân bằng nhiệt', en: 'Regen Heat Balance' } },
   { screenId: 'D3-cems-hg-co', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'CEMS Hg & CO', en: 'CEMS Hg & CO' } },
+  { screenId: 'D3-emissions-control', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Điều khiển SCR & FGD', en: 'SCR/FGD Control' } },
   { screenId: 'D3-fouling-air', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Bám bẩn & lọt khí (động)', en: 'Fouling & Air In-leakage' } },
   // Hiệu chỉnh hiệu năng (v1.42): lượng hoá độ lệch KPI vs Design Basis.
   { screenId: 'D2-physics-depth', level: 'D2', parentId: 'D1-plant-overview', title: { vi: 'Tổng hợp chiều sâu physics', en: 'Deep Physics Overview' } },

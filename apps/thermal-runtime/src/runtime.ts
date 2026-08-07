@@ -20,6 +20,7 @@ import {
   CondenserCWModel,
   FlueGasAirModel,
   EmissionsModel,
+  EmissionsControlModel,
   CemsHgCoModel,
   ElectricalModel,
   CoolingTowerModel,
@@ -319,6 +320,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   // sau ESP/FGD. Additive — chỉ đọc than/khói, không đổi tag khác.
   const emissions = new EmissionsModel();
   host.register(emissions);
+  // Chất lượng điều khiển SCR/FGD (v1.65): đăng ký SAU emissions — đọc lệnh NH₃/slurry + NOₓ/SO₂ tươi →
+  // tỉ lệ NH₃/NOₓ · slip · hoạt tính xúc tác · pH FGD · độ khử. Additive — chỉ sinh ECTL_* (0 hồi quy).
+  const emissionsControl = new EmissionsControlModel();
+  host.register(emissionsControl);
   // CEMS mở rộng Hg + CO (v1.54): đăng ký SAU emissions để đọc lưu lượng khói + FGD tươi → thuỷ ngân (thu
   // hồi ESP+FGD+ACI) + CO (theo O₂). Additive — sinh tag CEMS_* độc lập, không đổi tag emissions.
   const cemsHgCo = new CemsHgCoModel();

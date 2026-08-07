@@ -1151,6 +1151,23 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
     ],
   },
   {
+    screenId: 'D3-emissions-control',
+    level: 'D3',
+    title: { vi: 'Điều khiển SCR (deNOx) & FGD (deSOx)', en: 'SCR/FGD Control Quality' },
+    elements: [
+      // SCR: tỉ lệ NH₃/NOₓ · hoạt tính xúc tác · độ khử · RÒ NH₃ (slip). FGD: pH slurry · độ khử SO₂.
+      equip('ec-ratio', 'box', 'Tỉ lệ NH₃/NOₓ', 'ECTL_NH3_RATIO_01', 'mol', '', 20, 40, 190, 56),
+      equip('ec-act', 'box', 'Hoạt tính xúc tác', 'ECTL_SCR_ACTIVITY_01', '%', '', 20, 112, 190, 56, [{ when: 'lt', value: 80, sev: 2 }]),
+      equip('ec-scrrem', 'drum', 'Độ khử NOₓ', 'ECTL_SCR_REMOVAL_01', '%', '', 20, 184, 190, 90, [{ when: 'lt', value: 45, sev: 2 }]),
+      equip('ec-slip', 'box', 'Rò NH₃ (slip)', 'ECTL_NH3_SLIP_01', 'ppm', '', 230, 40, 190, 56, [{ when: 'gt', value: 3, sev: 2 }]),
+      equip('ec-scrhealth', 'box', 'SCR bình thường', 'ECTL_SCR_HEALTHY_01', '', '', 230, 112, 190, 56, [{ when: 'lt', value: 0.5, sev: 2 }]),
+      equip('ec-ph', 'box', 'pH slurry FGD', 'ECTL_FGD_PH_01', '', '', 230, 184, 190, 56, [{ when: 'lt', value: 5.3, sev: 2 }]),
+      equip('ec-fgdrem', 'box', 'Độ khử SO₂', 'ECTL_FGD_REMOVAL_01', '%', '', 440, 40, 190, 56, [{ when: 'lt', value: 90, sev: 2 }]),
+      equip('ec-util', 'box', 'Tận dụng đá vôi', 'ECTL_LIMESTONE_UTIL_01', '%', '', 440, 112, 190, 56),
+      equip('ec-fgdhealth', 'box', 'FGD bình thường', 'ECTL_FGD_HEALTHY_01', '', 'D3-cems-hg-co', 440, 184, 190, 56, [{ when: 'lt', value: 0.5, sev: 2 }]),
+    ],
+  },
+  {
     screenId: 'D3-fouling-air',
     level: 'D3',
     title: { vi: 'Bám bẩn & lọt khí (động) — suy giảm theo thời gian', en: 'Fouling & Air In-leakage (dynamic)' },
