@@ -1115,6 +1115,22 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
     ],
   },
   {
+    screenId: 'D3-bfp-cavitation',
+    level: 'D3',
+    title: { vi: 'Bơm nước cấp — NPSH & chống xâm thực', en: 'BFP NPSH & Cavitation' },
+    elements: [
+      // NPSH khả dụng vs yêu cầu → biên; biên < 0 = xâm thực. Van recirc min-flow bảo vệ bơm ở lưu lượng thấp.
+      equip('bfp-flow', 'box', 'Lưu lượng BFP', 'BFP_FLOW_01', 't/h', '', 20, 40, 190, 56),
+      equip('bfp-suct', 'box', 'Áp hút (khử khí)', 'BFP_SUCTION_PRESS_01', 'MPa', '', 20, 112, 190, 56, [{ when: 'lt', value: 0.6, sev: 2 }]),
+      equip('bfp-avail', 'box', 'NPSH khả dụng', 'BFP_NPSH_AVAIL_01', 'm', '', 20, 184, 190, 56),
+      equip('bfp-req', 'box', 'NPSH yêu cầu', 'BFP_NPSH_REQ_01', 'm', '', 230, 40, 190, 56),
+      equip('bfp-margin', 'drum', 'Biên NPSH', 'BFP_NPSH_MARGIN_01', 'm', '', 230, 112, 190, 90, [{ when: 'lt', value: 2, sev: 2 }]),
+      equip('bfp-recirc', 'box', 'Van recirc min-flow', 'BFP_RECIRC_VALVE_01', '%', '', 230, 220, 190, 56),
+      equip('bfp-cav', 'box', 'Xâm thực (0/1)', 'BFP_CAVITATION_01', '', '', 440, 40, 190, 56, [{ when: 'gt', value: 0.5, sev: 2 }]),
+      equip('bfp-health', 'box', 'BFP bình thường', 'BFP_HEALTHY_01', '', 'D3-steam-drum', 440, 112, 190, 56, [{ when: 'lt', value: 0.5, sev: 2 }]),
+    ],
+  },
+  {
     screenId: 'D3-fwh-drains',
     level: 'D3',
     title: { vi: 'Drain cascade bình gia nhiệt — bố trí thiết bị', en: 'Feedwater Heater Drain Cascade Layout' },

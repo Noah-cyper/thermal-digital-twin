@@ -14,6 +14,7 @@ import {
   GeneratorCapabilityModel,
   ReheatCycleModel,
   FeedwaterTrainModel,
+  BfpCavitationModel,
   FeedwaterDrainsModel,
   AnsiProtectionModel,
   RegenBalanceModel,
@@ -296,6 +297,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   // reheater tươi. Additive — sinh thêm tag nước cấp/heat rate, không đổi tag boiler/turbine.
   const feedwater = new FeedwaterTrainModel();
   host.register(feedwater);
+  // BFP NPSH & chống xâm thực (v1.66): đăng ký SAU feedwater — đọc FW_FLOW_01 + FW_DEA_PRESS_01 → NPSH khả
+  // dụng/yêu cầu/biên + van recirc + cờ xâm thực. Additive — chỉ sinh BFP_* (0 hồi quy).
+  const bfpCavitation = new BfpCavitationModel();
+  host.register(bfpCavitation);
   // Drain cascade bình gia nhiệt (v1.48, chiều sâu physics): đăng ký SAU feedwater để đọc nhiệt bình tươi →
   // nhiệt drain + TTD/DCA + mức drain + xả khẩn. Additive — sinh tag FWH_* độc lập, không đổi tag FW_*.
   const feedwaterDrains = new FeedwaterDrainsModel();

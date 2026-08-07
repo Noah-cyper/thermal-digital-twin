@@ -37,6 +37,7 @@ export { CondenserPerfModel } from './sim/condenser-perf';
 export { GeneratorCapabilityModel } from './sim/generator-capability';
 export { LubeOilSystemModel } from './sim/lube-oil-system';
 export { EmissionsControlModel } from './sim/emissions-control';
+export { BfpCavitationModel } from './sim/bfp-cavitation';
 export { FeedwaterDrainsModel } from './sim/feedwater-drains';
 export { AnsiProtectionModel } from './sim/ansi-protection';
 export { RegenBalanceModel } from './sim/regen-balance';

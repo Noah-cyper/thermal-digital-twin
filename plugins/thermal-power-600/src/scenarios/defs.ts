@@ -87,4 +87,21 @@ export const thermalScenarios: ReadonlyArray<ScenarioDef> = [
       { phaseId: 'ramp-back', title: { vi: 'Ramp về tải', en: 'Ramp back to load' }, action: 'load', value: 448, settleSteps: 300 },
     ],
   },
+  {
+    // Cold-start MANG TẢI THEO KHỐI RÀNG BUỘC TSE (v1.66): dùng SFC turbine-loading-stress-limited (GĐ-133) →
+    // mỗi khối tải chờ ứng suất rotor ≤ 85% rồi mới tiến (bảo vệ tuổi thọ rotor). Kiểm end-to-end.
+    scenarioId: 'cold-start-stress-limited',
+    title: { vi: 'Cold-start → mang tải ràng buộc ứng suất (TSE)', en: 'Cold-start → TSE stress-limited loading' },
+    sampleTags: ['GEN_MW_01', 'TSE_STRESS_PCT_01', 'TSE_RAMP_LIMIT_01', 'BLR_MSTM_SH_PRESS_01', 'BFP_NPSH_MARGIN_01'],
+    phases: [
+      { phaseId: 'purge', title: { vi: 'Thông gió lò', en: 'Boiler purge' }, action: 'sequence', ref: 'boiler-purge', settleSteps: 20 },
+      { phaseId: 'light-off', title: { vi: 'Mồi lửa', en: 'Light-off' }, action: 'sequence', ref: 'boiler-light-off', settleSteps: 20 },
+      { phaseId: 'fw-fill', title: { vi: 'Cấp nước điền lò', en: 'Feedwater fill' }, action: 'sequence', ref: 'feedwater-fill', settleSteps: 20 },
+      { phaseId: 'mill-start', title: { vi: 'Khởi động mill A', en: 'Mill A start' }, action: 'sequence', ref: 'mill-a-start', settleSteps: 20 },
+      { phaseId: 'turbine-roll', title: { vi: 'Quay turbine', en: 'Turbine roll' }, action: 'sequence', ref: 'turbine-roll', settleSteps: 20 },
+      { phaseId: 'sync', title: { vi: 'Hoà máy phát', en: 'Generator sync' }, action: 'sequence', ref: 'generator-sync', settleSteps: 20 },
+      { phaseId: 'loading', title: { vi: 'Mang tải theo khối (ràng buộc TSE)', en: 'Stress-limited block loading' }, action: 'sequence', ref: 'turbine-loading-stress-limited', settleSteps: 300 },
+      { phaseId: 'hold', title: { vi: 'Giữ đầy tải', en: 'Hold full load' }, action: 'settle', settleSteps: 150 },
+    ],
+  },
 ];
