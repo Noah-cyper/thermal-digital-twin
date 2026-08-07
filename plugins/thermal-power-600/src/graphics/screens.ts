@@ -1131,6 +1131,24 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
     ],
   },
   {
+    screenId: 'D3-fan-system',
+    level: 'D3',
+    title: { vi: 'Hệ quạt gió-khói (FD/ID/PA) & biên surge', en: 'Fan System (FD/ID/PA) & Surge Margin' },
+    elements: [
+      // Điểm vận hành trên đường đặc tính quạt; biên surge < 0 = vào vùng surge (dao động, rung, hư cánh).
+      equip('fan-fdflow', 'box', 'FD: lưu lượng', 'FAN_FD_FLOW_01', '%', '', 20, 40, 190, 56),
+      equip('fan-fdhead', 'box', 'FD: cột áp', 'FAN_FD_HEAD_01', '%', '', 20, 112, 190, 56),
+      equip('fan-fdcur', 'box', 'FD: dòng động cơ', 'FAN_FD_CURRENT_01', 'A', '', 20, 184, 190, 56),
+      equip('fan-fdmargin', 'box', 'FD: biên surge', 'FAN_FD_SURGE_MARGIN_01', '%', '', 20, 256, 190, 56, [{ when: 'lt', value: 10, sev: 2 }]),
+      equip('fan-idflow', 'box', 'ID: lưu lượng', 'FAN_ID_FLOW_01', '%', '', 230, 40, 190, 56),
+      equip('fan-idhead', 'box', 'ID: cột áp', 'FAN_ID_HEAD_01', '%', '', 230, 112, 190, 56),
+      equip('fan-idmargin', 'box', 'ID: biên surge', 'FAN_ID_SURGE_MARGIN_01', '%', '', 230, 184, 190, 56, [{ when: 'lt', value: 10, sev: 2 }]),
+      equip('fan-paflow', 'box', 'PA: lưu lượng', 'FAN_PA_FLOW_01', '%', '', 230, 256, 190, 56),
+      equip('fan-minmargin', 'drum', 'Biên surge nhỏ nhất', 'FAN_MIN_SURGE_MARGIN_01', '%', '', 440, 40, 200, 100, [{ when: 'lt', value: 10, sev: 2 }]),
+      equip('fan-health', 'box', 'Hệ quạt bình thường', 'FAN_HEALTHY_01', '', 'D3-boiler-combustion', 440, 160, 200, 56, [{ when: 'lt', value: 0.5, sev: 2 }]),
+    ],
+  },
+  {
     screenId: 'D3-fwh-drains',
     level: 'D3',
     title: { vi: 'Drain cascade bình gia nhiệt — bố trí thiết bị', en: 'Feedwater Heater Drain Cascade Layout' },

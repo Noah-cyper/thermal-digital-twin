@@ -32,6 +32,7 @@ export const thermalNav: ReadonlyArray<NavNode> = [
   { screenId: 'D3-turbine-stress', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'TSE — ứng suất nhiệt rotor', en: 'Turbine Stress Evaluator' } },
   { screenId: 'D3-lube-oil', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Dầu bôi trơn gối trục', en: 'Lube Oil System' } },
   { screenId: 'D3-bfp-cavitation', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'BFP — NPSH & xâm thực', en: 'BFP NPSH & Cavitation' } },
+  { screenId: 'D3-fan-system', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Hệ quạt gió-khói & surge', en: 'Fan System & Surge' } },
   { screenId: 'D3-condenser-perf', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Hiệu năng bình ngưng', en: 'Condenser Performance' } },
   { screenId: 'D3-generator-capability', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Biểu đồ khả năng P-Q', en: 'Generator Capability' } },
   { screenId: 'D3-fwh-drains', level: 'D3', parentId: 'D1-plant-overview', title: { vi: 'Drain cascade bình gia nhiệt', en: 'FWH Drain Cascade' } },

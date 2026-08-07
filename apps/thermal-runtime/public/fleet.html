@@ -27,6 +27,11 @@
   .health{margin-top:12px;font-family:var(--mono);font-size:13px}
   .health .bar{height:8px;background:var(--bad);border-radius:4px;overflow:hidden;margin-top:6px}
   .health .bar > span{display:block;height:100%;background:var(--ok)}
+  .spark{margin-top:12px}
+  .spark .lbl{color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.05em;font-family:var(--mono)}
+  .spark canvas{display:block;width:100%;height:44px;margin-top:4px;background:var(--bg);border:1px solid var(--border);border-radius:4px}
+  .card.link{cursor:pointer;transition:border-color .15s}
+  .card.link:hover{border-color:var(--dim)}
   .note{padding:0 20px 20px;color:#6B7580;font-family:var(--mono);font-size:11px}
   a{color:#4a90d9}
 </style>
@@ -34,7 +39,7 @@
 <body>
   <div class="top"><b>IDTP FLEET</b> · 2 digital twin trên CÙNG kernel/engine — <span id="fleetStat" style="color:var(--dim)">connecting…</span></div>
   <div class="grid">
-    <div class="card">
+    <div class="card link" data-open="/">
       <h2><i class="pip" id="t-pip"></i> Nhiệt điện than 600 MW <span style="font-size:11px;color:var(--dim)">(thermal-power-600)</span></h2>
       <div class="sub">plugin #1 · <a href="/" target="_blank">mở HMI →</a></div>
       <div class="kpis">
@@ -44,8 +49,9 @@
         <div class="kpi"><div class="k">Hệ lành mạnh</div><div class="v" id="t-health">—/—</div></div>
       </div>
       <div class="health">Sức khoẻ hệ chiều sâu<div class="bar"><span id="t-hbar" style="width:0%"></span></div></div>
+      <div class="spark"><div class="lbl">Công suất gộp (trend)</div><canvas id="t-spark" width="300" height="44"></canvas></div>
     </div>
-    <div class="card">
+    <div class="card link" id="w-card">
       <h2><i class="pip" id="w-pip"></i> Xử lý nước DM + RO <span style="font-size:11px;color:var(--dim)">(water-treatment-demo)</span></h2>
       <div class="sub">plugin #2 · <a id="w-link" href="#" target="_blank">mở HMI →</a></div>
       <div class="kpis">
@@ -55,6 +61,7 @@
         <div class="kpi"><div class="k">Mức bể DM</div><div class="v" id="w-lvl">— %</div></div>
       </div>
       <div class="health">Màng RO + bể<div class="bar"><span id="w-hbar" style="width:0%"></span></div></div>
+      <div class="spark"><div class="lbl">Permeate RO (trend)</div><canvas id="w-spark" width="300" height="44"></canvas></div>
     </div>
   </div>
   <div class="note">Fleet view — mỗi thẻ nối WebSocket tới digital twin tương ứng. Nhiệt điện = trang này (self);
@@ -69,6 +76,33 @@
   const setStat = () => { $('fleetStat').textContent = (state.thermal ? '● nhiệt điện' : '○ nhiệt điện') + '  ' + (state.water ? '● nước' : '○ nước'); };
   const setPip = (id, healthy, connected) => { $(id).className = 'pip' + (!connected ? '' : healthy ? ' ok' : ' bad'); };
 
+  // Mini-trend sparkline: giữ N mẫu, vẽ đường trên canvas.
+  const CAP = 120;
+  const hist = { t: [], w: [] };
+  function pushSpark(key, canvasId, val, color) {
+    const h = hist[key];
+    h.push(val); if (h.length > CAP) h.shift();
+    const c = $(canvasId); if (!c) return;
+    const ctx = c.getContext('2d'); const W = c.width, H = c.height;
+    ctx.clearRect(0, 0, W, H);
+    if (h.length < 2) return;
+    let lo = Math.min(...h), hi = Math.max(...h); if (hi - lo < 1e-6) { hi = lo + 1; }
+    ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.beginPath();
+    for (let i = 0; i < h.length; i++) {
+      const x = (i / (CAP - 1)) * W;
+      const y = H - 3 - ((h[i] - lo) / (hi - lo)) * (H - 6);
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+
+  // Drill: bấm thẻ → mở HMI tương ứng.
+  document.querySelectorAll('.card.link').forEach((el) => el.addEventListener('click', (e) => {
+    if (e.target.tagName === 'A') return; // link riêng tự xử lý
+    const url = el.dataset.open || (el.id === 'w-card' ? ($('w-link').href) : '/');
+    window.open(url, '_blank');
+  }));
+
   // ── Thermal twin (self) ──
   const tVals = {};
   const tw = new WebSocket('ws://' + location.host);
@@ -80,7 +114,7 @@
     else if (m.type === 'alarms') { $('t-alm').textContent = (m.active ? m.active.length : 0); $('t-alm').className = 'v' + (m.active && m.active.length ? ' warn' : ''); }
   };
   function renderThermal(){
-    if (tVals.GEN_MW_01 !== undefined) $('t-mw').textContent = tVals.GEN_MW_01.toFixed(0) + ' MW';
+    if (tVals.GEN_MW_01 !== undefined) { $('t-mw').textContent = tVals.GEN_MW_01.toFixed(0) + ' MW'; pushSpark('t', 't-spark', tVals.GEN_MW_01, '#2E6FD9'); }
     if (tVals.ELEC_NET_MW_01 !== undefined) $('t-net').textContent = tVals.ELEC_NET_MW_01.toFixed(0) + ' MW';
     let have = 0, ok = 0;
     for (const t of HEALTH_TAGS) if (tVals[t] !== undefined) { have++; if (tVals[t] >= 0.5) ok++; }
@@ -101,7 +135,7 @@
   ww.onmessage = (e) => {
     let m; try { m = JSON.parse(e.data); } catch { return; }
     const v = m.values || {};
-    if (v.WTP_RO_PERMEATE_FLOW_01 !== undefined) $('w-perm').textContent = v.WTP_RO_PERMEATE_FLOW_01.toFixed(0) + ' m³/h';
+    if (v.WTP_RO_PERMEATE_FLOW_01 !== undefined) { $('w-perm').textContent = v.WTP_RO_PERMEATE_FLOW_01.toFixed(0) + ' m³/h'; pushSpark('w', 'w-spark', v.WTP_RO_PERMEATE_FLOW_01, '#2FA84F'); }
     if (v.WTP_RO_RECOVERY_01 !== undefined) $('w-rec').textContent = v.WTP_RO_RECOVERY_01.toFixed(1) + ' %';
     if (v.WTP_TANK_LEVEL_01 !== undefined) $('w-lvl').textContent = v.WTP_TANK_LEVEL_01.toFixed(1) + ' %';
     const alm = (m.alarms || []).length;

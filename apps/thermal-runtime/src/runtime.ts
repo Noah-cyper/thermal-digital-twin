@@ -20,6 +20,7 @@ import {
   RegenBalanceModel,
   CondenserCWModel,
   FlueGasAirModel,
+  FanSystemModel,
   EmissionsModel,
   EmissionsControlModel,
   CemsHgCoModel,
@@ -321,6 +322,10 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   // → hiệu suất lò + đường khói-gió. Additive — không đổi tag boiler.
   const fluegas = new FlueGasAirModel();
   host.register(fluegas);
+  // Hệ quạt gió-khói (v1.67): đăng ký SAU fluegas — đọc BLR_FD_DAMPER_01/BLR_ID_VANE_01 → điểm vận hành trên
+  // đường đặc tính quạt + biên surge (FD/ID/PA). Additive — chỉ sinh FAN_* (0 hồi quy).
+  const fanSystem = new FanSystemModel();
+  host.register(fanSystem);
   // Phát thải CEMS (v1.22): đăng ký SAU fluegas để đọc lưu lượng khói/gió thừa tươi → bụi/SO₂/NOₓ/CO₂
   // sau ESP/FGD. Additive — chỉ đọc than/khói, không đổi tag khác.
   const emissions = new EmissionsModel();
