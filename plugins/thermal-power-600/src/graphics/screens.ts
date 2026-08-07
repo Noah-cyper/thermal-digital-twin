@@ -185,6 +185,40 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
     ],
   },
   {
+    // Bảng D1 SỨC KHOẺ NHÀ MÁY: gom mọi cờ lành-mạnh của các hệ chiều sâu (điện · lò/cháy · nhiệt · turbine ·
+    // phát thải) + KPI cốt lõi → 1 màn liếc toàn cục. 1 = bình thường; ô đỏ = hệ đang bất thường (drill D3).
+    screenId: 'D1-plant-health',
+    level: 'D1',
+    title: { vi: 'Sức khoẻ nhà máy (tổng cờ hệ)', en: 'Plant Health Overview' },
+    elements: [
+      // KPI cốt lõi (hàng 0):
+      valueTile('ph-mw', 'GEN_MW_01', 'Công suất gộp', 'MW', 0, 0),
+      valueTile('ph-net', 'ELEC_NET_MW_01', 'Công suất net', 'MW', 1, 0),
+      valueTile('ph-hr', 'PLANT_CYCLE_HR_EFF_01', 'Heat rate hiệu dụng', 'kJ/kWh', 2, 0),
+      valueTile('ph-eemua', 'ALM_EEMUA_OK_01', 'Alarm đạt EEMUA', '', 3, 0, [{ when: 'lt', value: 0.5, sev: 1 }]),
+      // Điện (hàng 1):
+      valueTile('ph-ansi', 'ANSI_PROT_HEALTHY_01', 'Bảo vệ ANSI', '', 0, 1, [{ when: 'lt', value: 0.5, sev: 2 }]),
+      valueTile('ph-pss', 'PSS_HEALTHY_01', 'PSS ổn định', '', 1, 1, [{ when: 'lt', value: 0.5, sev: 2 }]),
+      valueTile('ph-gov', 'GOV_HEALTHY_01', 'Điều tốc', '', 2, 1, [{ when: 'lt', value: 0.5, sev: 2 }]),
+      valueTile('ph-gcap', 'GCAP_HEALTHY_01', 'Khả năng máy phát', '', 3, 1, [{ when: 'lt', value: 0.5, sev: 2 }]),
+      // Lò/cháy (hàng 2):
+      valueTile('ph-mill', 'PVM_HEALTHY_01', 'Máy nghiền', '', 0, 2, [{ when: 'lt', value: 0.5, sev: 2 }]),
+      valueTile('ph-cmb', 'CMB_HEALTHY_01', 'Cháy tối ưu', '', 1, 2, [{ when: 'lt', value: 0.5, sev: 2 }]),
+      valueTile('ph-drm', 'DRM_HEALTHY_01', 'Mức bao hơi', '', 2, 2, [{ when: 'lt', value: 0.5, sev: 2 }]),
+      valueTile('ph-foul', 'FA_FOULING_HEALTHY_01', 'Bám bẩn/lọt khí', '', 3, 2, [{ when: 'lt', value: 0.5, sev: 2 }]),
+      // Turbine/nhiệt (hàng 3):
+      valueTile('ph-tse', 'TSE_HEALTHY_01', 'Ứng suất rotor', '', 0, 3, [{ when: 'lt', value: 0.5, sev: 2 }]),
+      valueTile('ph-lube', 'LUBE_HEALTHY_01', 'Dầu bôi trơn', '', 1, 3, [{ when: 'lt', value: 0.5, sev: 2 }]),
+      valueTile('ph-cnd', 'CNDP_HEALTHY_01', 'Bình ngưng', '', 2, 3, [{ when: 'lt', value: 0.5, sev: 2 }]),
+      valueTile('ph-htr', 'HTR_HEALTHY_01', 'Bình gia nhiệt', '', 3, 3, [{ when: 'lt', value: 0.5, sev: 2 }]),
+      // Phát thải (hàng 4):
+      valueTile('ph-scr', 'ECTL_SCR_HEALTHY_01', 'SCR deNOx', '', 0, 4, [{ when: 'lt', value: 0.5, sev: 2 }]),
+      valueTile('ph-fgd', 'ECTL_FGD_HEALTHY_01', 'FGD deSOx', '', 1, 4, [{ when: 'lt', value: 0.5, sev: 2 }]),
+      valueTile('ph-agc', 'AGC_HEALTHY_01', 'AGC điều tần', '', 2, 4, [{ when: 'lt', value: 0.5, sev: 2 }]),
+      valueTile('ph-regen', 'PLANT_REGEN_LOSS_MW_01', 'Tổn thất hồi nhiệt', 'MWth', 3, 4, [{ when: 'gt', value: 1, sev: 2 }]),
+    ],
+  },
+  {
     // Sơ đồ MỘT SỢI điện (SLD): máy phát → GSU → thanh cái 500 kV → đường dây; nhánh UAT → tự dùng 6,6 kV.
     screenId: 'D1-electrical-sld',
     level: 'D1',

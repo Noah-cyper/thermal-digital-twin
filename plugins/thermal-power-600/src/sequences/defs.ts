@@ -135,4 +135,15 @@ export const thermalSequences: ReadonlyArray<SequenceDef> = [
       { stepId: 'maintain-level', title: { vi: 'Duy trì mức bao hơi', en: 'Maintain drum level' }, permissive: [], actions: [{ tag: 'BLR_BANK_LEVEL_CMD', value: 1, reason: 'giữ mức bao hơi trong khi ủ' }], transition: [], holdMs: 300, timeoutMs: 20000 },
     ],
   },
+  {
+    // Mang tải turbine theo KHỐI, RÀNG BUỘC TSE (v1.65): mỗi khối chỉ tiến khi ứng suất nhiệt rotor ≤ 85% —
+    // tự động tôn trọng giới hạn mỏi nhiệt (permissive TSE_STRESS_PCT_01). Nối SFC với TSE (GĐ-128).
+    sequenceId: 'turbine-loading-stress-limited',
+    title: { vi: 'Mang tải turbine (ràng buộc ứng suất TSE)', en: 'Turbine loading (TSE stress-limited)' },
+    steps: [
+      { stepId: 'block-300', title: { vi: 'Khối tải 300 MW (chờ ứng suất ≤85%)', en: 'Load block 300 MW (await stress ≤85%)' }, permissive: [{ tag: 'TSE_STRESS_PCT_01', op: 'le', value: 85 }], actions: [{ tag: 'BLR_MW_DEMAND', value: 300, reason: 'khối tải 1 khi ứng suất rotor trong ngưỡng' }], transition: [], holdMs: 500, timeoutMs: 60000 },
+      { stepId: 'block-450', title: { vi: 'Khối tải 450 MW (chờ ứng suất ≤85%)', en: 'Load block 450 MW (await stress ≤85%)' }, permissive: [{ tag: 'TSE_STRESS_PCT_01', op: 'le', value: 85 }], actions: [{ tag: 'BLR_MW_DEMAND', value: 450, reason: 'khối tải 2 khi ứng suất rotor trong ngưỡng' }], transition: [], holdMs: 500, timeoutMs: 60000 },
+      { stepId: 'block-560', title: { vi: 'Khối tải 560 MW (chờ ứng suất ≤85%)', en: 'Load block 560 MW (await stress ≤85%)' }, permissive: [{ tag: 'TSE_STRESS_PCT_01', op: 'le', value: 85 }], actions: [{ tag: 'BLR_MW_DEMAND', value: 560, reason: 'khối tải 3 (đầy tải) khi ứng suất rotor trong ngưỡng' }], transition: [], holdMs: 500, timeoutMs: 60000 },
+    ],
+  },
 ];
