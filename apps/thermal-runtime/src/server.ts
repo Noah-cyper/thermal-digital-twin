@@ -94,6 +94,10 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
       if (url === '/' || url === '/index.html') {
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
         res.end(readFileSync(join(PUBLIC, 'index.html')));
+      } else if (url === '/fleet' || url === '/fleet.html') {
+        // FLEET view (v1.66): 1 trang gom CẢ 2 digital twin — nhiệt điện (self) + nước (:8090) — mỗi twin 1 thẻ.
+        res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+        res.end(readFileSync(join(PUBLIC, 'fleet.html')));
       } else if (url === '/screens') {
         res.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify(registry));

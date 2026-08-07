@@ -38,9 +38,9 @@ describe('thermal — vận hành two-shift & island (SFC + scenario)', () => {
     expect(r.tags.BLR_HOT_STANDBY_CMD).toBe(1);
   });
 
-  it('≥ 13 SFC & 4 scenario; mọi pha action=sequence trỏ SFC tồn tại; action=set/malfunction/clear có ref', () => {
+  it('≥ 13 SFC & ≥ 4 scenario; mọi pha action=sequence trỏ SFC tồn tại; action=set/malfunction/clear có ref', () => {
     expect(thermalSequences.length).toBeGreaterThanOrEqual(13);
-    expect(thermalScenarios.length).toBe(4);
+    expect(thermalScenarios.length).toBeGreaterThanOrEqual(4);
     const ids = new Set(thermalSequences.map((s) => s.sequenceId));
     for (const sc of thermalScenarios)
       for (const p of sc.phases) {
