@@ -12,6 +12,8 @@ import type { ReplaySession } from '@idtp/engines';
 import { SecurityEngine, buildScreen } from '@idtp/engines';
 import { boilerScreens, screenTags } from '@idtp/plugin-thermal-power-600';
 import { startPersistence } from './persistence';
+import { startFieldLink } from './field-link';
+import type { FieldPoint, FieldProtocol } from '@idtp/sdk';
 import { createThermalRuntime } from './runtime';
 import type { OtsSnapshot } from './runtime';
 
@@ -598,6 +600,24 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
       .catch((e) => console.error('[persist] lỗi kết nối, bỏ qua:', e?.message ?? e));
   }
 
+  // (6) Field I/O southbound (OPC-UA/Modbus) — BẬT khi có env; base run KHÔNG chạm (0 hồi quy). Không có
+  // driver thật (deps.makeDriver) → NGẮT KẾT NỐI (mẫu inbound rỗng, không bịa); cắm driver khi có credential.
+  let fieldStop: (() => Promise<void>) | undefined;
+  if (process.env.IDTP_FIELD_PROTOCOL) {
+    let points: FieldPoint[] = [];
+    try {
+      points = JSON.parse(process.env.IDTP_FIELD_POINTS ?? '[]') as FieldPoint[];
+    } catch {
+      points = [];
+    }
+    void startFieldLink({ protocol: process.env.IDTP_FIELD_PROTOCOL as FieldProtocol, endpoint: process.env.IDTP_FIELD_ENDPOINT, points })
+      .then((link) => {
+        fieldStop = link.stop;
+        console.log('[field-io]', link.status().notice.vi);
+      })
+      .catch((e) => console.error('[field-io] lỗi, bỏ qua:', e?.message ?? e));
+  }
+
   const ready = new Promise<number>((resolve) => {
     server.listen(port, () => resolve((server.address() as AddressInfo).port));
   });
@@ -605,6 +625,7 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
     new Promise<void>((resolve) => {
       clearInterval(timer);
       void persistStop?.();
+      void fieldStop?.();
       wss.close(() => server.close(() => resolve()));
     });
 
