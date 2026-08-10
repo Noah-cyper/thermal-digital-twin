@@ -5,7 +5,7 @@
 //
 // good = giá trị coi là lành mạnh (goodness 1); bad = hỏng (goodness 0); hướng tự suy từ good vs bad.
 // good/bad/weight/designLifeH neo điểm vận hành mô phỏng (probe) + kỹ thuật thường quy → [GIẢ ĐỊNH] GĐ-142.
-import type { AssetHealthSpec } from '@idtp/sdk';
+import type { AssetHealthSpec, AlarmDef, TagId } from '@idtp/sdk';
 
 export const thermalAssetHealth: ReadonlyArray<AssetHealthSpec> = [
   {
@@ -172,3 +172,24 @@ export const thermalAssetHealth: ReadonlyArray<AssetHealthSpec> = [
     signals: [{ tag: 'CT_APPROACH_01', label: { vi: 'Approach (cận nhiệt ướt)', en: 'Approach to wet-bulb' }, good: 5, bad: 13, weight: 1, unit: '°C' }],
   },
 ];
+
+/** Tag chỉ thị sức khoẻ của một tài sản (khớp AH_*_SCORE_01 runtime công bố). */
+export const assetHealthScoreTag = (assetId: string): TagId => ('AH_' + assetId.replace(/-/g, '_') + '_SCORE_01') as TagId;
+
+/**
+ * Alarm SỨC KHOẺ TÀI SẢN (P-A1, ISA-18.2) — sinh từ sổ đăng ký: mỗi tài sản 1 alarm P2 khi điểm sức khoẻ
+ * cognitive < 40 (dải NGUY CẤP). Deadband + on/off delay bắt buộc (EEMUA-191, chống chattering). Đây là
+ * alarm CHẨN ĐOÁN (đọc tag chỉ thị read-only), KHÔNG phải trip — hướng người vận hành mở panel AI xem RCA.
+ */
+export const thermalHealthAlarms: ReadonlyArray<AlarmDef> = thermalAssetHealth.map((a) => ({
+  alarmId: `AH-${a.assetId}-LO`,
+  tagId: assetHealthScoreTag(a.assetId),
+  condition: 'L',
+  priority: 'P2',
+  setpoint: 40,
+  deadband: 8,
+  onDelayMs: 5000,
+  offDelayMs: 10000,
+  consequence: { vi: `Sức khoẻ ${a.name.vi} ở dải nguy cấp — nguy cơ hỏng/giảm hiệu năng`, en: `${a.name.en} health critical — risk of failure/derating` },
+  corrective: { vi: `Mở panel 🤖 AI Bảo trì xem chẩn đoán & khuyến nghị cho ${a.name.vi}`, en: `Open AI Maintenance panel for ${a.name.en} diagnosis` },
+}));

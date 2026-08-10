@@ -67,6 +67,7 @@ import {
   thermalKnowledge,
   thermalPredictiveRules,
   thermalAssetHealth,
+  thermalHealthAlarms,
   thermalReportSections,
 } from '@idtp/plugin-thermal-power-600';
 import type { AlarmRationalizationReport } from '@idtp/plugin-thermal-power-600';
@@ -457,14 +458,14 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
 
   // Alarm Engine ISA-18.2 nạp alarm khai báo của plugin. Suppression theo trạng thái tổ máy.
   const unitState: Record<string, string> = { unit_state: 'RUNNING' };
-  const alarms = new AlarmEngine(boilerAlarms, { formatTs: (ms) => time.formatEpoch(ms) });
+  const alarms = new AlarmEngine([...boilerAlarms, ...thermalHealthAlarms], { formatTs: (ms) => time.formatEpoch(ms) });
   alarms.setSuppressionEvaluator((expr) => {
     const parts = expr.split('==').map((s) => s.trim());
     const k = parts[0];
     const v = parts[1];
     return k !== undefined && v !== undefined && unitState[k] === v;
   });
-  const alarmTags = [...new Set(boilerAlarms.map((a) => a.tagId))];
+  const alarmTags = [...new Set([...boilerAlarms, ...thermalHealthAlarms].map((a) => a.tagId))];
   const evalAlarms = (): void => {
     for (const t of alarmTags) {
       const cur = tag.getCurrent(t);
