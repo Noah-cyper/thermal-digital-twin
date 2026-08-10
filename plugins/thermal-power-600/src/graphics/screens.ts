@@ -451,6 +451,9 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       // LP turbine bypass (loop): xả hot reheat → bình ngưng khi áp reheat vượt ngưỡng (đóng ở tải, mở khi trip).
       equip('tb-lpbp', 'box', 'LP bypass xả', 'TRB_LP_BYPASS_FLOW_01', 't/h', '', 334, 442, 160, 54),
       equip('tb-lpbpo', 'box', 'Van LP bypass', 'TRB_LP_BYPASS_OPEN_01', '%', '', 504, 442, 140, 54),
+      // Hood xả LP (windage tải thấp) + phun làm mát (loop exhaust-hood-spray).
+      equip('tb-hood', 'box', 'Nhiệt hood xả LP', 'TRB_EXH_HOOD_TEMP_01', '°C', '', 14, 506, 180, 54, [{ when: 'gt', value: 80, sev: 2 }]),
+      equip('tb-hoodspray', 'box', 'Phun làm mát hood', 'TRB_HOOD_SPRAY_FLOW_01', 't/h', '', 204, 506, 160, 54),
     ],
   },
   {
@@ -1288,7 +1291,7 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
     level: 'D3',
     title: { vi: 'Bảo vệ máy phát (ANSI/IEEE) — trạng thái rơle', en: 'Generator Protection (ANSI) Status' },
     elements: [
-      // Rơle bảo vệ máy phát: 87 vi sai · 40 mất kích từ · 46 thứ tự nghịch · 81 tần số · 24 V/Hz.
+      // Rơle bảo vệ máy phát: 87 vi sai · 40 mất kích từ · 46 thứ tự nghịch · 81 tần số · 24 V/Hz · 32 công suất ngược.
       equip('an-health', 'box', 'Bảo vệ bình thường', 'ANSI_PROT_HEALTHY_01', '', '', 20, 40, 180, 56, [{ when: 'lt', value: 0.5, sev: 1 }]),
       equip('an-tripany', 'box', 'Có lệnh trip (0/1)', 'ANSI_TRIP_ANY_01', '', '', 20, 112, 180, 56, [{ when: 'gt', value: 0, sev: 1 }]),
       equip('an-87d', 'box', '87 vi sai', 'ANSI_87_DIFF_01', '%', '', 230, 40, 180, 56, [{ when: 'gt', value: 10, sev: 1 }]),
@@ -1301,6 +1304,8 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       equip('an-81p', 'box', '81 pickup (0/1)', 'ANSI_81_PICKUP_01', '', '', 440, 256, 180, 56, [{ when: 'gt', value: 0, sev: 2 }]),
       equip('an-24v', 'box', '24 V/Hz', 'ANSI_24_VHZ_01', '%', '', 650, 40, 180, 56, [{ when: 'gt', value: 110, sev: 2 }]),
       equip('an-24p', 'box', '24 pickup (0/1)', 'ANSI_24_PICKUP_01', '', '', 650, 112, 180, 56, [{ when: 'gt', value: 0, sev: 2 }]),
+      equip('an-32p', 'box', '32 công suất', 'ANSI_32_POWER_01', '%', '', 650, 184, 180, 56, [{ when: 'lt', value: -2, sev: 2 }]),
+      equip('an-32pk', 'box', '32 pickup (0/1)', 'ANSI_32_PICKUP_01', '', '', 650, 256, 180, 56, [{ when: 'gt', value: 0, sev: 2 }]),
     ],
   },
   {

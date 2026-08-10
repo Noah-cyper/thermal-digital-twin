@@ -216,6 +216,7 @@ class LocalBus {
     else if (m.cmd === 'create-wo') { this.handleCreateWo(m); }
     else if (m.cmd === 'nav-query') { this.send1(JSON.parse(this.navMsg())); }
     else if (m.cmd === 'permissive-query') { this.send1(JSON.parse(this.permMsg())); }
+    else if (m.cmd === 'field-status') { this.send1({ type: 'field-status', enabled: false, status: null, samples: 0 }); } // web tĩnh không có field I/O (server-only) → pill ẩn
     else if (m.cmd === 'faceplate-list') { this.send1({ type: 'fp-list', items: this.rt.faceplateList() }); }
     else if (m.cmd === 'faceplate-open' && m.assetId !== undefined) { this.send1({ type: 'fp-data', assetId: m.assetId, data: this.rt.faceplateData(m.assetId) ?? null }); }
     else if (m.cmd === 'faceplate-trend' && m.assetId !== undefined) { const a = m.assetId; void this.rt.faceplateTrend(a, m.hours ?? 1).then((trend) => this.send1({ type: 'fp-trend', assetId: a, trend })); }
