@@ -5,6 +5,7 @@
 //  46   dòng thứ tự nghịch (unbalanced/negative-sequence, I2²t)
 //  81   tần số cao/thấp (over/under-frequency)
 //  24   quá kích thích V/Hz (volts-per-hertz, bão hoà từ)
+//  32   công suất ngược (reverse power — máy phát MOTORING khi mất động lực sơ cấp mà máy cắt còn đóng)
 // Đọc đại lượng điện (GEN_MVAR · dòng kích từ AVR · điện áp cực · tần số trạm) → tính pickup/trip + biên.
 //
 // ADDITIVE — sinh tag ANSI_* độc lập; KHÔNG ghi tag process/ngắt máy cắt (rơle chỉ GIÁM SÁT + phát CỜ trip;
@@ -28,6 +29,9 @@ const FREQ_LO_HZ = 49; // Hz — 81U
 const VHZ_PICKUP_PCT = 110; // % — 24 (quá kích thích)
 const FIELD_NOM_A = 3000; // A — dòng kích từ điểm vận hành
 const LOF_MARGIN_PICKUP_PCT = 25; // % — biên mất kích từ dưới ngưỡng → 40 pickup
+const GEN_MCR_MW = 600; // MW — công suất gross định mức (Phụ lục A §3.3)
+const REVPOW_PICKUP_PCT = -2; // % — ngưỡng 32 (công suất < −2% định mức → reverse power)
+const MOTORING_PCT = -2.5; // % — công suất motoring khi mất động lực (windage + ma sát tổ máy)
 
 function clamp(x: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, x));
@@ -46,6 +50,8 @@ export class AnsiProtectionModel implements ISimModel {
     'ANSI_81_PICKUP_01', // 0/1 — 81 pickup (cao hoặc thấp)
     'ANSI_24_VHZ_01', // % — V/Hz so định mức
     'ANSI_24_PICKUP_01', // 0/1 — 24 pickup
+    'ANSI_32_POWER_01', // % — công suất thực / định mức (âm = motoring)
+    'ANSI_32_PICKUP_01', // 0/1 — 32 pickup (reverse power)
     'ANSI_PROT_HEALTHY_01', // 0/1 — mọi phần tử bình thường
     'ANSI_TRIP_ANY_01', // 0/1 — có bất kỳ lệnh trip bảo vệ
   ];
@@ -53,11 +59,13 @@ export class AnsiProtectionModel implements ISimModel {
   private internalFault = false;
   private lossField = false;
   private unbalance = false;
+  private motoring = false;
 
   init(_ctx?: ISimModelContext, _config?: unknown): void {
     this.internalFault = false;
     this.lossField = false;
     this.unbalance = false;
+    this.motoring = false;
   }
 
   step(ctx: ISimModelContext): ISimStepResult {
@@ -85,7 +93,12 @@ export class AnsiProtectionModel implements ISimModel {
     const vhz = (vPu / (freq / 50)) * 100;
     const pickup24 = vhz > VHZ_PICKUP_PCT;
 
-    const anyPickup = trip87 || pickup40 || pickup46 || pickup81 || pickup24;
+    // 32 công suất ngược: máy phát motoring (mất động lực sơ cấp, máy cắt còn đóng) → P âm dưới ngưỡng.
+    const genMw = ctx.getTag('GEN_MW_01');
+    const powerPct = this.motoring ? MOTORING_PCT : GEN_MCR_MW > 0 ? (genMw / GEN_MCR_MW) * 100 : 0;
+    const pickup32 = powerPct < REVPOW_PICKUP_PCT;
+
+    const anyPickup = trip87 || pickup40 || pickup46 || pickup81 || pickup24 || pickup32;
 
     return {
       outputs: [
@@ -99,6 +112,8 @@ export class AnsiProtectionModel implements ISimModel {
         { tagId: 'ANSI_81_PICKUP_01', value: pickup81 ? 1 : 0, quality: 'Good' },
         { tagId: 'ANSI_24_VHZ_01', value: vhz, quality: 'Good' },
         { tagId: 'ANSI_24_PICKUP_01', value: pickup24 ? 1 : 0, quality: 'Good' },
+        { tagId: 'ANSI_32_POWER_01', value: powerPct, quality: 'Good' },
+        { tagId: 'ANSI_32_PICKUP_01', value: pickup32 ? 1 : 0, quality: 'Good' },
         { tagId: 'ANSI_PROT_HEALTHY_01', value: anyPickup ? 0 : 1, quality: 'Good' },
         { tagId: 'ANSI_TRIP_ANY_01', value: anyPickup ? 1 : 0, quality: 'Good' },
       ],
@@ -106,22 +121,25 @@ export class AnsiProtectionModel implements ISimModel {
   }
 
   snapshot(): ISimSnapshot {
-    return { state: { internalFault: this.internalFault ? 1 : 0, lossField: this.lossField ? 1 : 0, unbalance: this.unbalance ? 1 : 0 } };
+    return { state: { internalFault: this.internalFault ? 1 : 0, lossField: this.lossField ? 1 : 0, unbalance: this.unbalance ? 1 : 0, motoring: this.motoring ? 1 : 0 } };
   }
   restore(snapshot: ISimSnapshot): void {
     this.internalFault = (snapshot.state.internalFault ?? 0) > 0.5;
     this.lossField = (snapshot.state.lossField ?? 0) > 0.5;
     this.unbalance = (snapshot.state.unbalance ?? 0) > 0.5;
+    this.motoring = (snapshot.state.motoring ?? 0) > 0.5;
   }
   injectMalfunction(m: IMalfunction): void {
     if (m.id === 'gen-internal-fault') this.internalFault = true; // 87G
     if (m.id === 'gen-loss-field') this.lossField = true; // 40
     if (m.id === 'gen-unbalance') this.unbalance = true; // 46
+    if (m.id === 'gen-motoring') this.motoring = true; // 32
   }
   clearMalfunction(id: string): void {
     if (id === 'gen-internal-fault') this.internalFault = false;
     if (id === 'gen-loss-field') this.lossField = false;
     if (id === 'gen-unbalance') this.unbalance = false;
+    if (id === 'gen-motoring') this.motoring = false;
   }
   dispose(): void {
     // không giữ tài nguyên ngoài

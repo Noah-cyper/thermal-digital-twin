@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { ISimModelContext } from '@idtp/sdk';
 import { AnsiProtectionModel } from '../src/sim/ansi-protection';
 
-const OP = { ELEC_FIELD_CURRENT_01: 3000, ELEC_TERM_VOLT_PU_01: 1.0, SY_FREQ_01: 50 };
+const OP = { ELEC_FIELD_CURRENT_01: 3000, ELEC_TERM_VOLT_PU_01: 1.0, SY_FREQ_01: 50, GEN_MW_01: 558 };
 function ctxOf(tags: Record<string, number>): ISimModelContext {
   return { dtMs: 100, getTag: (id: string) => tags[id] ?? 0, now: () => '2026-07-24T03:00:00.000+07:00' };
 }
@@ -24,6 +24,8 @@ describe('AnsiProtectionModel (doc 10 §7) — bảo vệ máy phát ANSI', () =
     expect(o.ANSI_46_PICKUP_01).toBe(0);
     expect(o.ANSI_81_PICKUP_01).toBe(0);
     expect(o.ANSI_24_PICKUP_01).toBe(0);
+    expect(o.ANSI_32_PICKUP_01).toBe(0);
+    expect(o.ANSI_32_POWER_01).toBeGreaterThan(0); // đang phát → công suất dương
     expect(o.ANSI_40_MARGIN_01).toBeGreaterThan(25);
     expect(o.ANSI_24_VHZ_01).toBeCloseTo(100, 0);
     expect(o.ANSI_81_FREQ_01).toBe(50);
@@ -59,6 +61,19 @@ describe('AnsiProtectionModel (doc 10 §7) — bảo vệ máy phát ANSI', () =
     const o = one(m, OP);
     expect(o.ANSI_46_I2_01).toBeGreaterThan(8);
     expect(o.ANSI_46_PICKUP_01).toBe(1);
+  });
+
+  it('32 công suất ngược (gen-motoring): máy phát motoring → P âm dưới ngưỡng → pickup + trip', () => {
+    const m = new AnsiProtectionModel();
+    m.init();
+    m.injectMalfunction({ id: 'gen-motoring' });
+    const o = one(m, OP);
+    expect(o.ANSI_32_POWER_01).toBeLessThan(-2);
+    expect(o.ANSI_32_PICKUP_01).toBe(1);
+    expect(o.ANSI_TRIP_ANY_01).toBe(1);
+    expect(o.ANSI_PROT_HEALTHY_01).toBe(0);
+    m.clearMalfunction('gen-motoring');
+    expect(one(m, OP).ANSI_32_PICKUP_01).toBe(0);
   });
 
   it('81 tần số thấp + 24 quá kích thích theo đại lượng thực', () => {
