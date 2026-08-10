@@ -120,6 +120,25 @@ importers:
         specifier: ^2.0.5
         version: 2.1.9(@types/node@22.20.1)
 
+  apps/web-static:
+    dependencies:
+      '@idtp/app-thermal-runtime':
+        specifier: workspace:*
+        version: link:../thermal-runtime
+      '@idtp/engines':
+        specifier: workspace:*
+        version: link:../../packages/engines
+      '@idtp/plugin-thermal-power-600':
+        specifier: workspace:*
+        version: link:../../plugins/thermal-power-600
+      '@idtp/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
+    devDependencies:
+      esbuild:
+        specifier: ^0.21.5
+        version: 0.21.5
+
   packages/engines:
     dependencies:
       '@idtp/sdk':

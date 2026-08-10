@@ -547,7 +547,7 @@
     if (!fromHist){ navHist.stack = navHist.stack.slice(0, navHist.idx + 1); navHist.stack.push(id); navHist.idx = navHist.stack.length - 1; }
     document.querySelectorAll('#navList button').forEach(b => b.classList.toggle('active', b.dataset.id === id));
     renderCrumb(id);
-    fetch('/screen/' + id).then(r => r.json()).then(buildScreen).catch(() => {});
+    fetch('screen/' + id).then(r => r.json()).then(buildScreen).catch(() => {});
     subscribe(id);
   }
   function renderCrumb(id){
@@ -781,7 +781,7 @@
     const x = $('adviceX'); if (x) x.onclick = () => { p.hidden = true; };
   }
   function connect(){
-    ws = new WebSocket('ws://' + location.host);
+    ws = window.IDTPLocal ? window.IDTPLocal.connect() : new WebSocket('ws://' + location.host);
     ws.onopen = () => { $('linkDot').className = 'dot'; $('linkTxt').textContent = 'LINK'; if (current) subscribe(current); send({ cmd: 'faceplate-list' }); };
     ws.onclose = () => { $('linkDot').className = 'dot off'; $('linkTxt').textContent = 'reconnecting…'; setTimeout(connect, 1000); };
     ws.onmessage = (e) => { try { const m = JSON.parse(e.data);

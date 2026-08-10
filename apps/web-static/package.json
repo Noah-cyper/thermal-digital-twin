@@ -1,0 +1,19 @@
+{
+  "name": "@idtp/web-static",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "IDTP thermal digital twin — bản web tĩnh: chạy createThermalRuntime() ngay trong trình duyệt qua LocalBus (không cần server Node).",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "dependencies": {
+    "@idtp/app-thermal-runtime": "workspace:*",
+    "@idtp/engines": "workspace:*",
+    "@idtp/plugin-thermal-power-600": "workspace:*",
+    "@idtp/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "esbuild": "^0.21.5"
+  }
+}

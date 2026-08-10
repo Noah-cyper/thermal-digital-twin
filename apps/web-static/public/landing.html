@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IDTP — Digital Twin Nhà máy Nhiệt điện 600 MW</title>
+<meta name="description" content="Nền tảng Digital Twin công nghiệp kiến trúc kernel + plugin. Bản demo nhà máy nhiệt điện than 600 MW chạy hoàn toàn trong trình duyệt.">
+<style>
+  :root{
+    --bg:#0E1216; --panel:#161C22; --panel2:#1E242B; --border:#2A333D; --line:#38424E;
+    --text:#E6EAEE; --dim:#9AA5B1; --white:#FFFFFF;
+    --accent:#F5A524; --accent2:#4A90D9; --ok:#2FA84F; --mono:ui-monospace,"SF Mono",Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--bg);color:var(--text);font-family:ui-sans-serif,"Segoe UI",system-ui,sans-serif;line-height:1.6}
+  a{color:var(--accent2);text-decoration:none}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 20px}
+  header.top{border-bottom:1px solid var(--border);background:rgba(14,18,22,.9);position:sticky;top:0;backdrop-filter:blur(6px);z-index:10}
+  .top .wrap{display:flex;align-items:center;justify-content:space-between;padding:14px 20px}
+  .brand{font-family:var(--mono);font-weight:700;letter-spacing:.04em}
+  .brand b{color:var(--accent)}
+  .btn{display:inline-block;padding:10px 18px;border-radius:6px;font-family:var(--mono);font-size:14px;font-weight:600;cursor:pointer;border:1px solid var(--line)}
+  .btn.primary{background:var(--accent);color:#1a1200;border-color:var(--accent)}
+  .btn.primary:hover{filter:brightness(1.08)}
+  .btn.ghost{background:transparent;color:var(--text)}
+  .btn.ghost:hover{border-color:var(--dim)}
+  .hero{padding:64px 0 40px}
+  .hero h1{font-size:clamp(28px,5vw,46px);line-height:1.15;margin:0 0 16px}
+  .hero h1 span{color:var(--accent)}
+  .hero p.lead{font-size:clamp(16px,2.2vw,20px);color:var(--dim);max-width:720px;margin:0 0 28px}
+  .cta{display:flex;gap:12px;flex-wrap:wrap}
+  .tag{display:inline-block;font-family:var(--mono);font-size:12px;color:var(--dim);border:1px solid var(--border);border-radius:999px;padding:4px 12px;margin-bottom:20px}
+  .stats{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin:44px 0}
+  .stat{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:16px 14px;text-align:center}
+  .stat .n{font-family:var(--mono);font-size:clamp(20px,3vw,28px);color:var(--white);font-variant-numeric:tabular-nums}
+  .stat .l{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;margin-top:4px}
+  .shot{margin:8px 0 8px;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--panel)}
+  .shot img{display:block;width:100%;height:auto}
+  .shot .cap{font-family:var(--mono);font-size:12px;color:var(--dim);padding:10px 14px;border-top:1px solid var(--border)}
+  section.blk{padding:44px 0;border-top:1px solid var(--border)}
+  section.blk h2{font-size:clamp(22px,3vw,30px);margin:0 0 8px}
+  section.blk p.sub{color:var(--dim);max-width:760px;margin:0 0 28px}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:20px}
+  .card h3{margin:0 0 8px;font-size:17px}
+  .card h3 .k{font-family:var(--mono);color:var(--accent);font-size:13px;margin-right:8px}
+  .card p{margin:0;color:var(--dim);font-size:14px}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .feat{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:18px}
+  .feat h4{margin:0 0 6px;font-size:15px}
+  .feat p{margin:0;color:var(--dim);font-size:13px}
+  .note{background:var(--panel2);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:6px;padding:16px 18px;color:var(--dim);font-size:14px;margin-top:24px}
+  .note b{color:var(--text)}
+  .flow{font-family:var(--mono);font-size:13px;color:var(--dim);background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:16px 18px;overflow-x:auto;white-space:nowrap}
+  .flow b{color:var(--accent2)}
+  footer{border-top:1px solid var(--border);padding:28px 0;color:var(--dim);font-size:13px;font-family:var(--mono)}
+  @media(max-width:820px){ .stats{grid-template-columns:repeat(3,1fr)} .cols{grid-template-columns:1fr} .grid3{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+  <header class="top"><div class="wrap">
+    <div class="brand"><b>IDTP</b> · Digital Twin Factory</div>
+    <a class="btn primary" href="hmi.html">Mở HMI đầy đủ →</a>
+  </div></header>
+
+  <div class="wrap">
+    <section class="hero">
+      <span class="tag">Nền tảng Digital Twin công nghiệp · kernel + plugin</span>
+      <h1>Bản sao số nhà máy <span>nhiệt điện than 600 MW</span> — chạy ngay trong trình duyệt</h1>
+      <p class="lead">IDTP mô phỏng trọn vẹn một tổ máy nhiệt điện subcritical, drum-type, reheat, lưới 500 kV:
+      lò hơi · tuabin–máy phát · đường khói (SCR/ESP/FGD) · nước cấp · điện · và toàn bộ hệ phụ trợ (BoP).
+      Vật lý tất định, màn hình khai báo, vòng điều khiển kín, alarm ISA-18.2, OTS &amp; Historian —
+      tất cả trên cùng một lõi generic.</p>
+      <div class="cta">
+        <a class="btn primary" href="hmi.html">Mở HMI đầy đủ →</a>
+        <a class="btn ghost" href="hmi.html">Xem sơ đồ tổng thể nhà máy</a>
+      </div>
+    </section>
+
+    <div class="stats">
+      <div class="stat"><div class="n">44</div><div class="l">Mô hình sim</div></div>
+      <div class="stat"><div class="n">55</div><div class="l">Màn hình</div></div>
+      <div class="stat"><div class="n">28</div><div class="l">Vòng điều khiển</div></div>
+      <div class="stat"><div class="n">3.522</div><div class="l">Tag</div></div>
+      <div class="stat"><div class="n">651</div><div class="l">Alarm</div></div>
+      <div class="stat"><div class="n">563</div><div class="l">Test xanh</div></div>
+    </div>
+
+    <div class="shot">
+      <img src="hero-mimic.png" alt="Sơ đồ tổng thể nhà máy nhiệt điện 600 MW — HMI IDTP" loading="lazy">
+      <div class="cap">Sơ đồ tổng thể (live mimic): 32 thiết bị · 6 tuyến dòng chảy · click bất kỳ khối để drill xuống màn hệ thống.</div>
+    </div>
+  </div>
+
+  <section class="blk"><div class="wrap">
+    <h2>Kiến trúc: "mọi nhà máy chỉ là một plugin"</h2>
+    <p class="sub">Kernel + engine generic chạy <b>dữ liệu khai báo</b> của plugin. Thêm nhà máy mới = thêm một plugin,
+    không sửa một dòng kernel. Màn hình là JSON do kernel render — không hardcode trong React.</p>
+    <div class="cols">
+      <div class="card"><h3><span class="k">KERNEL</span>Lõi generic</h3>
+        <p>~12 engine L2: tag-realtime · graphics · alarm (ISA-18.2 shelving) · control-loop · sequence (SFC) ·
+        cause-effect · interlock · simulation-host · historian (≥50k điểm/s) · navigation · faceplate · KPI ·
+        report · maintenance · predictive · AI-advisor (chỉ đọc) · event-journal (SOE) · security (RBAC 6 vai).</p></div>
+      <div class="card"><h3><span class="k">PLUGIN #1</span>thermal-power-600</h3>
+        <p>44 mô hình mô phỏng cộng dồn, khép cân bằng năng lượng toàn nhà máy ~100%: lõi chu trình + đường
+        khói/điện/nước + 10 hệ BoP + chiều sâu physics (TSE, NPSH/xâm thực, surge quạt, AVR, bảo vệ ANSI…).</p></div>
+    </div>
+
+    <div class="flow" style="margin-top:20px">
+      <b>Than</b> → nghiền → <b>buồng lửa</b> → bao hơi → quá nhiệt → <b>tuabin HP/IP/LP</b> → máy phát → GSU → <b>lưới 500 kV</b>
+      &nbsp;|&nbsp; khói: hâm → sấy gió → <b>SCR → ESP → quạt ID → FGD</b> → ống khói
+      &nbsp;|&nbsp; nước: bình ngưng → hạ áp → khử khí → <b>BFP</b> → cao áp → hâm → bao hơi
+    </div>
+  </div></section>
+
+  <section class="blk"><div class="wrap">
+    <h2>Có gì trong HMI</h2>
+    <p class="sub">Bấm "Mở HMI đầy đủ" để vào phòng điều khiển ảo — tự đăng nhập vai Operator, chạy hoàn toàn client-side.</p>
+    <div class="grid3">
+      <div class="feat"><h4>Sơ đồ live &amp; drill</h4><p>Mimic tổng thể + ~55 màn D1/D2/D3, stream theo từng màn (report-by-exception).</p></div>
+      <div class="feat"><h4>OTS &amp; tiêm sự cố</h4><p>Freeze/snapshot/restore, MFT, trip tuabin, tube-leak, mất chân không, trip quạt…</p></div>
+      <div class="feat"><h4>Alarm ISA-18.2</h4><p>Deadband + delay, shelve có lý do &amp; hẹn giờ, rationalization, KPI EEMUA-191.</p></div>
+      <div class="feat"><h4>Historian &amp; Replay</h4><p>Trend đa-tag, phát lại lịch sử — mọi lệnh ra thiết bị bị chặn cứng khi replay.</p></div>
+      <div class="feat"><h4>Cause &amp; Effect + Interlock</h4><p>Ma trận C&amp;E, permissive chặn lệnh khi điều kiện quá trình không cho phép.</p></div>
+      <div class="feat"><h4>AI Advisor (chỉ đọc)</h4><p>Giải thích alarm rule-based — tuyệt đối không ghi tag/setpoint/ACK.</p></div>
+    </div>
+
+    <div class="note">
+      <b>Đây là bản demo chạy hoàn toàn trong trình duyệt của bạn.</b> Không có server — engine mô phỏng
+      (<span style="font-family:var(--mono)">createThermalRuntime()</span>) chạy client-side qua một "LocalBus" giả lập
+      đúng bề mặt WebSocket của phòng điều khiển thật. Cùng một file HMI dùng cho cả bản localhost lẫn bản web này.
+      Số liệu là mô phỏng vật lý tất định (không random).
+    </div>
+  </div></section>
+
+  <footer><div class="wrap">
+    IDTP — Industrial Digital Twin Platform · Plugin #1: thermal-power-600 (600 MW subcritical) ·
+    Bản demo giáo dục/kỹ thuật, chỉ đọc.
+  </div></footer>
+</body>
+</html>
