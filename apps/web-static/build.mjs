@@ -64,4 +64,14 @@ for (const name of readdirSync(PUBLIC)) {
   else copyFileSync(src, join(DIST, name));
 }
 
+// ── 5) _headers (Cloudflare Pages): content-type cho /screen/<id> (không đuôi) + cache asset ──
+writeFileSync(join(DIST, '_headers'), [
+  '/idtp-local.js',
+  '  Cache-Control: public, max-age=86400',
+  '/screen/*',
+  '  Content-Type: application/json; charset=utf-8',
+  '  Cache-Control: public, max-age=3600',
+  '',
+].join('\n'));
+
 console.log(`[web-static] build OK → ${DIST}`);
