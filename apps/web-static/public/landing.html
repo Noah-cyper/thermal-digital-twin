@@ -134,9 +134,72 @@
     </div>
   </div></section>
 
+  <section class="blk"><div class="wrap">
+    <span class="tag">Mới · v1.75</span>
+    <h2>AI Cognitive / Predictive Maintenance</h2>
+    <p class="sub">Lớp AI bảo trì tiên đoán <b>chỉ đọc, minh bạch</b> phủ 14 thiết bị thật của nhà máy — chấm điểm sức
+    khoẻ 0–100 theo tín hiệu cảm biến, phát hiện bất thường, chẩn đoán <b>Điều gì · Vì sao · Nên làm</b>, xếp hạng
+    nguyên nhân gốc và ước lượng tuổi thọ còn lại (RUL). Không hộp đen: mọi điểm số phơi bày đóng góp từng tín hiệu.</p>
+    <div class="cols">
+      <a href="hmi.html" style="text-decoration:none"><div class="shot" style="margin:0"><img src="hero-ai.png" alt="Panel AI Cognitive Maintenance" loading="lazy"><div class="cap">Panel AI trong HMI — sức khoẻ fleet + chẩn đoán chi tiết. Bấm để mở.</div></div></a>
+      <div>
+        <div class="grid3" style="grid-template-columns:1fr">
+          <div class="feat"><h4>Điểm sức khoẻ minh bạch</h4><p>0–100 mỗi thiết bị = tổng có trọng số các tín hiệu (rung, nhiệt gối, biên NPSH/surge, độ sạch ống…); phơi bày đóng góp từng tín hiệu.</p></div>
+          <div class="feat"><h4>Chẩn đoán WHAT / WHY / HOW</h4><p>Điều gì đang xảy ra · vì sao (nguyên nhân gốc kèm xác suất) · nên làm gì (khuyến nghị ưu tiên) — nối cảnh báo xu hướng.</p></div>
+          <div class="feat"><h4>RUL &amp; nhãn trung thực</h4><p>Tuổi thọ còn lại luôn gắn nhãn <b>MÔ PHỎNG</b>; chế độ nguồn (mô phỏng / dịch vụ ngoài) hiển thị rõ, không giả mạo dữ liệu.</p></div>
+        </div>
+        <div class="cta" style="margin-top:18px">
+          <a class="btn primary" href="hmi.html">▶ Trải nghiệm Demo AI (90s)</a>
+          <a class="btn ghost" href="hmi.html">Mở panel 🤖 AI Bảo trì</a>
+        </div>
+      </div>
+    </div>
+
+    <div id="leadForm" style="margin-top:32px;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:22px 24px">
+      <h3 style="margin:0 0 4px;font-size:19px">Đăng ký nhận tư vấn / demo riêng</h3>
+      <p style="color:var(--dim);font-size:14px;margin:0 0 16px">Để lại thông tin để đội ngũ HOANTRAN DTH liên hệ tư vấn giải pháp Digital Twin cho nhà máy của bạn.</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <input id="lfName" placeholder="Họ và tên *" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:11px 12px;color:var(--text);font-size:14px">
+        <input id="lfCompany" placeholder="Công ty / đơn vị" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:11px 12px;color:var(--text);font-size:14px">
+        <input id="lfEmail" type="email" placeholder="Email *" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:11px 12px;color:var(--text);font-size:14px">
+        <input id="lfPhone" placeholder="Điện thoại" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:11px 12px;color:var(--text);font-size:14px">
+      </div>
+      <textarea id="lfMsg" rows="3" placeholder="Nhu cầu của bạn (loại nhà máy, quy mô, mục tiêu)…" style="width:100%;margin-top:12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:11px 12px;color:var(--text);font-size:14px;resize:vertical"></textarea>
+      <div style="display:flex;align-items:center;gap:14px;margin-top:14px;flex-wrap:wrap">
+        <button id="lfSubmit" class="btn primary" style="border:none">Gửi yêu cầu →</button>
+        <span id="lfStatus" style="font-size:13px;color:var(--dim)"></span>
+      </div>
+    </div>
+  </div></section>
+
   <footer><div class="wrap">
     IDTP — Industrial Digital Twin Platform · Plugin #1: thermal-power-600 (600 MW subcritical) ·
     Bản demo giáo dục/kỹ thuật, chỉ đọc.
   </div></footer>
+
+<script>
+  // ĐỔI thành email nhận lead THẬT để kích hoạt gửi qua ứng dụng email của khách. Để TRỐNG = không giả gửi,
+  // chỉ hiện hướng dẫn liên hệ trực tiếp (trang tĩnh không có backend nhận form — không lưu/gửi dữ liệu ngầm).
+  var LEAD_EMAIL = '';
+  (function(){
+    var v = function(id){ var e = document.getElementById(id); return e ? e.value.trim() : ''; };
+    var btn = document.getElementById('lfSubmit');
+    if (!btn) return;
+    btn.onclick = function(){
+      var status = document.getElementById('lfStatus');
+      var name = v('lfName'), email = v('lfEmail');
+      if (!name || !email){ status.textContent = '⚠ Vui lòng nhập Họ tên và Email.'; status.style.color = '#F5A524'; return; }
+      var body = 'Họ tên: ' + name + '\nCông ty: ' + v('lfCompany') + '\nEmail: ' + email + '\nĐiện thoại: ' + v('lfPhone') + '\nNhu cầu: ' + v('lfMsg');
+      if (LEAD_EMAIL){
+        window.location.href = 'mailto:' + LEAD_EMAIL + '?subject=' + encodeURIComponent('Yêu cầu tư vấn Digital Twin') + '&body=' + encodeURIComponent(body);
+        status.textContent = '✓ Đã mở ứng dụng email để bạn gửi yêu cầu. Trang demo không lưu dữ liệu trên máy chủ.';
+        status.style.color = '#2FA84F';
+      } else {
+        status.innerHTML = 'Form demo <b>chưa nối kênh nhận tự động</b> — vui lòng liên hệ trực tiếp qua thông tin trên website hoantrantdh.com. Không có dữ liệu nào được gửi đi.';
+        status.style.color = '#9AA5B1';
+      }
+    };
+  })();
+</script>
 </body>
 </html>
