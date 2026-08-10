@@ -21,9 +21,12 @@ rmSync(DIST, { recursive: true, force: true });
 mkdirSync(join(DIST, 'screen'), { recursive: true });
 
 // ── 1) Bundle LocalBus + runtime cho trình duyệt ────────────────────────────────
+// Tên có BĂM NỘI DUNG (idtp-local-<hash>.js) → mỗi lần đổi bundle là tên đổi ⇒ KHÔNG bao giờ nạp bản cache cũ.
+import { createHash } from 'node:crypto';
+const bundleTmp = join(DIST, 'idtp-local.tmp.js');
 await build({
   entryPoints: [join(HERE, 'src', 'entry.ts')],
-  outfile: join(DIST, 'idtp-local.js'),
+  outfile: bundleTmp,
   bundle: true,
   platform: 'browser',
   format: 'iife',
@@ -33,6 +36,11 @@ await build({
   legalComments: 'none',
   logLevel: 'info',
 });
+const bundleSrc = readFileSync(bundleTmp);
+const bundleHash = createHash('sha256').update(bundleSrc).digest('hex').slice(0, 10);
+const bundleName = `idtp-local-${bundleHash}.js`;
+writeFileSync(join(DIST, bundleName), bundleSrc);
+rmSync(bundleTmp, { force: true });
 
 // ── 2) Dump màn hình: bundle src/dump.ts (node) → chạy (esbuild inline hết → không lỗi extensionless) ──
 const dumpJs = join(DIST, '.dump.mjs');
@@ -53,7 +61,7 @@ rmSync(dumpJs, { force: true });
 const injectBase = (html) => html.replace(/<head(\s[^>]*)?>/i, (m) => `${m}\n<base href="${BASE}">`);
 let hmi = injectBase(readFileSync(SHARED_HMI, 'utf8'));
 // nạp LocalBus TRƯỚC script trang (đặt trong <head>, blocking) → window.IDTPLocal sẵn khi connect() chạy.
-hmi = hmi.replace(/<\/head>/i, `  <script src="idtp-local.js"></script>\n</head>`);
+hmi = hmi.replace(/<\/head>/i, `  <script src="${bundleName}"></script>\n</head>`);
 writeFileSync(join(DIST, 'hmi.html'), hmi);
 
 // ── 4) Landing + asset tĩnh ─────────────────────────────────────────────────────
@@ -66,11 +74,18 @@ for (const name of readdirSync(PUBLIC)) {
 
 // ── 5) _headers (Cloudflare Pages): content-type cho /screen/<id> (không đuôi) + cache asset ──
 writeFileSync(join(DIST, '_headers'), [
-  '/idtp-local.js',
-  '  Cache-Control: public, max-age=86400',
+  // Bundle có băm hash trong tên → an toàn cache vĩnh viễn (immutable).
+  '/idtp-local-*.js',
+  '  Cache-Control: public, max-age=31536000, immutable',
+  // HTML: LUÔN revalidate để mỗi lần deploy nạp ngay bản mới (tránh stale như lỗi cache đã gặp).
+  '/index.html',
+  '  Cache-Control: no-cache',
+  '/hmi.html',
+  '  Cache-Control: no-cache',
+  // Định nghĩa màn hình: content-type JSON + cache ngắn (revalidate sau 60 s).
   '/screen/*',
   '  Content-Type: application/json; charset=utf-8',
-  '  Cache-Control: public, max-age=3600',
+  '  Cache-Control: public, max-age=60',
   '',
 ].join('\n'));
 
