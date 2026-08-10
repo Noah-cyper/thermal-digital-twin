@@ -13,6 +13,7 @@ import { SecurityEngine, buildScreen } from '@idtp/engines';
 import { boilerScreens, screenTags } from '@idtp/plugin-thermal-power-600';
 import { startPersistence } from './persistence';
 import { startFieldLink } from './field-link';
+import { makeModbusTcpDriver } from './field-drivers';
 import type { FieldPoint, FieldProtocol } from '@idtp/sdk';
 import { createThermalRuntime } from './runtime';
 import type { OtsSnapshot } from './runtime';
@@ -610,7 +611,11 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
     } catch {
       points = [];
     }
-    void startFieldLink({ protocol: process.env.IDTP_FIELD_PROTOCOL as FieldProtocol, endpoint: process.env.IDTP_FIELD_ENDPOINT, points })
+    const fieldProto = process.env.IDTP_FIELD_PROTOCOL as FieldProtocol;
+    void startFieldLink(
+      { protocol: fieldProto, endpoint: process.env.IDTP_FIELD_ENDPOINT, points },
+      fieldProto === 'modbus-tcp' ? { makeDriver: makeModbusTcpDriver } : {},
+    )
       .then((link) => {
         fieldStop = link.stop;
         console.log('[field-io]', link.status().notice.vi);
