@@ -8,6 +8,7 @@ import { TimeService } from '@idtp/kernel';
 import {
   BoilerIslandModel,
   TurbineGeneratorModel,
+  ExhaustHoodModel,
   TurbineStressModel,
   LubeOilSystemModel,
   CondenserPerfModel,
@@ -295,6 +296,8 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   // mỗi bước. Additive: sinh thêm tag turbine/generator, không đổi GEN_MW_01.
   const turbine = new TurbineGeneratorModel();
   host.register(turbine);
+  const exhaustHood = new ExhaustHoodModel(); // hood xả LP + phun làm mát tải thấp (đọc GEN_MW + van)
+  host.register(exhaustHood);
   // TSE ứng suất nhiệt rotor (v1.62): đăng ký SAU turbine — đọc GEN_MW_01 + BLR_MSTM_SH_TEMP_01 → chênh
   // nhiệt bề mặt–tâm rotor → ứng suất + ramp limit + tuổi thọ mỏi. Additive — chỉ sinh TSE_* (0 hồi quy).
   const turbineStress = new TurbineStressModel();

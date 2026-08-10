@@ -12,8 +12,8 @@ const STEAM_TO_FWCV = 100 / 2100; // steam flow (t/h) → FW CV feedforward (%)
 const STEAM_TO_DEALCV = 100 / 2200; // steam flow (t/h) → deaerator condensate LCV feedforward (%)
 const STEAM_TO_CEPLCV = 100 / 2200; // steam flow (t/h) → condensate extraction pump LCV feedforward (%)
 
-/** 28 control loop CCS (doc 09) — 25 vòng vận hành liên tục + 3 vòng bảo vệ/khởi động (SJAE hút khí ·
- *  HP turbine bypass · LP turbine bypass). Danh mục 25 lõi — Boiler Island + môi trường + phụ trợ + máy phát + làm mát:
+/** 29 control loop CCS (doc 09) — 25 vòng vận hành liên tục + 4 vòng bảo vệ/khởi động (SJAE hút khí ·
+ *  HP turbine bypass · LP turbine bypass · phun hood xả LP tải thấp). Danh mục 25 lõi — Boiler Island + môi trường + phụ trợ + máy phát + làm mát:
  *  governor · boiler master (sliding pressure) · fuel master · air/O₂ · furnace draft · SH temp · drum
  *  level 3-element · deaerator level · hotwell level · reheat temp (gas-biasing) · BFP min-flow recirc ·
  *  SCR deNOx (NH₃) · FGD SO₂ (slurry) · deaerator pressure (pegging steam) · gland steam pressure · mill
@@ -382,12 +382,26 @@ export const boilerControlLoops: ReadonlyArray<ControlLoopDef> = [
     reverse: true,
     outTag: 'TRB_LP_BYPASS_VALVE_01',
   },
+  {
+    id: 'exhaust-hood-spray',
+    desc: 'Phun làm mát hood xả LP turbine — chỉ tác động ở tải thấp (windage tầng cuối)',
+    pvTag: 'TRB_EXH_HOOD_TEMP_01',
+    sp: 80,
+    kp: 3,
+    ki: 0.2,
+    kd: 0,
+    outLo: 0,
+    outHi: 100,
+    reverse: true,
+    outTag: 'TRB_HOOD_SPRAY_VALVE_01',
+  },
 ];
 
 /** Điểm vận hành khởi động (~1500 t/h hơi / ~448 MW) — nạp bumpless MAN→AUTO để khởi động êm.
  *  loopId → giá trị OP ban đầu. */
 export const boilerLoopSeeds: Readonly<Record<string, number>> = {
   governor: 1500, // BLR_TURBINE_DEMAND_01 (t/h) — ~448 MW
+  'exhaust-hood-spray': 0, // TRB_HOOD_SPRAY_VALVE_01 (%) — van phun đóng ở tải thường (hood mát)
   'boiler-master-pressure': 70.3, // BLR_FIRING_DEMAND (%) — coal ~211 t/h → steam ~1500
   'fuel-master': 70.3, // BLR_FUEL_DEMAND_01 (%)
   'air-o2-trim': 62, // BLR_FD_DAMPER_01 (%) — O₂ ~3,2%
