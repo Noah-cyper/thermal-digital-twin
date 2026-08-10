@@ -2,7 +2,7 @@
 // khép kín với ĐỒNG HỒ SIM tiến theo dt (Time Service, không Date.now trong vòng process).
 // Sim→control→alarm→tag không dùng Math.random. App tổ hợp import engines/kernel/plugin; plugin
 // runtime vẫn chỉ import @idtp/sdk.
-import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian, KpiEngine, historianKpiInput, MaintenanceEngine, FaceplateEngine, NavigationEngine, generateRegistry, generateScreens, generateControlLoops, SequenceEngine, executeScenario, CauseEffectEngine, InterlockEngine, AiAdvisor, PredictiveMaintenance, RegistrySimModel, ReportEngine, EventJournal } from '@idtp/engines';
+import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, MemoryHistorian, KpiEngine, historianKpiInput, MaintenanceEngine, FaceplateEngine, NavigationEngine, generateRegistry, generateScreens, generateControlLoops, SequenceEngine, executeScenario, CauseEffectEngine, InterlockEngine, AiAdvisor, PredictiveMaintenance, createCognitiveProvider, RegistrySimModel, ReportEngine, EventJournal } from '@idtp/engines';
 import type { AlarmKpi, ShelvedAlarm, ShelveResult, FaceplateResolvers, FaceplateOverview, FaceplateAlarmRow, FaceplateDetail, Advice, Report, JournalEntry, JournalQuery, JournalSummary, JournalCategory, JournalSeverity } from '@idtp/engines';
 import { TimeService } from '@idtp/kernel';
 import {
@@ -66,6 +66,7 @@ import {
   thermalInterlocks,
   thermalKnowledge,
   thermalPredictiveRules,
+  thermalAssetHealth,
   thermalReportSections,
 } from '@idtp/plugin-thermal-power-600';
 import type { AlarmRationalizationReport } from '@idtp/plugin-thermal-power-600';
@@ -91,6 +92,11 @@ import type {
   PredictiveAdvisory,
   ScreenDef,
   IReportContext,
+  CognitiveAssessment,
+  FleetCognitiveOverview,
+  CognitiveProviderInfo,
+  Diagnosis,
+  Iso8601,
 } from '@idtp/sdk';
 
 /** Tuỳ chọn & kết quả RE-SIMULATION what-if (doc 05-05 §4) — nhánh mô phỏng độc lập từ snapshot live. */
@@ -190,6 +196,12 @@ export interface ThermalRuntime {
   maintenanceMtbf(assetId: string): number;
   evaluatePredictive(): PredictiveAdvisory[];
   predictiveAdvisories(): ReadonlyArray<PredictiveAdvisory>;
+  // AI Cognitive Maintenance (P3, READ-ONLY): sức khoẻ/RCA/RUL từ sổ đăng ký tài sản thật.
+  cognitiveInfo(): CognitiveProviderInfo;
+  cognitiveAssets(): ReadonlyArray<string>;
+  cognitiveAssess(assetId: string): CognitiveAssessment | undefined;
+  cognitiveDiagnose(assetId: string): Diagnosis | undefined;
+  cognitiveFleet(): FleetCognitiveOverview;
   workOrders(): ReadonlyArray<WorkOrder>;
   createWorkOrder(assetId: string, type: 'PM' | 'CM', reason: string, user: string): WorkOrder;
   updateWorkOrder(woId: string, status: WorkOrderStatus, user: string): WorkOrder | { error: string };
@@ -644,6 +656,17 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   const predictive = new PredictiveMaintenance(thermalPredictiveRules);
   let lastPredictive: PredictiveAdvisory[] = [];
 
+  // AI Cognitive Maintenance (doc 20 §Cognitive, gói P3): provider MÔ PHỎNG suy sức khoẻ/RCA/RUL từ SỔ
+  // ĐĂNG KÝ tài sản thật + luật predictive — READ-ONLY tuyệt đối. CognitiveInput lấy đồng hồ SIM (không
+  // Date.now), tag hiện tại, giờ chạy từ Maintenance Engine (RUL theo tuổi thọ khi thiếu xu hướng).
+  const cognitive = createCognitiveProvider('simulation', { specs: thermalAssetHealth, rules: thermalPredictiveRules });
+  const cognitiveInput = () => ({
+    nowMs: nowMs(),
+    getTag: (t: string): number => num(t),
+    runningHours: (assetId: string): number => maintenance.allRuntime().find((x) => x.assetId === assetId)?.runningHours ?? 0,
+    formatTs: (ms: number): Iso8601 => time.formatEpoch(ms) as Iso8601,
+  });
+
   // Report Engine (doc 21): ráp báo cáo ca/ngày từ section khai báo của plugin, đọc từ Historian.
   const reportEngine = new ReportEngine(thermalReportSections);
 
@@ -906,6 +929,11 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
       return lastPredictive;
     },
     predictiveAdvisories: () => lastPredictive,
+    cognitiveInfo: () => cognitive.info,
+    cognitiveAssets: () => cognitive.assets(),
+    cognitiveAssess: (assetId) => cognitive.assess(assetId, cognitiveInput()),
+    cognitiveDiagnose: (assetId) => cognitive.diagnose(assetId, cognitiveInput()),
+    cognitiveFleet: () => cognitive.fleetOverview(cognitiveInput()),
     workOrders: () => maintenance.workOrders(),
     createWorkOrder: (assetId, type, reason, user) => {
       const wo = maintenance.createWorkOrder({ assetId, type, reason }, user, nowMs());
