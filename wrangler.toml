@@ -1,0 +1,20 @@
+# Cấu hình Cloudflare Workers (Static Assets) — deploy bản web tĩnh IDTP và chen vào subpath.
+#   npx wrangler deploy  (Workers Builds chạy sẵn lệnh này sau khi `pnpm install && pnpm build`).
+# Phục vụ apps/web-static/dist qua binding ASSETS; site-worker.js bóc tiền tố /digital-twin-factory.
+# LƯU Ý (TOML): mọi key top-level (routes...) phải đứng TRƯỚC bảng [assets], nếu không sẽ bị gộp nhầm.
+name = "thermal-digital-twin"
+main = "deploy/cloudflare/site-worker.js"
+compatibility_date = "2024-11-01"
+
+# Gắn Worker vào ĐÚNG subpath của site chính; mọi path khác của hoantrantdh.com KHÔNG bị đụng.
+# (Nếu build token thiếu quyền route → xoá khối routes này, deploy lại, rồi thêm route trong Dashboard.)
+routes = [
+  { pattern = "hoantrantdh.com/digital-twin-factory*", zone_name = "hoantrantdh.com" }
+]
+
+[assets]
+directory = "apps/web-static/dist"
+binding = "ASSETS"
+# "none": phục vụ đúng path (không tự redirect .html / thêm dấu /) — cần thiết vì worker tự rewrite path.
+html_handling = "none"
+not_found_handling = "none"
