@@ -59,7 +59,16 @@ describe('thermal-runtime server — command handlers (coverage)', () => {
     send(ws, { cmd: 'advise', alarmId: 'BLR-DRUM-LVL-HH' });
     send(ws, { cmd: 'resim', value: 400 });
     send(ws, { cmd: 'resim', malf: 'loss-of-vacuum' });
+    send(ws, { cmd: 'ai-fleet' });
+    send(ws, { cmd: 'ai-assess', assetId: 'BFP' });
+    send(ws, { cmd: 'ai-diagnose', assetId: 'BFP' });
 
+    const aiFleet = await waitFor(msgs, (m) => m.type === 'ai-fleet');
+    expect(aiFleet).toBeDefined();
+    expect((aiFleet as { overview?: { assets?: unknown[] } }).overview?.assets?.length).toBeGreaterThanOrEqual(18);
+    const aiAssess = await waitFor(msgs, (m) => m.type === 'ai-assess' && (m as { assetId?: string }).assetId === 'BFP');
+    expect((aiAssess as { assessment?: { rul?: { simulated?: boolean } } }).assessment?.rul?.simulated).toBe(true);
+    expect(await waitFor(msgs, (m) => m.type === 'ai-diagnose')).toBeDefined();
     expect(await waitFor(msgs, (m) => m.type === 'fp-data')).toBeDefined();
     expect(await waitFor(msgs, (m) => m.type === 'fp-trend')).toBeDefined();
     expect(await waitFor(msgs, (m) => m.type === 'trend-series')).toBeDefined();
