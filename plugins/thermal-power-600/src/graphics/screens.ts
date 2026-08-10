@@ -65,8 +65,14 @@ function equip(
   w: number,
   h: number,
   alarms: AlarmCond[] = [],
+  healthTag?: string,
 ): ScreenElement {
   const bindings: Binding[] = [{ property: 'text', tag, transform: { kind: 'linear', scale: 1 } }];
+  // Tô màu theo ĐIỂM SỨC KHOẺ cognitive (P4) TRƯỚC alarm ngưỡng PV → thiết bị suy giảm hiện màu cảnh báo.
+  if (healthTag) {
+    bindings.push({ property: 'fill', tag: healthTag, condition: { when: 'lt', value: 40, then: { fill: 'var(--alarm-2)' } } });
+    bindings.push({ property: 'fill', tag: healthTag, condition: { when: 'lt', value: 65, then: { fill: 'var(--alarm-1)' } } });
+  }
   for (const a of alarms) {
     bindings.push({ property: 'fill', tag, condition: { when: a.when, value: a.value, then: { fill: `var(--alarm-${a.sev})` } } });
   }
@@ -111,6 +117,28 @@ function flow(centerY: number, medium: string, items: ReadonlyArray<FlowItem>, x
   }
   return out;
 }
+
+// P4 — 14 tài sản có tag CHỈ THỊ SỨC KHOẺ cognitive (khớp thermalAssetHealth + tag AH_*_SCORE_01 runtime công bố).
+const AI_HEALTH: ReadonlyArray<{ id: string; tag: string; label: string }> = [
+  { id: 'bfp', tag: 'AH_BFP_SCORE_01', label: 'Bơm cấp' },
+  { id: 'fdfan', tag: 'AH_FAN_FD_SCORE_01', label: 'Quạt FD' },
+  { id: 'idfan', tag: 'AH_FAN_ID_SCORE_01', label: 'Quạt ID' },
+  { id: 'trbgen', tag: 'AH_TURBINE_GEN_SCORE_01', label: 'Tuabin-MF' },
+  { id: 'lube', tag: 'AH_LUBE_OIL_SCORE_01', label: 'Dầu bôi trơn' },
+  { id: 'cond', tag: 'AH_CONDENSER_SCORE_01', label: 'Bình ngưng' },
+  { id: 'gen', tag: 'AH_GENERATOR_SCORE_01', label: 'Máy phát' },
+  { id: 'hph', tag: 'AH_HP_HEATER_SCORE_01', label: 'GN cao áp' },
+  { id: 'lph', tag: 'AH_LP_HEATER_SCORE_01', label: 'GN hạ áp' },
+  { id: 'gsu', tag: 'AH_GSU_TRANSFORMER_SCORE_01', label: 'MBA GSU' },
+  { id: 'comp', tag: 'AH_AIR_COMPRESSOR_SCORE_01', label: 'Máy nén khí' },
+  { id: 'mills', tag: 'AH_COAL_MILLS_SCORE_01', label: 'Máy nghiền' },
+  { id: 'cw', tag: 'AH_CW_SYSTEM_SCORE_01', label: 'Nước tuần hoàn' },
+  { id: 'dea', tag: 'AH_DEAERATOR_SCORE_01', label: 'Khử khí' },
+];
+const AI_HEALTH_ALARMS: AlarmCond[] = [
+  { when: 'lt', value: 40, sev: 2 },
+  { when: 'lt', value: 65, sev: 1 },
+];
 
 export const boilerScreens: ReadonlyArray<ScreenDef> = [
   {
@@ -193,9 +221,9 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       // ── THIẾT BỊ (click → drill D3) ──────────────────────────────────────────────────────────
       // ① Cấp than & gió
       equip('m-bunker', 'box', 'Bunker than', 'COAL_BUNKER_LEVEL_01', '%', 'D3-coal-handling', 30, 150, 120, 56),
-      equip('m-mills', 'box', 'Máy nghiền', 'COAL_MILLS_RUNNING_01', 'máy', 'D3-pulverizer-mills', 30, 300, 120, 56),
+      equip('m-mills', 'box', 'Máy nghiền', 'COAL_MILLS_RUNNING_01', 'máy', 'D3-pulverizer-mills', 30, 300, 120, 56, [], 'AH_COAL_MILLS_SCORE_01'),
       equip('m-pafan', 'pump', 'Quạt PA', 'FAN_PA_FLOW_01', 'kg/s', 'D3-fan-system', 24, 430, 64, 64),
-      equip('m-fdfan', 'pump', 'Quạt FD', 'FAN_FD_FLOW_01', 'kg/s', 'D3-fan-system', 124, 430, 64, 64),
+      equip('m-fdfan', 'pump', 'Quạt FD', 'FAN_FD_FLOW_01', 'kg/s', 'D3-fan-system', 124, 430, 64, 64, [], 'AH_FAN_FD_SCORE_01'),
       // ② Lò hơi
       equip('m-furnace', 'furnace', 'Buồng lửa', 'BLR_FURN_PRESS_01', 'Pa', 'D3-furnace', 210, 230, 120, 210, [
         { when: 'gt', value: 200, sev: 1 },
@@ -213,37 +241,59 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       equip('m-ah', 'box', 'Sấy gió (AH)', 'AH_AIR_OUT_TEMP_01', '°C', 'D3-fouling-air', 525, 67, 110, 54),
       equip('m-scr', 'box', 'SCR deNOx', 'ECTL_SCR_REMOVAL_01', '%', 'D3-emissions-control', 665, 67, 110, 54),
       equip('m-esp', 'box', 'Lọc bụi ESP', 'EMI_DUST_STACK_01', 'mg/m³', 'D3-emissions-cems', 805, 67, 110, 54),
-      equip('m-idfan', 'pump', 'Quạt ID', 'FAN_ID_FLOW_01', 'kg/s', 'D3-fan-system', 950, 62, 64, 64),
+      equip('m-idfan', 'pump', 'Quạt ID', 'FAN_ID_FLOW_01', 'kg/s', 'D3-fan-system', 950, 62, 64, 64, [], 'AH_FAN_ID_SCORE_01'),
       equip('m-fgd', 'box', 'FGD deSOx', 'ECTL_FGD_REMOVAL_01', '%', 'D3-emissions-control', 1044, 67, 110, 54),
       equip('m-stack', 'stack', 'Ống khói', 'BLR_FLUE_O2_01', '%', 'D3-flue-stack', 1190, 20, 48, 150, [
         { when: 'lt', value: 1.5, sev: 2 },
       ]),
       // ④ Tuabin — máy phát
-      equip('m-hp', 'turbine', 'Turbine HP', 'TRB_HP_MW_01', 'MW', 'D3-turbine', 560, 293, 104, 74),
+      equip('m-hp', 'turbine', 'Turbine HP', 'TRB_HP_MW_01', 'MW', 'D3-turbine', 560, 293, 104, 74, [], 'AH_TURBINE_GEN_SCORE_01'),
       equip('m-ip', 'turbine', 'Turbine IP', 'TRB_IP_MW_01', 'MW', 'D3-turbine', 712, 293, 104, 74),
       equip('m-lp', 'turbine', 'Turbine LP', 'TRB_LP_MW_01', 'MW', 'D3-turbine', 864, 293, 104, 74),
-      equip('m-gen', 'generator', 'Máy phát', 'GEN_MW_01', 'MW', 'D3-generator', 1016, 284, 92, 92),
+      equip('m-gen', 'generator', 'Máy phát', 'GEN_MW_01', 'MW', 'D3-generator', 1016, 284, 92, 92, [], 'AH_GENERATOR_SCORE_01'),
       // ⑥ Điện
       equip('m-avr', 'box', 'AVR & kích từ', 'ELEC_EXCITATION_01', '%', 'D3-avr-excitation', 1016, 168, 110, 54),
-      equip('m-gsu', 'transformer', 'MBA chính GSU', 'ELEC_GSU_LOADING_01', '%', 'D3-electrical', 1160, 281, 80, 98),
+      equip('m-gsu', 'transformer', 'MBA chính GSU', 'ELEC_GSU_LOADING_01', '%', 'D3-electrical', 1160, 281, 80, 98, [], 'AH_GSU_TRANSFORMER_SCORE_01'),
       equip('m-grid', 'box', 'Lưới 500kV', 'ELEC_GRID_MW_01', 'MW', 'D3-switchyard', 1300, 302, 120, 56),
       equip('m-net', 'box', 'Xuất lưới (net)', 'ELEC_NET_MW_01', 'MW', 'D3-electrical', 1470, 302, 120, 56),
       equip('m-aux', 'box', 'Điện tự dùng (UAT)', 'ELEC_AUX_POWER_01', 'MW', 'D3-electrical', 1300, 430, 120, 56),
       // ④ Ngưng tụ – cấp nước
       equip('m-cond', 'condenser', 'Bình ngưng', 'TRB_COND_VACUUM_01', 'kPa', 'D3-condenser-cw', 864, 452, 104, 60, [
         { when: 'gt', value: 12, sev: 2 },
-      ]),
-      equip('m-lph', 'box', 'Gia nhiệt hạ áp', 'FW_LPH1_TEMP_01', '°C', 'D3-heater-detail', 710, 512, 110, 56),
-      equip('m-dea', 'box', 'Khử khí (DEA)', 'FW_DEAERATOR_LEVEL_01', '%', 'D3-feedwater-heatrate', 540, 512, 110, 56),
-      equip('m-bfp', 'pump', 'Bơm cấp BFP', 'FW_FLOW_01', 't/h', 'D3-bfp-cavitation', 410, 506, 68, 68),
-      equip('m-hph', 'box', 'Gia nhiệt cao áp', 'FW_HPH3_TEMP_01', '°C', 'D3-heater-detail', 240, 512, 110, 56),
+      ], 'AH_CONDENSER_SCORE_01'),
+      equip('m-lph', 'box', 'Gia nhiệt hạ áp', 'FW_LPH1_TEMP_01', '°C', 'D3-heater-detail', 710, 512, 110, 56, [], 'AH_LP_HEATER_SCORE_01'),
+      equip('m-dea', 'box', 'Khử khí (DEA)', 'FW_DEAERATOR_LEVEL_01', '%', 'D3-feedwater-heatrate', 540, 512, 110, 56, [], 'AH_DEAERATOR_SCORE_01'),
+      equip('m-bfp', 'pump', 'Bơm cấp BFP', 'FW_FLOW_01', 't/h', 'D3-bfp-cavitation', 410, 506, 68, 68, [], 'AH_BFP_SCORE_01'),
+      equip('m-hph', 'box', 'Gia nhiệt cao áp', 'FW_HPH3_TEMP_01', '°C', 'D3-heater-detail', 240, 512, 110, 56, [], 'AH_HP_HEATER_SCORE_01'),
       // ⑤ Nước tuần hoàn
       equip('m-ct', 'box', 'Tháp giải nhiệt', 'CT_APPROACH_01', '°C', 'D3-cooling-tower', 864, 690, 120, 64),
-      equip('m-cwp', 'pump', 'Bơm nước tuần hoàn', 'CT_CW_SUPPLY_01', '°C', 'D3-cw-pump', 1020, 688, 68, 68),
+      equip('m-cwp', 'pump', 'Bơm nước tuần hoàn', 'CT_CW_SUPPLY_01', '°C', 'D3-cw-pump', 1020, 688, 68, 68, [], 'AH_CW_SYSTEM_SCORE_01'),
       // ⑥ Thải tro – xỉ
       equip('m-bash', 'box', 'Thải xỉ đáy', 'ASH_BOTTOM_FLOW_01', 't/h', 'D3-ash-handling', 150, 690, 120, 52),
       equip('m-fash', 'box', 'Thải tro bay', 'ASH_FLY_FLOW_01', 't/h', 'D3-ash-handling', 300, 690, 120, 52),
     ],
+  },
+  {
+    // D2 AI COGNITIVE MAINTENANCE — tổng quan sức khoẻ fleet: KPI tổng hợp + điểm sức khoẻ 0..100 của 14
+    // tài sản (tag AH_*_SCORE_01 runtime công bố từ provider mô phỏng). Ô đỏ = suy giảm (drill D3 chi tiết).
+    screenId: 'D2-ai-maintenance',
+    level: 'D2',
+    title: { vi: 'AI Bảo trì tiên đoán (fleet)', en: 'AI Predictive Maintenance (fleet)' },
+    elements: [
+      valueTile('ai-avg', 'AH_FLEET_AVG_01', 'Điểm sức khoẻ TB', '', 0, 0, AI_HEALTH_ALARMS),
+      valueTile('ai-worst', 'AH_FLEET_WORST_01', 'Tài sản thấp nhất', '', 1, 0, AI_HEALTH_ALARMS),
+      valueTile('ai-anom', 'AH_FLEET_ANOMALIES_01', 'Số bất thường', '', 2, 0, [{ when: 'gt', value: 0, sev: 1 }]),
+      valueTile('ai-ok', 'AH_FLEET_HEALTHY_01', 'Lành mạnh / 14', '', 3, 0, [{ when: 'lt', value: 14, sev: 1 }]),
+      ...AI_HEALTH.map((a, i) => valueTile('ai-' + a.id, a.tag, a.label, '', i % 4, 1 + Math.floor(i / 4), AI_HEALTH_ALARMS)),
+    ],
+  },
+  {
+    // D3 SỨC KHOẺ TÀI SẢN — thanh điểm sức khoẻ 0..100 từng tài sản (thấp = suy giảm). Chi tiết factor/RCA/
+    // WHAT-WHY-HOW/RUL hiển thị ở panel AI phía client (gói P5, tiêu thụ lệnh WS ai-diagnose).
+    screenId: 'D3-asset-health',
+    level: 'D3',
+    title: { vi: 'Sức khoẻ tài sản (thanh điểm)', en: 'Asset Health (score bars)' },
+    elements: [...AI_HEALTH.map((a, i) => barTile('ah-' + a.id, a.tag, a.label, i % 4, Math.floor(i / 4), 1))],
   },
   {
     // Bảng D1 SỨC KHOẺ NHÀ MÁY: gom mọi cờ lành-mạnh của các hệ chiều sâu (điện · lò/cháy · nhiệt · turbine ·

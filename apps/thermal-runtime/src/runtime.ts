@@ -521,9 +521,15 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
     put('ALM_RAT_UNRAT_01', ratReport.unrationalized.length);
   };
 
+  // Tag CHỈ THỊ SỨC KHOẺ cognitive (P4) — READ-ONLY DERIVED (như ALM_* KPI GĐ-119): runtime công bố điểm
+  // sức khoẻ 0..100/asset + tổng hợp fleet để màn hình KHAI BÁO render; provider AI KHÔNG ghi tag process.
+  const ahScoreTag = (assetId: string): string => 'AH_' + assetId.replace(/-/g, '_') + '_SCORE_01';
+  const AH_FLEET_TAGS = ['AH_FLEET_AVG_01', 'AH_FLEET_WORST_01', 'AH_FLEET_ANOMALIES_01', 'AH_FLEET_HEALTHY_01'];
+  const AH_TAGS = [...thermalAssetHealth.map((a) => ahScoreTag(a.assetId)), ...AH_FLEET_TAGS];
+
   // Historian (adapter memory): ghi tag hiển thị + tag alarm để truy vấn lịch sử + DATA REPLAY.
   const historian = new MemoryHistorian({ formatTs: (ms) => time.formatEpoch(ms) });
-  const recordedTags = [...new Set([...boilerScreens.flatMap((s) => screenTags(s)), ...alarmTags, ...ALM_KPI_TAGS, ...turbine.tagsProvided, ...reheat.tagsProvided, ...feedwater.tagsProvided, ...condenser.tagsProvided, ...fluegas.tagsProvided, ...emissions.tagsProvided, ...electrical.tagsProvided, ...coolingTower.tagsProvided, ...coalHandling.tagsProvided, ...plantBalance.tagsProvided])];
+  const recordedTags = [...new Set([...boilerScreens.flatMap((s) => screenTags(s)), ...alarmTags, ...ALM_KPI_TAGS, ...AH_TAGS, ...turbine.tagsProvided, ...reheat.tagsProvided, ...feedwater.tagsProvided, ...condenser.tagsProvided, ...fluegas.tagsProvided, ...emissions.tagsProvided, ...electrical.tagsProvided, ...coolingTower.tagsProvided, ...coalHandling.tagsProvided, ...plantBalance.tagsProvided])];
   const record = (): void => {
     if (stepCount % REC_EVERY === 0) {
       const ts = nowIso();
@@ -666,6 +672,19 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
     runningHours: (assetId: string): number => maintenance.allRuntime().find((x) => x.assetId === assetId)?.runningHours ?? 0,
     formatTs: (ms: number): Iso8601 => time.formatEpoch(ms) as Iso8601,
   });
+  // Công bố tag chỉ thị sức khoẻ (điểm/asset + tổng hợp fleet) cho HMI khai báo — read-only derived.
+  const publishCognitive = (): void => {
+    const f = cognitive.fleetOverview(cognitiveInput());
+    let healthy = 0;
+    for (const m of f.assets) {
+      put(ahScoreTag(m.assetId), Math.round(m.score * 10) / 10);
+      if (m.band === 'healthy') healthy++;
+    }
+    put('AH_FLEET_AVG_01', Math.round(f.averageScore * 10) / 10);
+    put('AH_FLEET_WORST_01', f.worst.length > 0 ? Math.round((f.worst[0]?.score ?? 100) * 10) / 10 : 100);
+    put('AH_FLEET_ANOMALIES_01', f.anomalyCount);
+    put('AH_FLEET_HEALTHY_01', healthy);
+  };
 
   // Report Engine (doc 21): ráp báo cáo ca/ngày từ section khai báo của plugin, đọc từ Historian.
   const reportEngine = new ReportEngine(thermalReportSections);
@@ -715,6 +734,7 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
   // Breadth "sống": sau warmup, đăng ký RegistrySimModel sinh giá trị placeholder cho toàn §10 catalog
   // (tách biệt tag sim thật của boiler/turbine) → mọi màn hình/tag breadth có dữ liệu. Opt-in (mặc định tắt).
   if (opts.breadthLive) host.register(new RegistrySimModel(registry.tags));
+  publishCognitive(); // populate tag chỉ thị sức khoẻ ngay sau warmup (giá trị đã ổn định)
 
   // OTS: freeze (dừng toàn bộ vòng) + snapshot/restore (SimulationHost + tag chính).
   let frozen = false;
@@ -739,6 +759,7 @@ export function createThermalRuntime(opts: ThermalRuntimeOptions = {}): ThermalR
     publishAlarmKpi();
     evalCe();
     tickLiveSeqs();
+    if (stepCount % 10 === 0) publishCognitive(); // cập nhật chỉ thị sức khoẻ ~1 s/lần
     record();
     maintenance.sample((id) => num(id), nowMs());
   };

@@ -46,4 +46,7 @@ export const thermalNav: ReadonlyArray<NavNode> = [
   { screenId: 'D2-alarm-performance', level: 'D2', parentId: 'D1-plant-overview', title: { vi: 'Hiệu năng hệ alarm (EEMUA-191)', en: 'Alarm Performance (EEMUA-191)' } },
   { screenId: 'D2-alarm-rationalization', level: 'D2', parentId: 'D1-plant-overview', title: { vi: 'Rationalization alarm (ISA-18.2)', en: 'Alarm Rationalization' } },
   { screenId: 'D2-calibration', level: 'D2', parentId: 'D1-plant-overview', title: { vi: 'Hiệu chỉnh hiệu năng', en: 'Performance Calibration' } },
+  // AI Cognitive/Predictive Maintenance (gói P4): tổng quan fleet + thanh điểm sức khoẻ tài sản.
+  { screenId: 'D2-ai-maintenance', level: 'D2', parentId: 'D1-plant-overview', title: { vi: 'AI Bảo trì tiên đoán (fleet)', en: 'AI Predictive Maintenance (fleet)' } },
+  { screenId: 'D3-asset-health', level: 'D3', parentId: 'D2-ai-maintenance', title: { vi: 'Sức khoẻ tài sản', en: 'Asset Health' } },
 ];
