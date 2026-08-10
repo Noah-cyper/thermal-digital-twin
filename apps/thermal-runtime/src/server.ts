@@ -12,7 +12,7 @@ import type { ReplaySession } from '@idtp/engines';
 import { SecurityEngine, buildScreen } from '@idtp/engines';
 import { boilerScreens, screenTags } from '@idtp/plugin-thermal-power-600';
 import { startPersistence } from './persistence';
-import { startFieldLink } from './field-link';
+import { startFieldLink, type FieldLink } from './field-link';
 import { makeModbusTcpDriver } from './field-drivers';
 import type { FieldPoint, FieldProtocol } from '@idtp/sdk';
 import { createThermalRuntime } from './runtime';
@@ -233,6 +233,9 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
     rt.causeEffectMatrices().map((mx) => ({ matrixId: mx.matrixId, title: mx.title, state: rt.causeEffectState(mx.matrixId) }));
   const ceMsg = (): string => JSON.stringify({ type: 'ce', matrices: ceStates() });
   const permMsg = (): string => JSON.stringify({ type: 'permissives', active: rt.activeInterlocks() }); // interlock đang chặn
+  let fieldLink: FieldLink | undefined; // (6) field I/O southbound — gán khi bật env; mặc định undefined (chưa bật)
+  const fieldStatusMsg = (): string =>
+    JSON.stringify({ type: 'field-status', enabled: fieldLink !== undefined, status: fieldLink?.status() ?? null, samples: fieldLink?.samples().length ?? 0 });
 
   // Chạy SFC "live" (điều khiển OTS, cùng lớp với freeze) — action 'engineer' (Engineer+), audit, không 2 bước.
   const handleSeqLive = (ws: WebSocket, m: Command): void => {
@@ -438,6 +441,8 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
         ws.send(navMsg());
       } else if (m.cmd === 'permissive-query') {
         ws.send(permMsg());
+      } else if (m.cmd === 'field-status') {
+        ws.send(fieldStatusMsg()); // Field I/O southbound READ-ONLY (trạng thái kết nối, mặc định ngắt)
       } else if (m.cmd === 'faceplate-list') {
         ws.send(JSON.stringify({ type: 'fp-list', items: rt.faceplateList() }));
       } else if (m.cmd === 'faceplate-open' && m.assetId !== undefined) {
@@ -618,6 +623,7 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
     )
       .then((link) => {
         fieldStop = link.stop;
+        fieldLink = link;
         console.log('[field-io]', link.status().notice.vi);
       })
       .catch((e) => console.error('[field-io] lỗi, bỏ qua:', e?.message ?? e));

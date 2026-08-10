@@ -140,6 +140,7 @@
     </span>
     <span id="otsState" class="otsind"></span>
     <span class="link"><i class="dot" id="linkDot"></i><span id="linkTxt">connecting…</span></span>
+    <span class="link" id="fieldPill" style="display:none" title="Field I/O southbound"><i class="dot off"></i><span id="fieldTxt">FIELD</span></span>
   </div>
   <div class="toast" id="toast"></div>
   <div class="fpmask" id="fpMask">
@@ -797,7 +798,7 @@
   }
   function connect(){
     ws = window.IDTPLocal ? window.IDTPLocal.connect() : new WebSocket('ws://' + location.host);
-    ws.onopen = () => { $('linkDot').className = 'dot'; $('linkTxt').textContent = 'LINK'; if (current) subscribe(current); send({ cmd: 'faceplate-list' }); };
+    ws.onopen = () => { $('linkDot').className = 'dot'; $('linkTxt').textContent = 'LINK'; if (current) subscribe(current); send({ cmd: 'faceplate-list' }); send({ cmd: 'field-status' }); };
     ws.onclose = () => { $('linkDot').className = 'dot off'; $('linkTxt').textContent = 'reconnecting…'; setTimeout(connect, 1000); };
     ws.onmessage = (e) => { try { const m = JSON.parse(e.data);
       if (m.type === 'delta'){ Object.assign(state, m.values); refresh(); if (m.mode === 'REPLAY' && m.replay) updateReplay(m.replay); }
@@ -814,6 +815,7 @@
       else if (m.type === 'fp-data'){ if (m.assetId === fpOpen){ fpData = m.data; renderFp(); } }
       else if (m.type === 'fp-trend'){ if (m.assetId === fpOpen){ fpTrend = m.trend; if (fpTab === 'Trend') renderFp(); } }
       else if (m.type === 'nav'){ onNav(m); }
+      else if (m.type === 'field-status'){ var fp=$('fieldPill'); if(fp){ if(m.enabled){ fp.style.display=''; var st=m.status||{}; fp.querySelector('.dot').className='dot'+(st.connected?'':' off'); $('fieldTxt').textContent='FIELD '+(st.connected?('ON '+m.samples):'OFF'); fp.title=(st.notice&&st.notice.vi)||'Field I/O southbound'; } else { fp.style.display='none'; } } }
       else if (m.type === 'ai-fleet'){ onAiFleet(m); }
       else if (m.type === 'ai-assess'){ onAiAssess(m); }
       else if (m.type === 'registry'){ onRegistry(m.summary); }
