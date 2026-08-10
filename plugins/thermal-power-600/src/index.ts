@@ -53,6 +53,7 @@ export type { AlarmRationalization, AlarmRationalizationReport } from './alarms/
 export { thermalKpis } from './kpi/calculators';
 export { thermalMaintenance } from './maintenance/items';
 export { thermalPredictiveRules } from './maintenance/predictive';
+export { thermalAssetHealth } from './maintenance/asset-health';
 export { thermalFaceplates } from './faceplates/defs';
 export { thermalNav } from './nav/tree';
 export { thermalTagTemplates } from './seed/templates';
