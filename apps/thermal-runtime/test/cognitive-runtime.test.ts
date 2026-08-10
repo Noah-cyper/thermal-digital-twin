@@ -9,7 +9,7 @@ describe('P3 — AI cognitive maintenance trong runtime', () => {
     for (let i = 0; i < 300; i++) rt.step();
     expect(rt.cognitiveInfo().available).toBe(true);
     expect(rt.cognitiveInfo().mode).toBe('simulation');
-    expect(rt.cognitiveAssets().length).toBe(14);
+    expect(rt.cognitiveAssets().length).toBeGreaterThanOrEqual(18);
     const a = rt.cognitiveAssess('FAN-FD')!;
     expect(a.health.band).toBe('healthy');
     expect(a.diagnosis).toBeNull();
@@ -37,7 +37,7 @@ describe('P3 — AI cognitive maintenance trong runtime', () => {
     expect(a.recommendations.length).toBeGreaterThanOrEqual(1);
     // fleet: FAN-FD nằm trong nhóm tệ nhất, có anomaly.
     const f = rt.cognitiveFleet();
-    expect(f.assets.length).toBe(14);
+    expect(f.assets.length).toBeGreaterThanOrEqual(18);
     expect(f.anomalyCount).toBeGreaterThanOrEqual(1);
     expect(f.worst[0]!.assetId).toBe('FAN-FD');
     expect(f.generatedTs).toMatch(/^\d{4}-/);

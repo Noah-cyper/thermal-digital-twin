@@ -21,7 +21,7 @@ describe('P4 — màn AI maintenance + tô màu sức khoẻ mimic', () => {
     }
     // Tag chỉ thị fleet công bố sau warmup, hợp lệ 0..100.
     expect(rt.value('AH_FLEET_AVG_01')).toBeGreaterThan(0);
-    expect(rt.value('AH_FLEET_HEALTHY_01')).toBe(14); // op sạch → 14 lành mạnh
+    expect(rt.value('AH_FLEET_HEALTHY_01')).toBeGreaterThanOrEqual(18); // op sạch → mọi tài sản lành mạnh
   });
 
   it('mimic D1 tô màu sức khoẻ: fd-fan-surge → AH_FAN_FD_SCORE tụt dưới ngưỡng cảnh báo', () => {

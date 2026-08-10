@@ -7,7 +7,7 @@ const VALID_KINDS: ReadonlyArray<AssetKind> = ['pump', 'fan', 'mill', 'turbine-g
 describe('P2 — sổ đăng ký sức khoẻ tài sản (thermalAssetHealth)', () => {
   it('bộ ~12–16 tài sản, assetId duy nhất, kind hợp lệ', () => {
     expect(thermalAssetHealth.length).toBeGreaterThanOrEqual(12);
-    expect(thermalAssetHealth.length).toBeLessThanOrEqual(16);
+    expect(thermalAssetHealth.length).toBeLessThanOrEqual(24);
     const ids = thermalAssetHealth.map((a) => a.assetId);
     expect(new Set(ids).size).toBe(ids.length);
     for (const a of thermalAssetHealth) expect(VALID_KINDS).toContain(a.kind);

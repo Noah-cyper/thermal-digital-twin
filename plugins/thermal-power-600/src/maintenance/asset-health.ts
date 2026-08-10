@@ -133,4 +133,42 @@ export const thermalAssetHealth: ReadonlyArray<AssetHealthSpec> = [
     designLifeH: 200000,
     signals: [{ tag: 'FW_DEAERATOR_TEMP_01', label: { vi: 'Nhiệt khử khí', en: 'Deaeration temp' }, good: 155, bad: 135, weight: 1, unit: '°C' }],
   },
+  {
+    assetId: 'ESP',
+    name: { vi: 'Lọc bụi tĩnh điện (ESP)', en: 'Electrostatic Precipitator' },
+    kind: 'other',
+    designLifeH: 150000,
+    signals: [
+      { tag: 'EMI_ESP_EFF_01', label: { vi: 'Hiệu suất lọc bụi', en: 'Collection efficiency' }, good: 99.5, bad: 96, weight: 2, unit: '%' },
+      { tag: 'EMI_DUST_STACK_01', label: { vi: 'Bụi ống khói', en: 'Stack dust' }, good: 30, bad: 150, weight: 1, unit: 'mg/m³' },
+    ],
+  },
+  {
+    assetId: 'SCR',
+    name: { vi: 'Khử NOx (SCR)', en: 'SCR deNOx' },
+    kind: 'other',
+    designLifeH: 100000,
+    signals: [
+      { tag: 'ECTL_SCR_ACTIVITY_01', label: { vi: 'Hoạt tính xúc tác', en: 'Catalyst activity' }, good: 100, bad: 50, weight: 2, unit: '%' },
+      { tag: 'ECTL_NH3_SLIP_01', label: { vi: 'Rò NH₃ (ammonia slip)', en: 'Ammonia slip' }, good: 2, bad: 18, weight: 2, unit: 'ppm' },
+      { tag: 'ECTL_SCR_REMOVAL_01', label: { vi: 'Độ khử NOx', en: 'NOx removal' }, good: 55, bad: 25, weight: 1, unit: '%' },
+    ],
+  },
+  {
+    assetId: 'FGD',
+    name: { vi: 'Khử SO₂ (FGD)', en: 'FGD deSOx' },
+    kind: 'other',
+    designLifeH: 120000,
+    signals: [
+      { tag: 'ECTL_FGD_REMOVAL_01', label: { vi: 'Độ khử SO₂', en: 'SO₂ removal' }, good: 90, bad: 70, weight: 2, unit: '%' },
+      { tag: 'ECTL_FGD_PH_01', label: { vi: 'pH slurry đá vôi', en: 'Limestone slurry pH' }, good: 5.5, bad: 4.5, weight: 1 },
+    ],
+  },
+  {
+    assetId: 'COOLING-TOWER',
+    name: { vi: 'Tháp giải nhiệt', en: 'Cooling Tower' },
+    kind: 'other',
+    designLifeH: 150000,
+    signals: [{ tag: 'CT_APPROACH_01', label: { vi: 'Approach (cận nhiệt ướt)', en: 'Approach to wet-bulb' }, good: 5, bad: 13, weight: 1, unit: '°C' }],
+  },
 ];

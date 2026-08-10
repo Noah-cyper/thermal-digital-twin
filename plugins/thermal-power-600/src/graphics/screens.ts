@@ -134,6 +134,10 @@ const AI_HEALTH: ReadonlyArray<{ id: string; tag: string; label: string }> = [
   { id: 'mills', tag: 'AH_COAL_MILLS_SCORE_01', label: 'Máy nghiền' },
   { id: 'cw', tag: 'AH_CW_SYSTEM_SCORE_01', label: 'Nước tuần hoàn' },
   { id: 'dea', tag: 'AH_DEAERATOR_SCORE_01', label: 'Khử khí' },
+  { id: 'esp', tag: 'AH_ESP_SCORE_01', label: 'Lọc bụi ESP' },
+  { id: 'scr', tag: 'AH_SCR_SCORE_01', label: 'SCR deNOx' },
+  { id: 'fgd', tag: 'AH_FGD_SCORE_01', label: 'FGD deSOx' },
+  { id: 'ctower', tag: 'AH_COOLING_TOWER_SCORE_01', label: 'Tháp giải nhiệt' },
 ];
 const AI_HEALTH_ALARMS: AlarmCond[] = [
   { when: 'lt', value: 40, sev: 2 },
@@ -239,10 +243,10 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       // ③ Đường khói
       equip('m-econ', 'box', 'Bộ hâm nước', 'FW_ECON_INLET_TEMP_01', '°C', 'D3-boiler-combustion', 385, 67, 110, 54),
       equip('m-ah', 'box', 'Sấy gió (AH)', 'AH_AIR_OUT_TEMP_01', '°C', 'D3-fouling-air', 525, 67, 110, 54),
-      equip('m-scr', 'box', 'SCR deNOx', 'ECTL_SCR_REMOVAL_01', '%', 'D3-emissions-control', 665, 67, 110, 54),
-      equip('m-esp', 'box', 'Lọc bụi ESP', 'EMI_DUST_STACK_01', 'mg/m³', 'D3-emissions-cems', 805, 67, 110, 54),
+      equip('m-scr', 'box', 'SCR deNOx', 'ECTL_SCR_REMOVAL_01', '%', 'D3-emissions-control', 665, 67, 110, 54, [], 'AH_SCR_SCORE_01'),
+      equip('m-esp', 'box', 'Lọc bụi ESP', 'EMI_DUST_STACK_01', 'mg/m³', 'D3-emissions-cems', 805, 67, 110, 54, [], 'AH_ESP_SCORE_01'),
       equip('m-idfan', 'pump', 'Quạt ID', 'FAN_ID_FLOW_01', 'kg/s', 'D3-fan-system', 950, 62, 64, 64, [], 'AH_FAN_ID_SCORE_01'),
-      equip('m-fgd', 'box', 'FGD deSOx', 'ECTL_FGD_REMOVAL_01', '%', 'D3-emissions-control', 1044, 67, 110, 54),
+      equip('m-fgd', 'box', 'FGD deSOx', 'ECTL_FGD_REMOVAL_01', '%', 'D3-emissions-control', 1044, 67, 110, 54, [], 'AH_FGD_SCORE_01'),
       equip('m-stack', 'stack', 'Ống khói', 'BLR_FLUE_O2_01', '%', 'D3-flue-stack', 1190, 20, 48, 150, [
         { when: 'lt', value: 1.5, sev: 2 },
       ]),
@@ -266,7 +270,7 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       equip('m-bfp', 'pump', 'Bơm cấp BFP', 'FW_FLOW_01', 't/h', 'D3-bfp-cavitation', 410, 506, 68, 68, [], 'AH_BFP_SCORE_01'),
       equip('m-hph', 'box', 'Gia nhiệt cao áp', 'FW_HPH3_TEMP_01', '°C', 'D3-heater-detail', 240, 512, 110, 56, [], 'AH_HP_HEATER_SCORE_01'),
       // ⑤ Nước tuần hoàn
-      equip('m-ct', 'box', 'Tháp giải nhiệt', 'CT_APPROACH_01', '°C', 'D3-cooling-tower', 864, 690, 120, 64),
+      equip('m-ct', 'box', 'Tháp giải nhiệt', 'CT_APPROACH_01', '°C', 'D3-cooling-tower', 864, 690, 120, 64, [], 'AH_COOLING_TOWER_SCORE_01'),
       equip('m-cwp', 'pump', 'Bơm nước tuần hoàn', 'CT_CW_SUPPLY_01', '°C', 'D3-cw-pump', 1020, 688, 68, 68, [], 'AH_CW_SYSTEM_SCORE_01'),
       // ⑥ Thải tro – xỉ
       equip('m-bash', 'box', 'Thải xỉ đáy', 'ASH_BOTTOM_FLOW_01', 't/h', 'D3-ash-handling', 150, 690, 120, 52),
