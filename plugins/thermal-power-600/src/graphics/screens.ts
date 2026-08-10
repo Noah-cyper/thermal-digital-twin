@@ -229,19 +229,19 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       equip('m-pafan', 'pump', 'Quạt PA', 'FAN_PA_FLOW_01', 'kg/s', 'D3-fan-system', 24, 430, 64, 64),
       equip('m-fdfan', 'pump', 'Quạt FD', 'FAN_FD_FLOW_01', 'kg/s', 'D3-fan-system', 124, 430, 64, 64, [], 'AH_FAN_FD_SCORE_01'),
       // ② Lò hơi
-      equip('m-furnace', 'furnace', 'Buồng lửa', 'BLR_FURN_PRESS_01', 'Pa', 'D3-furnace', 210, 230, 120, 210, [
+      equip('m-furnace', 'furnace', 'Buồng lửa', 'BLR_FURN_PRESS_01', 'Pa', 'D3-boiler-detail', 210, 230, 120, 210, [
         { when: 'gt', value: 200, sev: 1 },
         { when: 'lt', value: -200, sev: 1 },
       ]),
-      equip('m-drum', 'drum', 'Bao hơi', 'BLR_DRUM_LEVEL_01', 'mm', 'D3-steam-drum', 205, 166, 150, 48, [
+      equip('m-drum', 'drum', 'Bao hơi', 'BLR_DRUM_LEVEL_01', 'mm', 'D3-boiler-detail', 205, 166, 150, 48, [
         { when: 'gt', value: 250, sev: 1 },
         { when: 'lt', value: -250, sev: 1 },
       ]),
-      equip('m-sh', 'box', 'Quá nhiệt', 'BLR_MSTM_SH_TEMP_01', '°C', 'D3-superheater', 385, 166, 120, 48, [
+      equip('m-sh', 'box', 'Quá nhiệt', 'BLR_MSTM_SH_TEMP_01', '°C', 'D3-boiler-detail', 385, 166, 120, 48, [
         { when: 'gt', value: 550, sev: 2 },
       ]),
       // ③ Đường khói
-      equip('m-econ', 'box', 'Bộ hâm nước', 'FW_ECON_INLET_TEMP_01', '°C', 'D3-boiler-combustion', 385, 67, 110, 54),
+      equip('m-econ', 'box', 'Bộ hâm nước', 'FW_ECON_INLET_TEMP_01', '°C', 'D3-boiler-detail', 385, 67, 110, 54),
       equip('m-ah', 'box', 'Sấy gió (AH)', 'AH_AIR_OUT_TEMP_01', '°C', 'D3-fouling-air', 525, 67, 110, 54),
       equip('m-scr', 'box', 'SCR deNOx', 'ECTL_SCR_REMOVAL_01', '%', 'D3-emissions-control', 665, 67, 110, 54, [], 'AH_SCR_SCORE_01'),
       equip('m-esp', 'box', 'Lọc bụi ESP', 'EMI_DUST_STACK_01', 'mg/m³', 'D3-emissions-cems', 805, 67, 110, 54, [], 'AH_ESP_SCORE_01'),
@@ -1284,6 +1284,68 @@ export const boilerScreens: ReadonlyArray<ScreenDef> = [
       equip('fwd-lplvl', 'box', 'Mức drain LP', 'FWH_LPH_DRAIN_LEVEL_01', '%', '', 440, 40, 190, 56),
       equip('fwd-emerg', 'box', 'Van xả khẩn (0/1)', 'FWH_EMERG_DRAIN_01', '', '', 440, 112, 190, 56, [{ when: 'gt', value: 0, sev: 2 }]),
       equip('fwd-tocond', 'box', 'Drain → bình ngưng', 'FWH_DRAIN_TO_COND_01', 't/h', '', 440, 184, 190, 56),
+    ],
+  },
+  {
+    // Sơ đồ CHI TIẾT hệ Lò hơi (drill từ D1: buồng lửa/bao hơi/quá nhiệt/hâm nước → màn này). Toàn màn hình:
+    // đường than-gió → buồng lửa → bao hơi/nước cấp → quá nhiệt → hơi chính → tái nhiệt → đường khói.
+    screenId: 'D3-boiler-detail',
+    level: 'D3',
+    title: { vi: 'Lò hơi — sơ đồ chi tiết (than · gió · lửa · hơi · tái nhiệt · khói)', en: 'Boiler Island — Detailed Mimic' },
+    elements: [
+      // ── Đường than & nghiền ──
+      equip('bd-bunker', 'box', 'Bunker than', 'BLR_COAL_FLOW_01', 't/h', '', 30, 70, 156, 62),
+      equip('bd-milla', 'box', 'Máy nghiền A', 'PVM_A_LOAD_01', '%', 'D3-pulverizer-mills', 30, 150, 156, 56),
+      equip('bd-millb', 'box', 'Máy nghiền B', 'PVM_B_LOAD_01', '%', 'D3-pulverizer-mills', 30, 216, 156, 56),
+      equip('bd-millc', 'box', 'Máy nghiền C', 'PVM_C_LOAD_01', '%', 'D3-pulverizer-mills', 30, 282, 156, 56),
+      equip('bd-fuel', 'box', 'Lệnh nhiên liệu', 'BLR_FUEL_DEMAND_01', '%', '', 30, 362, 156, 56),
+      pipe('bd-pc1', 'coal', [{ x: 108, y: 132 }, { x: 108, y: 150 }]),
+      pipe('bd-pc2', 'coal', [{ x: 186, y: 244 }, { x: 250, y: 244 }, { x: 250, y: 290 }]),
+      // ── Đường gió (FD) ──
+      equip('bd-fdfan', 'box', 'Quạt FD (gió)', 'FAN_FD_FLOW_01', 'kg/s', 'D3-fan-system', 30, 540, 156, 62),
+      equip('bd-fddmp', 'box', 'Damper FD', 'BLR_FD_DAMPER_01', '%', '', 30, 620, 156, 56),
+      pipe('bd-pa', 'air', [{ x: 186, y: 570 }, { x: 250, y: 570 }, { x: 250, y: 470 }]),
+      // ── Buồng lửa + chất lượng cháy ──
+      equip('bd-furnace', 'box', 'Buồng lửa', 'BLR_FURN_PRESS_01', 'Pa', '', 250, 120, 180, 330, [{ when: 'gt', value: 200, sev: 2 }]),
+      equip('bd-o2', 'box', 'O₂ khói', 'CMB_O2_MEAS_01', '%', 'D3-combustion-opt', 250, 470, 180, 54, [{ when: 'lt', value: 2, sev: 2 }]),
+      equip('bd-eff', 'box', 'Hiệu suất lò', 'CMB_BOILER_EFF_EST_01', '%', 'D3-combustion-opt', 250, 532, 180, 54),
+      equip('bd-exair', 'box', 'Dư gió (excess air)', 'FG_EXCESS_AIR_01', '%', '', 250, 594, 180, 54),
+      // ── Bao hơi & nước cấp ──
+      equip('bd-drum', 'box', 'Bao hơi (mức)', 'BLR_DRUM_LEVEL_01', 'mm', '', 490, 66, 200, 92, [{ when: 'gt', value: 200, sev: 2 }, { when: 'lt', value: -200, sev: 2 }]),
+      equip('bd-fwflow', 'box', 'Nước cấp (lưu lượng)', 'BLR_FW_FLOW_01', 't/h', '', 490, 470, 200, 56),
+      equip('bd-fwcv', 'box', 'Van nước cấp (OP)', 'BLR_FW_CV_01', '%', '', 490, 534, 200, 56),
+      pipe('bd-pdown', 'water', [{ x: 520, y: 158 }, { x: 520, y: 300 }, { x: 430, y: 300 }]),
+      pipe('bd-priser', 'steam', [{ x: 660, y: 300 }, { x: 660, y: 158 }]),
+      pipe('bd-pfw', 'water', [{ x: 590, y: 470 }, { x: 590, y: 158 }]),
+      // ── Quá nhiệt (SH) → hơi chính → turbine HP ──
+      equip('bd-ltsh', 'box', 'SH sơ cấp (LTSH)', 'BLR_SH_LTSH_TEMP_01', '°C', '', 730, 66, 168, 62),
+      equip('bd-platen', 'box', 'SH platen', 'BLR_SH_PLATEN_TEMP_01', '°C', '', 918, 66, 168, 62, [{ when: 'gt', value: 560, sev: 2 }]),
+      equip('bd-spray', 'box', 'Phun giảm ôn SH', 'BLR_SH_SPRAY_CV_01', '%', '', 730, 146, 168, 54),
+      equip('bd-fsh', 'box', 'Hơi chính (nhiệt)', 'BLR_MSTM_SH_TEMP_01', '°C', '', 1106, 66, 178, 62, [{ when: 'gt', value: 545, sev: 1 }]),
+      equip('bd-mspress', 'box', 'Áp hơi chính', 'BLR_MSTM_SH_PRESS_01', 'MPa', '', 1106, 146, 178, 54, [{ when: 'gt', value: 18.5, sev: 2 }]),
+      equip('bd-msflow', 'box', 'Lưu lượng hơi', 'BLR_STEAM_FLOW_01', 't/h', '', 1106, 208, 178, 54),
+      equip('bd-turb', 'turbine', '→ Turbine HP', 'BLR_TURBINE_DEMAND_01', 't/h', 'D3-turbine', 1304, 66, 150, 92),
+      pipe('bd-ps1', 'steam', [{ x: 690, y: 97 }, { x: 730, y: 97 }]),
+      pipe('bd-ps2', 'steam', [{ x: 898, y: 97 }, { x: 918, y: 97 }]),
+      pipe('bd-ps3', 'steam', [{ x: 1086, y: 97 }, { x: 1106, y: 97 }]),
+      pipe('bd-ps4', 'steam', [{ x: 1284, y: 97 }, { x: 1304, y: 97 }]),
+      // ── Tái nhiệt (RH) → turbine IP ──
+      equip('bd-crh', 'box', 'Hồi nhiệt lạnh (CRH)', 'TRB_CRH_TEMP_01', '°C', '', 730, 300, 168, 62),
+      equip('bd-rh', 'box', 'Bộ tái nhiệt (bias)', 'TRB_RH_BIAS_01', '°C', '', 918, 300, 168, 62),
+      equip('bd-hrh', 'box', 'Hồi nhiệt nóng (HRH)', 'TRB_HRH_TEMP_01', '°C', '', 1106, 300, 178, 62, [{ when: 'gt', value: 545, sev: 1 }]),
+      equip('bd-hrhp', 'box', 'Áp reheat', 'TRB_HRH_PRESS_01', 'MPa', '', 1106, 370, 178, 54),
+      equip('bd-ipturb', 'turbine', '→ Turbine IP', 'BLR_TURBINE_DEMAND_01', 't/h', 'D3-turbine', 1304, 300, 150, 62),
+      pipe('bd-pr1', 'steam', [{ x: 898, y: 331 }, { x: 918, y: 331 }]),
+      pipe('bd-pr2', 'steam', [{ x: 1284, y: 331 }, { x: 1304, y: 331 }]),
+      // ── Đường khói: buồng lửa → hâm nước → sấy gió → quạt ID → SCR ──
+      equip('bd-econ', 'box', 'Khói vào hâm nước', 'FG_AH_GAS_IN_TEMP_01', '°C', '', 730, 470, 168, 62),
+      equip('bd-ah', 'box', 'Khói ra sấy gió', 'FG_STACK_TEMP_01', '°C', 'D3-fouling-air', 918, 470, 168, 62),
+      equip('bd-flueflow', 'box', 'Lưu lượng khói', 'FG_FLOW_01', 'kg/s', '', 1106, 470, 168, 62),
+      equip('bd-idfan', 'box', 'Quạt ID → SCR', 'FAN_ID_FLOW_01', 'kg/s', 'D3-fan-system', 1304, 470, 150, 62),
+      pipe('bd-pf1', 'flue', [{ x: 430, y: 260 }, { x: 660, y: 260 }, { x: 660, y: 501 }, { x: 730, y: 501 }]),
+      pipe('bd-pf2', 'flue', [{ x: 898, y: 501 }, { x: 918, y: 501 }]),
+      pipe('bd-pf3', 'flue', [{ x: 1086, y: 501 }, { x: 1106, y: 501 }]),
+      pipe('bd-pf4', 'flue', [{ x: 1274, y: 501 }, { x: 1304, y: 501 }]),
     ],
   },
   {
