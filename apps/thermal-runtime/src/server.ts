@@ -483,6 +483,16 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
         // Master alarm rationalization READ-ONLY (ISA-18.2): bảng nguyên nhân/hậu quả/ưu tiên + phân bố EEMUA.
         if (tokens.get(ws) === undefined) ws.send(JSON.stringify({ type: 'denied', reason: 'chưa đăng nhập' }));
         else ws.send(JSON.stringify({ type: 'alarm-rationalization', report: rt.alarmRationalization() }));
+      } else if (m.cmd === 'ai-fleet') {
+        // AI Cognitive Maintenance READ-ONLY (P5): tổng quan sức khoẻ fleet + chế độ provider (gắn nhãn trung thực).
+        if (tokens.get(ws) === undefined) ws.send(JSON.stringify({ type: 'denied', reason: 'chưa đăng nhập' }));
+        else ws.send(JSON.stringify({ type: 'ai-fleet', overview: rt.cognitiveFleet(), info: rt.cognitiveInfo() }));
+      } else if (m.cmd === 'ai-assess' && m.assetId !== undefined) {
+        if (tokens.get(ws) === undefined) ws.send(JSON.stringify({ type: 'denied', reason: 'chưa đăng nhập' }));
+        else ws.send(JSON.stringify({ type: 'ai-assess', assetId: m.assetId, assessment: rt.cognitiveAssess(m.assetId) ?? null }));
+      } else if (m.cmd === 'ai-diagnose' && m.assetId !== undefined) {
+        if (tokens.get(ws) === undefined) ws.send(JSON.stringify({ type: 'denied', reason: 'chưa đăng nhập' }));
+        else ws.send(JSON.stringify({ type: 'ai-diagnose', assetId: m.assetId, diagnosis: rt.cognitiveDiagnose(m.assetId) ?? null }));
       } else if (m.cmd === 'replay-start') {
         const range = rt.historian.dataRange();
         if (range) {

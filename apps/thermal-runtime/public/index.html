@@ -211,6 +211,8 @@
         <button id="openJournal" title="Event Log / SOE (màn hình hệ thống): nhật ký sự kiện alarm/trip/lệnh/chuỗi/bảo mật">📓 Nhật ký sự kiện</button>
         <button id="openDiag" title="System Diagnostic (màn hình hệ thống): tự soi trạng thái sim/tag/loop/historian/alarm/journal">🩺 Chẩn đoán hệ thống</button>
         <button id="openRat" title="Alarm Rationalization (ISA-18.2): bảng master alarm — nguyên nhân/hậu quả/ưu tiên + phân bố EEMUA-191">📋 Rationalization alarm</button>
+        <button id="openAi" title="AI Cognitive/Predictive Maintenance (chỉ đọc): sức khoẻ tài sản + chẩn đoán WHAT/WHY/HOW + nguyên nhân gốc + RUL mô phỏng">🤖 AI Bảo trì</button>
+        <button id="aiDemo" title="Demo 90s: tiêm sự cố quạt FD → AI phát hiện suy giảm, chẩn đoán, khuyến nghị → tự khôi phục">▶ Demo AI (90s)</button>
         <button data-ots="freeze" id="otsFreeze">Freeze (OTS)</button>
         <button data-ots="snapshot">Snapshot</button>
         <button data-ots="restore" id="otsRestore" disabled>Restore</button>
@@ -306,6 +308,19 @@
       <div id="ratSummary" style="margin-bottom:10px"></div>
       <div id="ratBody"></div>
       <div class="note" style="margin-top:8px;font-size:11px;opacity:.6">Chỉ đọc — bảng rationalization tĩnh (nguyên nhân/hậu quả/khắc phục/ưu tiên). Không tác động thiết bị.</div>
+    </div>
+  </div>
+  <div id="aiModal" hidden style="position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center">
+    <div style="background:var(--panel,#141a20);color:var(--text,#e7edf2);border:1px solid var(--line,#2a343d);border-radius:8px;width:min(940px,97vw);max-height:92vh;overflow:auto;padding:16px 18px;font-size:13px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <b>🤖 AI Cognitive / Predictive Maintenance</b>
+        <span id="aiX" style="cursor:pointer;opacity:.6;font-size:16px">✕</span></div>
+      <div id="aiNotice" style="font-size:11px;opacity:.75;margin-bottom:10px"></div>
+      <div style="display:grid;grid-template-columns:320px 1fr;gap:16px">
+        <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;opacity:.6;margin-bottom:6px">Sức khoẻ tài sản (fleet)</div><div id="aiFleet"></div></div>
+        <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;opacity:.6;margin-bottom:6px">Chẩn đoán chi tiết</div><div id="aiDetail" style="opacity:.6">Chọn một tài sản bên trái để xem WHAT / WHY / HOW, nguyên nhân gốc và RUL.</div></div>
+      </div>
+      <div class="note" style="margin-top:10px;font-size:11px;opacity:.6">Chỉ đọc — suy từ mô phỏng vật lý tất định nội bộ. RUL gắn nhãn MÔ PHỎNG. Không ghi tag/đổi setpoint/ACK alarm.</div>
     </div>
   </div>
   <div id="trendModal" hidden style="position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center">
@@ -799,6 +814,8 @@
       else if (m.type === 'fp-data'){ if (m.assetId === fpOpen){ fpData = m.data; renderFp(); } }
       else if (m.type === 'fp-trend'){ if (m.assetId === fpOpen){ fpTrend = m.trend; if (fpTab === 'Trend') renderFp(); } }
       else if (m.type === 'nav'){ onNav(m); }
+      else if (m.type === 'ai-fleet'){ onAiFleet(m); }
+      else if (m.type === 'ai-assess'){ onAiAssess(m); }
       else if (m.type === 'registry'){ onRegistry(m.summary); }
       else if (m.type === 'seq-list'){ onSeqList(m.items || []); }
       else if (m.type === 'seq-live'){ onSeqLive(m.active || []); }
@@ -938,6 +955,105 @@
   $('openDiag').onclick = () => send({ cmd: 'diag' });
   $('openRat').onclick = () => send({ cmd: 'alarm-rationalization' });
   $('ratX').onclick = () => { $('ratModal').hidden = true; };
+
+  // ── AI Cognitive / Predictive Maintenance panel (P5, chỉ đọc) ──
+  const AI_BAND = { healthy: ['#2FA84F', 'Lành mạnh'], watch: ['#8FBF3F', 'Theo dõi'], warning: ['#F5A524', 'Cảnh báo'], critical: ['#E5484D', 'Nguy cấp'] };
+  const AI_PRIO = { routine: 'Thường quy', planned: 'Theo kế hoạch', urgent: 'Khẩn cấp' };
+  let aiOpen = false, aiSel = null, aiNames = {};
+  function openAi(){ aiOpen = true; $('aiModal').hidden = false; send({ cmd: 'ai-fleet' }); if (aiSel) send({ cmd: 'ai-assess', assetId: aiSel }); }
+  function closeAi(){ aiOpen = false; $('aiModal').hidden = true; }
+  function onAiFleet(m){
+    const info = m.info || {}, ov = m.overview || {};
+    $('aiNotice').textContent = (info.notice ? info.notice.vi : '') + '  ·  TB ' + (ov.averageScore != null ? ov.averageScore.toFixed(0) : '—') + '/100 · ' + (ov.anomalyCount || 0) + ' bất thường';
+    const box = $('aiFleet'); box.innerHTML = '';
+    for (const a of (ov.assets || [])) {
+      aiNames[a.assetId] = a.name ? a.name.vi : a.assetId;
+      const bc = (AI_BAND[a.band] || AI_BAND.healthy)[0];
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:4px;cursor:pointer;' + (aiSel === a.assetId ? 'background:rgba(255,255,255,.06)' : '');
+      row.innerHTML = '<span style="flex:1;font-size:12px">' + (a.name ? a.name.vi : a.assetId) + '</span>'
+        + '<span style="width:120px;height:8px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden"><span style="display:block;height:100%;width:' + Math.max(0, Math.min(100, a.score)) + '%;background:' + bc + '"></span></span>'
+        + '<b style="width:34px;text-align:right;color:' + bc + ';font-variant-numeric:tabular-nums">' + a.score.toFixed(0) + '</b>';
+      row.onclick = () => { aiSel = a.assetId; send({ cmd: 'ai-assess', assetId: a.assetId }); onAiFleet(m); };
+      box.appendChild(row);
+    }
+  }
+  function onAiAssess(m){
+    if (!aiOpen) return;
+    const a = m.assessment; const el = $('aiDetail');
+    if (!a){ el.style.opacity = '.6'; el.textContent = 'Không có dữ liệu cho tài sản này.'; return; }
+    el.style.opacity = '1';
+    const bc = (AI_BAND[a.health.band] || AI_BAND.healthy);
+    let h = '<div style="font-size:15px;font-weight:700;margin-bottom:2px">' + (aiNames[m.assetId] || m.assetId) + '</div>';
+    h += '<div style="margin-bottom:10px"><span style="color:' + bc[0] + ';font-weight:700">' + a.health.score.toFixed(0) + '/100 · ' + bc[1] + '</span></div>';
+    // Factors (đóng góp minh bạch)
+    h += '<div style="font-size:11px;opacity:.6;margin-bottom:4px">Tín hiệu → đóng góp</div>';
+    for (const f of a.health.factors){
+      const g = Math.round(f.goodness * 100);
+      const fc = g >= 65 ? '#2FA84F' : g >= 40 ? '#F5A524' : '#E5484D';
+      h += '<div style="display:flex;align-items:center;gap:8px;margin:2px 0"><span style="flex:1;font-size:12px">' + f.label.vi + ' <span style="opacity:.55">(' + f.value.toFixed(2) + (f.unit ? ' ' + f.unit : '') + ')</span></span>'
+        + '<span style="width:90px;height:7px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden"><span style="display:block;height:100%;width:' + g + '%;background:' + fc + '"></span></span>'
+        + '<b style="width:30px;text-align:right;font-size:11px">' + g + '%</b></div>';
+    }
+    // Diagnosis WHAT/WHY/HOW + RCA
+    if (a.diagnosis){
+      const d = a.diagnosis;
+      h += '<div style="margin-top:12px;padding-top:8px;border-top:1px solid var(--line,#2a343d)">';
+      h += '<div style="margin:3px 0"><b style="color:#4a90d9">Điều gì:</b> ' + esc(d.what) + '</div>';
+      h += '<div style="margin:3px 0"><b style="color:#4a90d9">Vì sao:</b> ' + esc(d.why) + '</div>';
+      h += '<div style="margin:3px 0"><b style="color:#4a90d9">Nên làm:</b> ' + esc(d.how) + '</div>';
+      if (d.rootCauses && d.rootCauses.length){
+        h += '<div style="font-size:11px;opacity:.6;margin:8px 0 4px">Nguyên nhân gốc (xác suất)</div>';
+        for (const r of d.rootCauses){
+          const p = Math.round(r.probability * 100);
+          h += '<div style="display:flex;align-items:center;gap:8px;margin:2px 0"><span style="flex:1;font-size:12px">' + esc(r.label) + '</span>'
+            + '<span style="width:90px;height:7px;background:rgba(255,255,255,.08);border-radius:4px;overflow:hidden"><span style="display:block;height:100%;width:' + p + '%;background:#E5484D"></span></span>'
+            + '<b style="width:30px;text-align:right;font-size:11px">' + p + '%</b></div>';
+        }
+      }
+      h += '</div>';
+    } else {
+      h += '<div style="margin-top:12px;color:#2FA84F">✓ Không có bất thường — tài sản lành mạnh.</div>';
+    }
+    // RUL (nhãn MÔ PHỎNG bắt buộc)
+    if (a.rul){
+      const rh = a.rul.hours == null ? '—' : a.rul.hours >= 1000 ? (a.rul.hours / 1000).toFixed(1) + 'k h' : a.rul.hours.toFixed(0) + ' h';
+      h += '<div style="margin-top:10px;font-size:12px"><b>Tuổi thọ còn lại (RUL):</b> ' + rh + ' <span style="background:#6b3fa0;color:#fff;font-size:10px;padding:1px 6px;border-radius:3px;margin-left:4px">MÔ PHỎNG</span>'
+        + '<div style="opacity:.6;font-size:11px">' + esc(a.rul.basis) + ' · độ tin cậy ' + a.rul.confidence + '</div></div>';
+    }
+    // Recommendations
+    if (a.recommendations && a.recommendations.length){
+      h += '<div style="font-size:11px;opacity:.6;margin:10px 0 4px">Khuyến nghị</div>';
+      for (const r of a.recommendations){
+        h += '<div style="margin:3px 0;font-size:12px">• ' + esc(r.action) + ' <span style="opacity:.6">[' + (AI_PRIO[r.priority] || r.priority) + ']</span></div>';
+      }
+    }
+    el.innerHTML = h;
+  }
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
+  $('openAi').onclick = openAi;
+  $('aiX').onclick = closeAi;
+  $('aiModal').onclick = (e) => { if (e.target === $('aiModal')) closeAi(); };
+
+  // Demo 90s: tiêm sự cố quạt FD → sức khoẻ tụt → AI chẩn đoán → tự khôi phục (chỉ đọc với AI; malf là hành động vận hành).
+  let aiDemoTimer = null, aiDemoPoll = null;
+  function startAiDemo(){
+    if (aiDemoTimer){ showToast('Demo AI đang chạy…', false); return; }
+    aiSel = 'FAN-FD'; openAi();
+    // Tiêm sự cố = hành động vận hành cần quyền override (Engineer+); demo tạm nâng quyền rồi trả về Operator.
+    send({ cmd: 'login', user: 'engineer' });
+    send({ cmd: 'malf', malf: 'fd-fan-surge', value: 1, confirm: true });
+    showToast('▶ Demo AI: tiêm sự cố quạt FD — theo dõi AI chẩn đoán (chỉ đọc)…', true);
+    aiDemoPoll = setInterval(() => { if (ws && ws.readyState === 1){ send({ cmd: 'ai-fleet' }); send({ cmd: 'ai-assess', assetId: 'FAN-FD' }); } }, 2000);
+    aiDemoTimer = setTimeout(() => {
+      send({ cmd: 'malf', malf: 'fd-fan-surge', value: 0, confirm: true });
+      send({ cmd: 'login', user: 'operator' }); // trả quyền về Operator
+      clearInterval(aiDemoPoll); aiDemoPoll = null; aiDemoTimer = null;
+      showToast('✓ Demo AI kết thúc — khôi phục quạt FD, trả quyền Operator.', true);
+      setTimeout(() => { if (aiOpen){ send({ cmd: 'ai-fleet' }); send({ cmd: 'ai-assess', assetId: 'FAN-FD' }); } }, 1500);
+    }, 90000);
+  }
+  $('aiDemo').onclick = startAiDemo;
   // ── Trend viewer đa tag (Historian) ──
   const TREND_COLORS = ['#E8952A', '#4A90D9', '#57A773', '#E5484D', '#C9A227', '#38BDF8', '#B14CFF', '#9AA5B1'];
   let trPens = ['GEN_MW_01', 'BLR_STEAM_FLOW_01', 'BLR_MSTM_SH_PRESS_01', 'BLR_DRUM_LEVEL_01'];
