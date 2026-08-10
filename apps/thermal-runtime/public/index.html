@@ -35,8 +35,13 @@
   .navbtns{display:flex;gap:4px;margin-bottom:8px}
   .navbtns button{flex:1;font-family:var(--mono);font-size:12px;background:var(--bg-canvas);color:var(--text);border:1px solid var(--border);border-radius:2px;padding:6px;cursor:pointer}
   .navbtns button:hover{border-color:var(--equip-line)}
-  .crumb{font-family:var(--mono);font-size:11px;color:var(--text-dim);margin:2px 0 6px}
-  .crumb b{color:var(--pv)} .crumb span{cursor:pointer} .crumb span:hover{color:var(--text)}
+  .crumb{font-family:var(--mono);font-size:12.5px;color:var(--text-dim);margin:2px 0 8px;display:flex;flex-wrap:wrap;align-items:center;gap:5px;min-height:22px}
+  .crumb b{color:var(--pv)} .crumb .csep{color:var(--text-dim);opacity:.55}
+  .crumb .cseg{cursor:pointer;color:var(--pv);opacity:.82}
+  .crumb .cseg:hover{opacity:1;text-decoration:underline}
+  .crumb .chome{border:1px solid var(--pv);border-radius:5px;padding:1px 8px;opacity:1}
+  .crumb .chome:hover{background:var(--pv);color:var(--bg-canvas);text-decoration:none}
+  .crumb .cdots{color:var(--text-dim)}
   .arow{cursor:pointer}
   .process{position:relative;flex:1;padding:12px 14px;overflow:auto}
   .process h1{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);margin:2px 0 8px}
@@ -446,7 +451,9 @@
 
   function buildScreen(def){
     screen = def; nodes.clear();
+    if (def.title) screenTitles[def.screenId] = def.title.vi;
     $('scrTitle').textContent = (def.title ? def.title.vi + '  ·  ' : '') + def.screenId;
+    renderCrumb(def.screenId);
     const canvas = $('canvas'); canvas.innerHTML = '';
     const isMimic = def.elements.some((e) => e.symbol === 'pipe' || e.symbol === 'equipment');
     if (isMimic) buildMimic(def, canvas);
@@ -554,7 +561,7 @@
   }
 
   let ws, current = null;
-  let navNodes = [], navAlarmIdx = {}, navHomeId = '';
+  let navNodes = [], navAlarmIdx = {}, navHomeId = ''; const screenTitles = {};
   const navHist = { stack: [], idx: -1 };
   function subscribe(id){ if (ws && ws.readyState === 1) ws.send(JSON.stringify({ cmd: 'screen', screenId: id })); }
   function openScreen(id, fromHist){
@@ -566,14 +573,26 @@
     fetch('screen/' + id).then(r => r.json()).then(buildScreen).catch(() => {});
     subscribe(id);
   }
+  function goHome(){ navHist.stack = []; navHist.idx = -1; openScreen(navHomeId); }
+  function crumbLabel(sid){ return screenTitles[sid] || String(sid).replace(/^[DS][0-9]?-/, '').replace(/-/g, ' '); }
+  // Breadcrumb = ĐƯỜNG ZOOM (drill path) từ lịch sử điều hướng: ⊙ Tổng thể › hệ › thiết bị › … Mỗi lớp bấm để thu về.
   function renderCrumb(id){
-    const path = []; const seen = {}; let cur = navNodes.find(n => n.screenId === id);
-    while (cur && !seen[cur.screenId]){ seen[cur.screenId] = 1; path.unshift(cur); cur = cur.parentId ? navNodes.find(n => n.screenId === cur.parentId) : null; }
-    $('crumb').innerHTML = path.map((n, i) => (i === path.length - 1 ? '<b>' + n.title.vi + '</b>' : '<span data-id="' + n.screenId + '">' + n.title.vi + '</span> › ')).join('');
-    $('crumb').querySelectorAll('span[data-id]').forEach(s => s.onclick = () => openScreen(s.dataset.id));
+    const ce = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    let stack = navHist.stack.slice(0, navHist.idx + 1).filter((s, i, a) => i === 0 || s !== a[i - 1]);
+    let lead = '';
+    if (stack.length > 6){ lead = '<span class="cdots">…</span> <span class="csep">›</span> '; stack = stack.slice(-6); }
+    const homeSeg = (navHomeId && stack[0] !== navHomeId) ? '<span class="cseg chome" data-id="' + navHomeId + '">⊙ Tổng thể</span> <span class="csep">›</span> ' : '';
+    const segs = stack.map((sid, i) => {
+      const last = i === stack.length - 1;
+      const txt = (sid === navHomeId) ? '⊙ Tổng thể' : ce(crumbLabel(sid));
+      return last ? '<b>' + txt + '</b>' : '<span class="cseg' + (sid === navHomeId ? ' chome' : '') + '" data-id="' + sid + '">' + txt + '</span>';
+    });
+    $('crumb').innerHTML = homeSeg + lead + segs.join(' <span class="csep">›</span> ');
+    $('crumb').querySelectorAll('span.cseg').forEach((s) => (s.onclick = () => (s.classList.contains('chome') ? goHome() : openScreen(s.dataset.id))));
   }
   function onNav(m){
     navNodes = m.tree || []; navAlarmIdx = m.alarmIndex || {}; navHomeId = m.home || '';
+    for (const n of navNodes) screenTitles[n.screenId] = n.title.vi;
     const list = $('navList'); list.innerHTML = '';
     for (const n of navNodes){
       const b = document.createElement('button'); b.dataset.id = n.screenId;
@@ -922,7 +941,7 @@
 
   $('navBack').onclick = () => { if (navHist.idx > 0){ navHist.idx--; openScreen(navHist.stack[navHist.idx], true); } };
   $('navFwd').onclick = () => { if (navHist.idx < navHist.stack.length - 1){ navHist.idx++; openScreen(navHist.stack[navHist.idx], true); } };
-  $('navHome').onclick = () => openScreen(navHomeId);
+  $('navHome').onclick = goHome;
   document.addEventListener('keydown', (e) => {
     if (e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
     const n = Number(e.key);
