@@ -39,4 +39,36 @@ export const thermalReportSections: ReadonlyArray<IReportSection> = [
       return [{ kind: 'trend', tagIds: ['GEN_MW_01', 'BLR_STEAM_FLOW_01'], range: ctx.range }];
     },
   },
+  {
+    // Tóm tắt SỨC KHOẺ TÀI SẢN (AI cognitive) trong kỳ — đọc tag chỉ thị fleet AH_FLEET_* từ Historian
+    // (READ-ONLY). Chẩn đoán/RUL/nguyên nhân gốc chi tiết xem panel 🤖 AI (doc 20 §Cognitive).
+    sectionId: 'asset-health',
+    title: { vi: 'Sức khoẻ tài sản (AI)', en: 'Asset Health (AI)' },
+    async render(ctx: IReportContext): Promise<ReadonlyArray<ReportBlock>> {
+      const [avg, avgMin, worst, anomMax, okMin] = await Promise.all([
+        ctx.read('AH_FLEET_AVG_01', 'avg'),
+        ctx.read('AH_FLEET_AVG_01', 'min'),
+        ctx.read('AH_FLEET_WORST_01', 'min'),
+        ctx.read('AH_FLEET_ANOMALIES_01', 'max'),
+        ctx.read('AH_FLEET_HEALTHY_01', 'min'),
+      ]);
+      return [
+        {
+          kind: 'text',
+          text: `Sức khoẻ fleet trung bình ${avg.toFixed(0)}/100 (thấp nhất kỳ ${avgMin.toFixed(0)}); tài sản kém nhất trong kỳ ${worst.toFixed(0)}/100; cao điểm ${anomMax.toFixed(0)} tín hiệu bất thường; tối thiểu ${okMin.toFixed(0)} tài sản lành mạnh. AI CHỈ ĐỌC — chẩn đoán/RUL xem panel 🤖 AI.`,
+        },
+        {
+          kind: 'table',
+          headers: ['Chỉ số sức khoẻ (AI)', 'Giá trị'],
+          rows: [
+            ['Điểm fleet trung bình (kỳ)', avg.toFixed(0) + ' /100'],
+            ['Điểm fleet thấp nhất (kỳ)', avgMin.toFixed(0) + ' /100'],
+            ['Tài sản kém nhất (kỳ)', worst.toFixed(0) + ' /100'],
+            ['Cao điểm bất thường', anomMax.toFixed(0)],
+            ['Tài sản lành mạnh tối thiểu', okMin.toFixed(0)],
+          ],
+        },
+      ];
+    },
+  },
 ];
