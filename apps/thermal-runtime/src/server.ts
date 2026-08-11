@@ -9,7 +9,7 @@ import type { AddressInfo } from 'node:net';
 import { WebSocketServer, WebSocket } from 'ws';
 import type { ScreenDef, PermissionAction, Role, LoopMode, ScreenBuildSpec } from '@idtp/sdk';
 import type { ReplaySession } from '@idtp/engines';
-import { SecurityEngine, buildScreen } from '@idtp/engines';
+import { SecurityEngine, buildScreen, createAuthProvider } from '@idtp/engines';
 import { boilerScreens, screenTags } from '@idtp/plugin-thermal-power-600';
 import { startPersistence } from './persistence';
 import { startFieldLink, type FieldLink } from './field-link';
@@ -89,6 +89,17 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
   // Security/RBAC — enforcement ở tầng API gateway (server). Clock thực (auth không phải sim data).
   const sec = new SecurityEngine({ nowMs: () => Date.now(), formatTs: (ms) => new Date(ms).toISOString() });
   for (const u of DEMO_USERS) sec.addUser(u.user, 'p', u.roles);
+  // Xác thực production PLUGGABLE (doc 18): mặc định 'local' (bảng demo) — 0 hồi quy. Đặt IDTP_AUTH_METHOD=
+  // jwt|sso để dùng seam JWT/SSO (chưa tiêm verifier/IdP → TỪ CHỐI an toàn, không bịa danh tính). Danh tính →
+  // principal, rồi SecurityEngine.loginPrincipal cấp phiên (RBAC/2-step/audit giữ nguyên).
+  const authMethod = (process.env.IDTP_AUTH_METHOD as 'local' | 'jwt' | 'sso' | undefined) ?? 'local';
+  const authProvider = createAuthProvider({ method: authMethod, users: DEMO_USERS.map((u) => ({ userId: u.user, roles: u.roles, secret: 'p' })) });
+  // Đăng nhập demo bằng mật khẩu (auto-login + lệnh login). Deploy JWT/SSO: client gửi token, thay nhánh này.
+  const loginDemo = (user: string, ip: string): { access: string; refresh: string } | { error: string } => {
+    const r = authProvider.authenticate({ kind: 'password', user, password: 'p' });
+    if (!r.ok) return { error: r.reason };
+    return sec.loginPrincipal(r.principal.userId, r.principal.roles, ip);
+  };
   const tokens = new Map<WebSocket, string>(); // ws → access token
 
   const server = http.createServer((req, res) => {
@@ -380,7 +391,7 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
 
   wss.on('connection', (ws, req) => {
     const clientIp = req.socket.remoteAddress ?? '?';
-    const initial = sec.authenticate('operator', 'p', clientIp); // auto-login vai Operator để dùng ngay
+    const initial = loginDemo('operator', clientIp); // auto-login vai Operator để dùng ngay (qua auth provider)
     if ('access' in initial) tokens.set(ws, initial.access);
     ws.send(alarmsMsg());
     ws.send(modeMsg());
@@ -403,7 +414,7 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
       }
       if (m.cmd === 'login') {
         const who = m.user ?? 'operator';
-        const r = sec.authenticate(who, 'p', clientIp);
+        const r = loginDemo(who, clientIp);
         if ('access' in r) {
           tokens.set(ws, r.access);
           ws.send(authMsg(ws));

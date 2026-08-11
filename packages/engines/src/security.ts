@@ -76,6 +76,14 @@ export class SecurityEngine {
     return this.issue(r.user, r.roles, ip);
   }
 
+  /**
+   * Cấp phiên cho một danh tính ĐÃ xác thực bởi IAuthProvider bên ngoài (local/JWT/SSO) — TÁCH bước "xác
+   * thực danh tính" khỏi "cấp token/RBAC". SecurityEngine giữ nguyên RBAC/2-step/audit; chỉ nhận principal.
+   */
+  loginPrincipal(userId: string, roles: ReadonlyArray<Role>, ip: string): { access: string; refresh: string } {
+    return this.issue(userId, [...roles], ip);
+  }
+
   private issue(user: string, roles: Role[], ip: string): { access: string; refresh: string } {
     const now = this.deps.nowMs();
     const access = `acc.${user}.${++this.seq}`;

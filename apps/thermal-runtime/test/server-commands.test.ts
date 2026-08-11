@@ -32,6 +32,27 @@ async function waitFor(msgs: Msg[], pred: (m: Msg) => boolean, ms = 3000): Promi
 }
 
 describe('thermal-runtime server — command handlers (coverage)', () => {
+  it('auth production seam: IDTP_AUTH_METHOD=jwt chưa cấu hình → fail-closed (không auto-login)', async () => {
+    const prev = process.env.IDTP_AUTH_METHOD;
+    process.env.IDTP_AUTH_METHOD = 'jwt';
+    try {
+      const app = startServer(0, { stepMs: 12 });
+      const port = await app.ready;
+      const { ws, msgs } = await conn(port);
+      await sleep(200);
+      const auth = await waitFor(msgs, (m) => m.type === 'auth');
+      expect((auth as { ok?: boolean }).ok).toBe(false); // JWT chưa tiêm verifier → TỪ CHỐI, không cấp phiên
+      // lệnh read-only cũng bị chặn (chưa đăng nhập)
+      send(ws, { cmd: 'diag' });
+      expect(await waitFor(msgs, (m) => m.type === 'denied')).toBeDefined();
+      ws.close();
+      await app.close();
+    } finally {
+      if (prev === undefined) delete process.env.IDTP_AUTH_METHOD;
+      else process.env.IDTP_AUTH_METHOD = prev;
+    }
+  });
+
   it('read-only (Operator auto-login): maintenance/nav/permissive/faceplate/trend/report/journal/diag/audit/advise/resim', async () => {
     const app = startServer(0, { stepMs: 12 });
     const port = await app.ready;
