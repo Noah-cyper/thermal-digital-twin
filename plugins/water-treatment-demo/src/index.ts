@@ -5,3 +5,4 @@ export { RoMembraneModel } from './sim/ro-membrane';
 export { waterControlLoops, waterLoopSeeds } from './control/loops';
 export { waterAlarms } from './alarms/alarms';
 export { waterScreens, waterScreenTags } from './graphics/screens';
+export { waterAssetHealth } from './maintenance/asset-health';

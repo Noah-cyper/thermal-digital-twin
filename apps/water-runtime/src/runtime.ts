@@ -2,7 +2,7 @@
 // là plugin": app này tổ hợp WaterTankModel + RoMembraneModel + control loop + AlarmEngine trên ĐÚNG engine
 // chung (@idtp/engines) mà thermal-runtime dùng — 0 dòng kernel/engine riêng cho nước. Plugin runtime chỉ
 // import @idtp/sdk; app tổ hợp được phép import engines + plugin. Đồng hồ sim tiến theo dt (không Date.now).
-import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine } from '@idtp/engines';
+import { SimulationHost, TagRealtimeEngine, ControlLoopEngine, AlarmEngine, createCognitiveProvider } from '@idtp/engines';
 import type { AlarmEvent } from '@idtp/sdk';
 import {
   WaterTankModel,
@@ -11,8 +11,9 @@ import {
   waterLoopSeeds,
   waterAlarms,
   waterScreens,
+  waterAssetHealth,
 } from '@idtp/plugin-water-treatment-demo';
-import type { IMalfunction, Quality, ScreenDef } from '@idtp/sdk';
+import type { IMalfunction, Quality, ScreenDef, CognitiveAssessment, FleetCognitiveOverview, CognitiveProviderInfo, Iso8601 } from '@idtp/sdk';
 
 const GOOD: Quality = 'Good';
 const DT_MS = 100;
@@ -34,6 +35,10 @@ export interface WaterRuntime {
   clearMalfunction(id: string): void;
   activeAlarms(): ReadonlyArray<AlarmEvent>;
   screens(): ReadonlyArray<ScreenDef>;
+  // AI Cognitive Maintenance (GENERIC — cùng engine với thermal): sức khoẻ tài sản nhà máy nước.
+  cognitiveInfo(): CognitiveProviderInfo;
+  cognitiveAssess(assetId: string): CognitiveAssessment | undefined;
+  cognitiveFleet(): FleetCognitiveOverview;
 }
 
 export function createWaterRuntime(opts: { warmupSteps?: number } = {}): WaterRuntime {
@@ -65,6 +70,15 @@ export function createWaterRuntime(opts: { warmupSteps?: number } = {}): WaterRu
   const loops = new ControlLoopEngine(waterControlLoops);
   const alarms = new AlarmEngine(waterAlarms, { formatTs: (ms) => new Date(ms).toISOString() });
 
+  // AI Cognitive Maintenance — TÁI DÙNG y hệt provider generic của @idtp/engines (0 dòng riêng cho nước).
+  const cognitive = createCognitiveProvider('simulation', { specs: waterAssetHealth });
+  const cognitiveInput = () => ({
+    nowMs: nowMs(),
+    getTag: (t: string): number => num(t),
+    runningHours: (): number => 0,
+    formatTs: (ms: number): Iso8601 => new Date(ms).toISOString() as Iso8601,
+  });
+
   const advance = (): void => {
     stepCount += 1;
     host.step();
@@ -87,5 +101,8 @@ export function createWaterRuntime(opts: { warmupSteps?: number } = {}): WaterRu
     clearMalfunction: (id) => host.clearAll(id),
     activeAlarms: () => alarms.getActive(),
     screens: () => waterScreens,
+    cognitiveInfo: () => cognitive.info,
+    cognitiveAssess: (assetId) => cognitive.assess(assetId, cognitiveInput()),
+    cognitiveFleet: () => cognitive.fleetOverview(cognitiveInput()),
   };
 }
