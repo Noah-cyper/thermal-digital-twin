@@ -258,6 +258,13 @@ class LocalBus {
     } else if (m.cmd === 'ai-diagnose' && m.assetId !== undefined) {
       if (this.token === undefined) this.send1({ type: 'denied', reason: 'chưa đăng nhập' });
       else this.send1({ type: 'ai-diagnose', assetId: m.assetId, diagnosis: this.rt.cognitiveDiagnose(m.assetId) ?? null });
+    } else if (m.cmd === 'ai-history' && m.assetId !== undefined) {
+      if (this.token === undefined) this.send1({ type: 'denied', reason: 'chưa đăng nhập' });
+      else {
+        const asset = m.assetId;
+        const scoreTag = 'AH_' + asset.replace(/-/g, '_') + '_SCORE_01';
+        void this.rt.trendSeries([scoreTag], m.hours ?? 1).then((r) => this.send1({ type: 'ai-history', assetId: asset, series: r.series[scoreTag] ?? [] }));
+      }
     } else if (m.cmd === 'replay-start') {
       const range = this.rt.historian.dataRange();
       if (range) { this.replay = this.rt.historian.openReplay(range.from, range.to, 1); this.broadcast(this.modeMsg()); }

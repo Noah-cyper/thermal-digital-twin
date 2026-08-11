@@ -62,6 +62,7 @@ describe('thermal-runtime server — command handlers (coverage)', () => {
     send(ws, { cmd: 'ai-fleet' });
     send(ws, { cmd: 'ai-assess', assetId: 'BFP' });
     send(ws, { cmd: 'ai-diagnose', assetId: 'BFP' });
+    send(ws, { cmd: 'ai-history', assetId: 'BFP', hours: 1 });
 
     const aiFleet = await waitFor(msgs, (m) => m.type === 'ai-fleet');
     expect(aiFleet).toBeDefined();
@@ -69,6 +70,8 @@ describe('thermal-runtime server — command handlers (coverage)', () => {
     const aiAssess = await waitFor(msgs, (m) => m.type === 'ai-assess' && (m as { assetId?: string }).assetId === 'BFP');
     expect((aiAssess as { assessment?: { rul?: { simulated?: boolean } } }).assessment?.rul?.simulated).toBe(true);
     expect(await waitFor(msgs, (m) => m.type === 'ai-diagnose')).toBeDefined();
+    const aiHist = await waitFor(msgs, (m) => m.type === 'ai-history' && (m as { assetId?: string }).assetId === 'BFP');
+    expect(Array.isArray((aiHist as { series?: unknown[] }).series)).toBe(true);
     expect(await waitFor(msgs, (m) => m.type === 'fp-data')).toBeDefined();
     expect(await waitFor(msgs, (m) => m.type === 'fp-trend')).toBeDefined();
     expect(await waitFor(msgs, (m) => m.type === 'trend-series')).toBeDefined();

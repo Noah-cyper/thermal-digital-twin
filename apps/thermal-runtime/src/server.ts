@@ -501,6 +501,14 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
       } else if (m.cmd === 'ai-diagnose' && m.assetId !== undefined) {
         if (tokens.get(ws) === undefined) ws.send(JSON.stringify({ type: 'denied', reason: 'chưa đăng nhập' }));
         else ws.send(JSON.stringify({ type: 'ai-diagnose', assetId: m.assetId, diagnosis: rt.cognitiveDiagnose(m.assetId) ?? null }));
+      } else if (m.cmd === 'ai-history' && m.assetId !== undefined) {
+        // Trend điểm sức khoẻ tài sản READ-ONLY (từ Historian) — sparkline trong panel AI.
+        if (tokens.get(ws) === undefined) ws.send(JSON.stringify({ type: 'denied', reason: 'chưa đăng nhập' }));
+        else {
+          const asset = m.assetId;
+          const scoreTag = 'AH_' + asset.replace(/-/g, '_') + '_SCORE_01';
+          void rt.trendSeries([scoreTag], m.hours ?? 1).then((r) => ws.send(JSON.stringify({ type: 'ai-history', assetId: asset, series: r.series[scoreTag] ?? [] })));
+        }
       } else if (m.cmd === 'replay-start') {
         const range = rt.historian.dataRange();
         if (range) {
