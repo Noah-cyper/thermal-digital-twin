@@ -128,6 +128,21 @@ try {
   }
   admin.close();
 
+  // (10) Report export (v2): mở Báo cáo ca → nút Tải CSV tải file (tên đúng mẫu, BOM) + nút In PDF chạy không lỗi.
+  await page.evaluate(() => { for (const id of ['shelvedMask', 'shelfMask']) { const m = document.getElementById(id); if (m) m.style.display = 'none'; } }); // dọn overlay còn mở từ khối shelve
+  await page.click('#openReport');
+  await page.waitForSelector('#reportModal', { state: 'visible', timeout: 6000 });
+  ok(await page.evaluate(() => !!document.getElementById('reportCsv') && !!document.getElementById('reportPdf')),
+    'modal báo cáo có nút Tải CSV + In PDF');
+  const [reportDl] = await Promise.all([
+    page.waitForEvent('download', { timeout: 6000 }),
+    page.click('#reportCsv'),
+  ]);
+  ok(/^bao-cao-van-hanh-.*\.csv$/.test(reportDl.suggestedFilename()), `Tải CSV → file đúng mẫu (${reportDl.suggestedFilename()})`);
+  await page.click('#reportPdf'); // dựng iframe in + print() (headless: no-op) — không được ném lỗi JS
+  await page.waitForTimeout(500);
+  await page.click('#reportX');
+
   ok(jsErrors.length === 0, 'không có lỗi JS trên trang — ' + (jsErrors.join(' | ') || 'none'));
 } catch (e) {
   fails.push('EXCEPTION: ' + (e && e.message ? e.message : String(e)));

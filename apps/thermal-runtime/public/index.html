@@ -283,7 +283,11 @@
     <div style="background:var(--panel,#141a20);color:var(--text,#e7edf2);border:1px solid var(--line,#2a343d);border-radius:8px;width:min(620px,95vw);max-height:88vh;overflow:auto;padding:16px 18px;font-size:13px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
         <b id="reportTitle">📋 Báo cáo vận hành</b>
-        <span id="reportX" style="cursor:pointer;opacity:.6;font-size:16px">✕</span></div>
+        <span style="display:flex;gap:8px;align-items:center">
+          <button id="reportCsv" class="ackbtn" title="Tải báo cáo dạng CSV (mở được bằng Excel)">⬇ CSV</button>
+          <button id="reportPdf" class="ackbtn" title="In / lưu PDF (hộp thoại in → Lưu dưới dạng PDF)">🖨 PDF</button>
+          <span id="reportX" style="cursor:pointer;opacity:.6;font-size:16px">✕</span>
+        </span></div>
       <div id="reportBody"></div>
     </div>
   </div>
@@ -652,8 +656,10 @@
       bar.appendChild(s);
     }
   }
+  let lastReport = null; // giữ báo cáo mới nhất để xuất CSV / in PDF (client-side, không cần server)
   function onReport(r){
     if (!r) return;
+    lastReport = r;
     $('reportTitle').textContent = '📋 ' + (r.title ? r.title.vi : 'Báo cáo') + ' · ' + (r.from ? r.from.slice(0, 16).replace('T', ' ') : '') + ' → ' + (r.to ? r.to.slice(11, 16) : '');
     const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
     let html = '';
@@ -974,6 +980,56 @@
     { tag: 'BLR_FLUE_O2_01', label: 'O₂ khói', unit: '%' } ] } }));
   $('openReport').onclick = () => send({ cmd: 'report', hours: 8 });
   $('reportX').onclick = () => { $('reportModal').hidden = true; };
+  $('reportCsv').onclick = downloadReportCsv;
+  $('reportPdf').onclick = printReport;
+  // Xuất báo cáo CSV (client-side): làm phẳng sections/blocks; thêm BOM UTF-8 để Excel đọc đúng tiếng Việt.
+  function csvCell(s){ const t = String(s == null ? '' : s); return /[",\n\r]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; }
+  function reportToCsv(r){
+    const L = [];
+    L.push([csvCell(r.title ? r.title.vi : 'Báo cáo'), csvCell(r.from || ''), csvCell(r.to || '')].join(','));
+    for (const sec of (r.sections || [])){
+      L.push(''); L.push('# ' + csvCell(sec.title.vi));
+      for (const b of (sec.blocks || [])){
+        if (b.kind === 'table'){
+          L.push((b.headers || []).map(csvCell).join(','));
+          for (const row of (b.rows || [])) L.push(row.map(csvCell).join(','));
+        } else if (b.kind === 'text'){ L.push(csvCell(b.text)); }
+        else if (b.kind === 'trend'){ L.push(csvCell('Xu hướng: ' + (b.tagIds || []).join(' '))); }
+      }
+    }
+    return L.join('\r\n');
+  }
+  function reportStamp(r){ return String((r && r.to) || new Date().toISOString()).slice(0, 16).replace(/[:T]/g, '-'); }
+  function downloadReportCsv(){
+    if (!lastReport) return;
+    const blob = new Blob(['﻿' + reportToCsv(lastReport)], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'bao-cao-van-hanh-' + reportStamp(lastReport) + '.csv';
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 500);
+  }
+  // In PDF: dựng iframe ẩn với bản in sạch (nền trắng · mực đen) rồi gọi print() — không popup, không thư viện.
+  function printReport(){
+    if (!lastReport) return;
+    const title = $('reportTitle').textContent;
+    const body = $('reportBody').innerHTML;
+    const ifr = document.createElement('iframe');
+    ifr.setAttribute('aria-hidden', 'true');
+    ifr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+    document.body.appendChild(ifr);
+    const doc = ifr.contentWindow.document;
+    doc.open();
+    doc.write('<!doctype html><html><head><meta charset="utf-8"><title>' + title + '</title>'
+      + '<style>body{font-family:system-ui,Segoe UI,Arial,sans-serif;color:#111;padding:22px;line-height:1.4}'
+      + 'h2{font-size:16px;margin:0 0 12px}h3{font-size:13px;margin:14px 0 6px}'
+      + 'table{width:100%;border-collapse:collapse;font-size:12px;margin:4px 0}'
+      + 'th,td{text-align:left;padding:4px 6px;border-bottom:1px solid #bbb}th{color:#555}td{font-family:monospace}'
+      + 'p{margin:4px 0}</style></head><body><h2>' + title + '</h2>' + body + '</body></html>');
+    doc.close();
+    ifr.contentWindow.focus();
+    setTimeout(() => { try { ifr.contentWindow.print(); } finally { setTimeout(() => ifr.remove(), 800); } }, 220);
+  }
   $('openJournal').onclick = () => send({ cmd: 'journal' });
   $('journalX').onclick = () => { $('journalModal').hidden = true; };
   $('openDiag').onclick = () => send({ cmd: 'diag' });
