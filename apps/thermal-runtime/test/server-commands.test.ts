@@ -205,4 +205,28 @@ describe('thermal-runtime server — command handlers (coverage)', () => {
       delete process.env.IDTP_MQTT_URL;
     }
   });
+
+  it('nhánh field I/O env — modbus-tcp (points JSON hỏng → catch) + opcua (points hợp lệ) → field-status enabled, ngắt kết nối', async () => {
+    async function startWith(env: Record<string, string>): Promise<void> {
+      Object.assign(process.env, env);
+      try {
+        const app = startServer(0, { stepMs: 50 });
+        const port = await app.ready;
+        await sleep(300); // startFieldLink async gán fieldLink (driver THẬT chưa cài → undefined → ngắt kết nối)
+        const { ws, msgs } = await conn(port);
+        send(ws, { cmd: 'field-status' });
+        const fs = await waitFor(msgs, (m) => m.type === 'field-status');
+        expect((fs as { enabled?: boolean }).enabled).toBe(true); // env bật → fieldLink được gán
+        expect((fs as { samples?: number }).samples).toBe(0); // driver THẬT chưa cài → không mẫu
+        ws.close();
+        await app.close();
+      } finally {
+        for (const k of Object.keys(env)) delete process.env[k];
+      }
+    }
+    // modbus-tcp: JSON points hỏng → catch → []; makeModbusTcpDriver: modbus-serial chưa cài → undefined → ngắt.
+    await startWith({ IDTP_FIELD_PROTOCOL: 'modbus-tcp', IDTP_FIELD_ENDPOINT: 'modbus://127.0.0.1:15020', IDTP_FIELD_POINTS: '{ hỏng' });
+    // opcua: points JSON hợp lệ (nhánh parse ok); không makeDriver (deps {}) → adapter ngắt kết nối.
+    await startWith({ IDTP_FIELD_PROTOCOL: 'opcua', IDTP_FIELD_POINTS: '[{"tagId":"BLR_DRUM_LVL_01","address":"ns=1;s=DRUM","direction":"in"}]' });
+  });
 });

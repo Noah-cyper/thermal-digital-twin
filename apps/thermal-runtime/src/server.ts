@@ -662,6 +662,7 @@ export function startServer(port = 8080, opts: { stepMs?: number } = {}): Runnin
   return { server, wss, ready, close };
 }
 
+/* c8 ignore start */ // chạy trực tiếp (entry-point guard): chỉ kích hoạt khi `node dist/server.mjs`, không trong test.
 // chạy trực tiếp: node dist/server.js
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const port = Number(process.env.PORT) || 8080;
@@ -671,3 +672,4 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     console.log(`IDTP thermal-runtime: http://localhost:${p}`);
   });
 }
+/* c8 ignore stop */
