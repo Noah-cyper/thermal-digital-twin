@@ -1,6 +1,8 @@
 # CLAUDE.md — Industrial Digital Twin Platform (IDTP)
 
-> **Luôn đọc `docs/00-master-prompt.md` và `docs/annex-A-thermal-design-basis.md` trước mỗi phiên làm việc.**
+> **Luôn đọc `docs/WORKFLOW.md` (quy trình làm & kiểm soát — BẮT BUỘC), `docs/00-master-prompt.md` và `docs/annex-A-thermal-design-basis.md` trước mỗi phiên làm việc.**
+>
+> ⚠️ **Luật vàng: chưa push = chưa xong.** Container ephemeral — không để việc chưa commit qua lượt trả lời.
 
 ## Dự án
 Nền tảng Digital Twin công nghiệp (IDTP): **kernel + plugin** — "mọi nhà máy chỉ là một plugin".
