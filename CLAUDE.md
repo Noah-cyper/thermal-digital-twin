@@ -1,6 +1,6 @@
 # CLAUDE.md — Industrial Digital Twin Platform (IDTP)
 
-> **Luôn đọc `docs/WORKFLOW.md` (quy trình làm & kiểm soát — BẮT BUỘC), `docs/00-master-prompt.md` và `docs/annex-A-thermal-design-basis.md` trước mỗi phiên làm việc.**
+> **Luôn đọc `docs/WORKFLOW.md` (quy trình kiểm soát — BẮT BUỘC), `docs/WORKFLOW-SYSTEM-BUILD.md` (quy trình dựng nội dung từng hệ — BẮT BUỘC), `docs/00-master-prompt.md` và `docs/annex-A-thermal-design-basis.md` trước mỗi phiên làm việc.**
 >
 > ⚠️ **Luật vàng: chưa push = chưa xong.** Container ephemeral — không để việc chưa commit qua lượt trả lời.
 
@@ -12,6 +12,8 @@ Plugin #1 = `thermal-power-600` (nhiệt điện than 600 MW subcritical, drum-t
 |---|---|
 | `docs/00-master-prompt.md` | **Prompt cha (governing)** — kiến trúc platform, plugin contract, 26 tài liệu 00–25 |
 | `docs/annex-A-thermal-design-basis.md` | **Phụ lục A** — design basis 600 MW + mô hình simulation, là ruột của plugin #1 (§10 prompt cha tham chiếu "lấy nguyên, không đổi số") |
+| `docs/WORKFLOW.md` | Quy trình **KIỂM SOÁT** — nhánh, DoD, ma trận kiểm chứng, commit/push, báo cáo |
+| `docs/WORKFLOW-SYSTEM-BUILD.md` | Quy trình **DỰNG NỘI DUNG** — hàng đợi 8 hệ, 7 bước/hệ, checklist tự kiểm, chuẩn thiết bị theo loại |
 
 ## Chốt xung đột số liệu (file cha `00` thắng khi 2 file lệch nhau)
 | Hạng mục | Chuẩn đã chốt |

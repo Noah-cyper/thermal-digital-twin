@@ -1,6 +1,12 @@
 # WORKFLOW — Quy trình LÀM & KIỂM SOÁT (IDTP)
 
 > Tài liệu bắt buộc cho MỌI phiên làm việc (mọi tài khoản/agent). Đọc trước khi gõ dòng code đầu tiên.
+>
+> **Cặp tài liệu quy trình:**
+> - `docs/WORKFLOW.md` (file này) — **KIỂM SOÁT**: nhánh, DoD, kiểm chứng, commit/push, báo cáo.
+> - `docs/WORKFLOW-SYSTEM-BUILD.md` — **NỘI DUNG**: dựng từng hệ thống tới độ chi tiết nhà máy thật (7 bước + checklist tự kiểm).
+>
+> Mỗi hệ thống đi qua 7 bước của `WORKFLOW-SYSTEM-BUILD.md`; mỗi commit đi qua DoD của file này.
 
 ## 0. Vì sao có tài liệu này — 3 sự cố THẬT đã xảy ra
 
