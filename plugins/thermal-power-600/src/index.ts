@@ -5,6 +5,7 @@ export { BoilerIslandModel } from './sim/boiler-island';
 export { TurbineGeneratorModel } from './sim/turbine-generator';
 export { ExhaustHoodModel } from './sim/exhaust-hood';
 export { ReheatCycleModel } from './sim/reheat-cycle';
+export { EconomizerDrumModel } from './sim/economizer-drum';
 export { FeedwaterTrainModel } from './sim/feedwater-train';
 export { CondenserCWModel } from './sim/condenser-cw';
 export { FlueGasAirModel } from './sim/fluegas-air';

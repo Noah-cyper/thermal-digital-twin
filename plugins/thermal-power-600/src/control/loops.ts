@@ -395,6 +395,19 @@ export const boilerControlLoops: ReadonlyArray<ControlLoopDef> = [
     reverse: true,
     outTag: 'TRB_HOOD_SPRAY_VALVE_01',
   },
+  {
+    id: 'drum-blowdown-conductivity',
+    desc: 'Xả liên tục bao hơi theo độ dẫn nước lò — độ dẫn cao thì mở thêm van xả (direct-acting)',
+    pvTag: 'BLR_DRUM_COND_01',
+    sp: 15,
+    kp: 4,
+    ki: 0.05,
+    kd: 0,
+    outLo: 0,
+    outHi: 100,
+    reverse: true,
+    outTag: 'BLR_CBD_VALVE_01',
+  },
 ];
 
 /** Điểm vận hành khởi động (~1500 t/h hơi / ~448 MW) — nạp bumpless MAN→AUTO để khởi động êm.
@@ -402,6 +415,7 @@ export const boilerControlLoops: ReadonlyArray<ControlLoopDef> = [
 export const boilerLoopSeeds: Readonly<Record<string, number>> = {
   governor: 1500, // BLR_TURBINE_DEMAND_01 (t/h) — ~448 MW
   'exhaust-hood-spray': 0, // TRB_HOOD_SPRAY_VALVE_01 (%) — van phun đóng ở tải thường (hood mát)
+  'drum-blowdown-conductivity': 25, // BLR_CBD_VALVE_01 (%) — xả liên tục ~13 t/h (≈0,9% nước cấp)
   'boiler-master-pressure': 70.3, // BLR_FIRING_DEMAND (%) — coal ~211 t/h → steam ~1500
   'fuel-master': 70.3, // BLR_FUEL_DEMAND_01 (%)
   'air-o2-trim': 62, // BLR_FD_DAMPER_01 (%) — O₂ ~3,2%
