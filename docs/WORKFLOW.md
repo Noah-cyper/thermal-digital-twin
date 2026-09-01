@@ -20,15 +20,19 @@
 
 ## 1. Nhánh — chốt một lần
 
-- **Trunk DUY NHẤT: `claude/doc-analysis-lna6sz`** — nơi chứa 100% công việc và là nguồn deploy web.
+- **Trunk DUY NHẤT: `main`** — default branch, chứa 100% công việc, là nguồn deploy web.
 - Nhánh khác (kể cả nhánh ghi trong prompt hệ thống) **không dùng** trừ khi chủ dự án đổi bằng văn bản.
 - Commit **TRỰC TIẾP** lên trunk (không PR). Nhiều tài khoản dùng chung → xem §9.
+
+> **Lịch sử:** trunk cũ là `claude/doc-analysis-lna6sz`. Đã gộp về `main` tại `04c5fbb`
+> (kiểm chứng: `main` là superset nội dung của toàn bộ 40 nhánh cũ, không file nào thiếu).
+> Các nhánh `claude/*` còn lại là **rác cần xoá**, không được commit vào.
 
 ## 2. Nghi thức MỞ PHIÊN (bắt buộc, ~1 phút)
 
 ```bash
-git checkout claude/doc-analysis-lna6sz
-git pull --rebase origin claude/doc-analysis-lna6sz
+git checkout main
+git pull --rebase origin main
 pnpm install                 # container mới BẮT BUỘC (thiếu → build fail giả)
 pnpm build                   # phải 9/9
 pnpm test                    # baseline xanh — ghi lại số test
@@ -86,7 +90,7 @@ Phản hồi dài kết bằng khối:
 ```bash
 git log --oneline -10                                   # đã làm gì
 git status --short                                      # còn gì dở (phải rỗng)
-git rev-list --count origin/claude/doc-analysis-lna6sz..HEAD   # còn gì CHƯA push (phải 0)
+git rev-list --count origin/main..HEAD                  # còn gì CHƯA push (phải 0)
 ```
 
 **3 nguồn sự thật** (không tin lời kể):
@@ -120,5 +124,20 @@ không bịa API/SDK/credential của bên thứ ba.
 | Trạng thái | Việc | Ghi chú |
 |---|---|---|
 | ❌ MẤT | Panel mô tả hệ thống ("màn tự giải thích": Mục đích · Nguyên lý ĐK · Thiết bị · Đo) | Chưa commit khi đổi nhánh → phải làm LẠI |
-| ⏳ CHỜ | Xác nhận trunk chính thức = `claude/doc-analysis-lna6sz` | Prompt hệ thống ghi nhánh khác (đã cũ) |
+| ✅ XONG | Trunk chính thức = `main` | Đã gộp `04c5fbb`, `main` là default branch |
+| ⏳ CHỜ | Xoá 40 nhánh `claude/*` rác | Agent **không xoá được** (proxy chặn ghi GitHub API + xoá ref git) → chủ dự án chạy tay, xem §12 |
 | ⏳ CHỜ | Xác nhận web thật đã cập nhật | Chỉ chủ dự án kiểm được |
+
+## 12. Việc agent KHÔNG làm được (giới hạn môi trường)
+
+| Việc | Vì sao | Ai làm |
+|---|---|---|
+| Xoá nhánh trên remote | `git push --delete` → 403; `DELETE /git/refs` → *"Write access to this GitHub API path is not permitted through this proxy"* | Chủ dự án, xem lệnh dưới |
+| Đổi default branch | Không có tool ghi settings repo | Chủ dự án (Settings → General) |
+| Xác nhận web thật đã deploy | Proxy chặn domain | Chủ dự án |
+
+```bash
+# Xoá toàn bộ nhánh trừ main (chạy ở máy chủ dự án)
+git clone https://github.com/Noah-cyper/thermal-digital-twin.git && cd thermal-digital-twin
+git push origin --delete $(git branch -r | sed 's|^ *origin/||' | grep -vE '^(HEAD|main)' | tr '\n' ' ')
+```
