@@ -90,3 +90,7 @@ writeFileSync(join(DIST, '_headers'), [
 ].join('\n'));
 
 console.log(`[web-static] build OK → ${DIST}`);
+
+// GA4 (G-LJLR1MDWL8) cho hoantrantdh.com: chèn mã Google Analytics vào các trang HTML trong dist
+const GA_TAG = '<script async src="https://www.googletagmanager.com/gtag/js?id=G-LJLR1MDWL8"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag("js",new Date());gtag("config","G-LJLR1MDWL8");</script>';
+for (const f of ['index.html', 'hmi.html']) { const p = join(DIST, f); try { const h = readFileSync(p, 'utf8'); if (!h.includes('G-LJLR1MDWL8')) writeFileSync(p, h.replace(/<head(\s[^>]*)?>/i, (m) => m + GA_TAG)); } catch (e) { console.warn('[web-static] GA skip', f, e.message); } }
